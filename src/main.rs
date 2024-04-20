@@ -1,13 +1,16 @@
 use homomorph;
 use rand::{self, Rng};
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn main() {
-    let params = homomorph::Parameters::new(128, 128, 64, 128);
+    let params = homomorph::Parameters::new(256, 256, 128, 256);
     let mut context = homomorph::Context::new(params);
 
     let mut rng = rand::thread_rng();
-    const N: usize = 128;
-    for i in 0..N {
+    const N: usize = 1024;
+    for _ in 0..N {
         context.generate_secret_key(&mut rng);
         context.generate_public_key(&mut rng);
 
@@ -16,8 +19,6 @@ fn main() {
         let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
         if data.to_usize() != decrypted_data.to_usize() {
             println!("O : {} -- D : {}", data.to_usize(), decrypted_data.to_usize());
-        } else {
-            println!("OK {}", i);
         }
     }
 }

@@ -50,6 +50,16 @@ Use with better-suited random-generation crates is WIP
 
 To use the homomorphic encryption scheme in your Rust project, add the following to your `Cargo.toml` file:
 
+## Benchmarks
+
+Benchmarks were made by hand, and will be recomputed later more precisely.
+
+| Operation       | Mean time (ms)   |
+|-----------------|------------------|
+| Enc + Dec       | < 9              |
+| Add             | ?                |
+| Mult            | ?                |
+
 ## Architecture
 
 ```bash
