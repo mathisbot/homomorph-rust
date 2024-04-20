@@ -95,13 +95,13 @@ impl Parameters {
     /// 
     /// A new set of parameters.
     /// 
+    /// # Note
+    /// 
+    /// `d` should be 32 times greater than `delta` in order to use homomorphic addition.
+    /// 
     /// # Panics
     /// 
     /// This function will panic if `delta` is greater than or equal to `d`.
-    /// 
-    /// # Complexity
-    /// 
-    /// O(1).
     /// 
     /// # Examples
     /// 
