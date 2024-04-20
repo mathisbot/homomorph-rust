@@ -1,4 +1,19 @@
-/// A module for polynomial operations over Z/2Z.
+//! A module for polynomial operations over Z/2Z\[X\].
+//! 
+//! A polynomial is represented as a vector of coefficients, where the i-th element is the coefficient of x^i.
+//! 
+//! # Examples
+//! 
+//! ```
+//! use homomorph::polynomial::Polynomial;
+//! 
+//! let p = Polynomial::new(vec![true, false, false, true]);
+//! ```
+//! 
+//! # Note
+//! 
+//! The majority of the functions are private and are used internally by the library.
+//! You can still use the struct to handle the content of the keys to save them.
 
 use std::ops::{Add, Deref, Mul};
 

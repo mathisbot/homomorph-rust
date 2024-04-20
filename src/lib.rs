@@ -23,13 +23,19 @@
 //! 
 //! # Examples
 //! 
+//! ## Basic usage
+//! 
+//! Of course, this system can be used without performing any homomorphic operation.
+//! 
+//! Note that you can use the `as_ref()` method on either the `SecretKey` or the `PublicKey` to gain access to their content if you want to save them.
+//! 
 //! ```
 //! use homomorph::{Context, Data, Parameters};
 //! use rand::thread_rng;
 //! 
 //! // Define the parameters
-//! // -------------------------- d, dp, delta, tau
-//! let params = Parameters::new(256, 256, 128, 256);
+//! // -------------------------- d   dp  delta tau
+//! let params = Parameters::new(64, 32, 16, 64);
 //! 
 //! // Create a new context
 //! let mut context = Context::new(params);
@@ -44,6 +50,44 @@
 //! let encrypted_data = data.encrypt(&context.get_public_key().unwrap(), &mut thread_rng());
 //! // Decrypt the data using the secret key
 //! let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
+//! assert_eq!(data.to_usize(), decrypted_data.to_usize());
+//! 
+//! // Save the secret key
+//! let secret_key = context.get_secret_key().unwrap().as_ref().clone();
+//! // Save the public key
+//! let public_key = context.get_public_key().unwrap().as_ref().clone();
+//! ```
+//! 
+//! ## Advanced usage
+//! 
+//! This example shows how to perform homomorphic addition.
+//! 
+//! ```
+//! use homomorph::{Context, Data, Parameters};
+//! use rand::thread_rng;
+//! 
+//! // Define the parameters
+//! // -------------------------- d   dp  delta tau
+//! let params = Parameters::new(512, 256, 16, 256);
+//! let mut context = Context::new(params);
+//! context.generate_secret_key(&mut thread_rng());
+//! context.generate_public_key(&mut thread_rng());
+//! 
+//! // Create data from a usize
+//! let data1 = Data::from_usize(20);
+//! let data2 = Data::from_usize(22);
+//! 
+//! // Encrypt the data using the public key
+//! let encrypted_data1 = data1.encrypt(&context.get_public_key().unwrap(), &mut thread_rng());
+//! let encrypted_data2 = data2.encrypt(&context.get_public_key().unwrap(), &mut thread_rng());
+//! 
+//! // Perform homomorphic addition
+//! let data3 = data1 + data2;
+//! let encrypted_data3 = encrypted_data1 + encrypted_data2;
+//! 
+//! // Decrypt the data using the secret key
+//! let decrypted_data = encrypted_data3.decrypt(&context.get_secret_key().unwrap());
+//! assert_eq!(data3.to_usize(), decrypted_data.to_usize());
 //! ```
 
 use rayon::prelude::*;
