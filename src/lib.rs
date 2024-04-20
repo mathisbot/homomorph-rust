@@ -1,5 +1,6 @@
 use rayon::prelude::*;
 use std::mem;
+use std::ops::Add;
 
 mod polynomial;
 use polynomial::Polynomial;
@@ -330,6 +331,49 @@ impl Context {
     pub fn get_public_key(&self) -> Option<&PublicKey> {
         self.public_key.as_ref()
     }
+
+    /// Explicitly sets the secret key.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `secret_key` - The secret key.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::{Context, Parameters, SecretKey};
+    /// use rand::thread_rng;
+    /// 
+    /// let params = Parameters::new(6, 3, 2, 5);
+    /// let mut context = Context::new(params);
+    /// let secret_key = SecretKey::new(5, &mut thread_rng());
+    /// context.set_secret_key(secret_key);
+    /// ```
+    pub fn set_secret_key(&mut self, secret_key: SecretKey) {
+        self.secret_key = Some(secret_key);
+    }
+
+    /// Explicitly sets the public key.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `public_key` - The public key.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::{Context, Parameters, PublicKey, SecretKey};
+    /// use rand::thread_rng;
+    /// 
+    /// let params = Parameters::new(6, 3, 2, 5);
+    /// let mut context = Context::new(params);
+    /// let secret_key = SecretKey::new(5, &mut thread_rng());
+    /// let public_key = PublicKey::new(3, 2, 5, &secret_key, &mut thread_rng());
+    /// context.set_public_key(public_key);
+    /// ```
+    pub fn set_public_key(&mut self, public_key: PublicKey) {
+        self.public_key = Some(public_key);
+    }
 }
 
 /// The data.
@@ -543,6 +587,24 @@ impl Data {
     }
 }
 
+impl Add for Data {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        let longest = self.x.len().max(other.x.len());
+        let mut result = Vec::with_capacity(longest);
+        let mut carry = false;
+        for i in 0..longest {
+            let d1 = self.x.get(i).unwrap_or(&false);
+            let d2 = other.x.get(i).unwrap_or(&false);
+            let s = d1 ^ d2 ^ carry;
+            carry = ((d1 ^ d2) & carry ) | (d1 & d2);
+            result.push(s);
+        }
+        Data { x: result }
+    }
+}
+
 impl EncryptedData {
     fn decrypt_bit(poly: &polynomial::Polynomial, sk: &SecretKey) -> bool {
         let remainder = poly.rem(sk.as_ref());
@@ -585,6 +647,26 @@ impl EncryptedData {
     }
 }
 
+impl Add for EncryptedData {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        let longest = self.p.len().max(other.p.len());
+        let mut result = Vec::with_capacity(longest);
+        let mut carry = Polynomial::null();
+        // Avoid borrowing issues
+        let null_p = Polynomial::null();
+        for i in 0..longest {
+            let p1 = self.p.get(i).unwrap_or(&null_p);
+            let p2 = other.p.get(i).unwrap_or(&null_p);
+            let s = p1.bit_xor(&p2).bit_xor(&carry);
+            carry = p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
+            result.push(s);
+        }
+        EncryptedData { p: result }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -603,6 +685,14 @@ mod tests {
     }
 
     #[test]
+    fn test_data_add() {
+        let data1 = Data::new(vec![true, false, true]);
+        let data2 = Data::new(vec![false, true, false]);
+        let data3 = data1 + data2;
+        assert_eq!(data3.to_usize(), 7);
+    }
+
+    #[test]
     fn test_encrypted_data() {
         let params = Parameters::new(6, 3, 2, 5);
         let mut context = Context::new(params);
@@ -616,7 +706,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Longer version of previous test"]
+    #[ignore = "Longer version of test_encrypted_data"]
     fn test_encrypted_data_extensive() {
         const N: usize = 256;
         let params = Parameters::new(128, 128, 64, 128);
@@ -631,6 +721,46 @@ mod tests {
             let encrypted_data = data.encrypt(context.get_public_key().unwrap(), &mut rng);
             let decrypted_data = encrypted_data.decrypt(context.get_secret_key().unwrap());
             assert_eq!(data.to_usize(), decrypted_data.to_usize());
+        }
+    }
+
+    #[test]
+    fn test_encrypted_data_add() {
+        let params = Parameters::new(6, 3, 2, 5);
+        let mut context = Context::new(params);
+        context.generate_secret_key(&mut rand::thread_rng());
+        context.generate_public_key(&mut rand::thread_rng());
+
+        let data1 = Data::from_usize(12);
+        let data2 = Data::from_usize(30);
+        let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
+        let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
+        let encrypted_data3 = encrypted_data1 + encrypted_data2;
+        let decrypted_data = encrypted_data3.decrypt(context.get_secret_key().unwrap());
+        let data3 = data1 + data2;
+        assert_eq!(data3.to_usize(), decrypted_data.to_usize());
+    }
+
+    #[test]
+    #[ignore = "Longer version of test_encrypted_data_add"]
+    fn test_encrypted_data_add_extensive() {
+        const N: usize = 256;
+        let params = Parameters::new(128, 128, 64, 128);
+        let mut context = Context::new(params);
+
+        let mut rng = rand::thread_rng();
+        for _ in 0..N {
+            context.generate_secret_key(&mut rand::thread_rng());
+            context.generate_public_key(&mut rand::thread_rng());
+
+            let data1 = Data::from_usize(rng.gen());
+            let data2 = Data::from_usize(rng.gen());
+            let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
+            let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
+            let encrypted_data3 = encrypted_data1 + encrypted_data2;
+            let decrypted_data = encrypted_data3.decrypt(context.get_secret_key().unwrap());
+            let data3 = data1 + data2;
+            assert_eq!(data3.to_usize(), decrypted_data.to_usize());
         }
     }
 }

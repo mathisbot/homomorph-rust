@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul};
+use std::ops::{Add, Deref, Mul};
 
 // A polynomial over Z/2Z.
 // A polynomial is represented as a vector of coefficients, where the i-th element is the coefficient of x^i.
@@ -140,6 +140,18 @@ impl Polynomial {
         let deg = self_coefficients.len() - 1;
         unsafe { Polynomial::new_unchecked(self_coefficients, deg) }
     }
+
+    pub fn bit_and(&self, other: &Polynomial) -> Polynomial {
+        self.mul_fn(other)
+    }
+
+    pub fn bit_xor(&self, other: &Polynomial) -> Polynomial {
+        self.add_fn(other)
+    }
+
+    pub fn bit_or(&self, other: &Polynomial) -> Polynomial {
+        self.add_fn(other) + self.mul_fn(other)
+    }
 }
 
 // Unlike add_fn, add takes ownership of the two polynomials.
@@ -164,6 +176,14 @@ impl Mul for Polynomial {
 impl Clone for Polynomial {
     fn clone(&self) -> Polynomial {
         self.clone_fn()
+    }
+}
+
+impl Deref for Polynomial {
+    type Target = Vec<bool>;
+
+    fn deref(&self) -> &Vec<bool> {
+        &self.coefficients
     }
 }
 

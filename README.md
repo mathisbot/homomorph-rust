@@ -11,7 +11,7 @@ Use with better-suited random-generation crates is WIP
 
 - [X] Encryption of data
 - [X] Decryption of encrypted data
-- [ ] Homomorphic addition operation
+- [ ] Homomorphic addition operation -> Tests don't pass
 - [ ] Homomorphic multiplication operation
 
 ## Getting Started
