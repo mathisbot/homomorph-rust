@@ -5,8 +5,8 @@ use std::ops::{Add, Deref, Mul};
 // A polynomial over Z/2Z.
 // A polynomial is represented as a vector of coefficients, where the i-th element is the coefficient of x^i.
 pub struct Polynomial {
-    pub coefficients: Vec<bool>, // Isn't guaranteed to be of size degree+1.
-    pub degree: usize, // The exact degree of the polynomial.
+    coefficients: Vec<bool>, // Isn't guaranteed to be of size degree+1.
+    degree: usize, // The exact degree of the polynomial.
 }
 
 fn get_degree(coefficients: &[bool]) -> usize {
@@ -19,6 +19,31 @@ fn get_degree(coefficients: &[bool]) -> usize {
 }
 
 impl Polynomial {
+    /// Create a new polynomial from a vector of coefficients.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `coefficients` - A vector of coefficients.
+    /// 
+    /// # Returns
+    /// 
+    /// A new polynomial.
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if the vector of coefficients is empty.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::polynomial::Polynomial;
+    /// 
+    /// let p = Polynomial::new(vec![true, false, false, true]);
+    /// ```
+    /// 
+    /// # Note
+    /// 
+    /// Takes ownership of the vector of coefficients.
     pub fn new(coefficients: Vec<bool>) -> Self {
         if coefficients.is_empty() {
             panic!("The vector of coefficients must not be empty.");
@@ -27,15 +52,29 @@ impl Polynomial {
         Polynomial { coefficients, degree }
     }
 
+    /// Get the degree of the polynomial.
+    pub fn degree(&self) -> usize {
+        self.degree
+    }
+
+    /// Get the coefficients of the polynomial.
+    /// 
+    /// # Returns
+    /// 
+    /// A reference to the vector of coefficients.
+    pub fn coefficients(&self) -> &Vec<bool> {
+        &self.coefficients
+    }
+
     // We trust the user to provide the correct degree.
-    pub unsafe fn new_unchecked(coefficients: Vec<bool>, degree: usize) -> Self {
+    pub(crate) unsafe fn new_unchecked(coefficients: Vec<bool>, degree: usize) -> Self {
         if coefficients.is_empty() {
             panic!("The vector of coefficients must not be empty.");
         }
         Polynomial { coefficients, degree }
     }
 
-    pub fn random(degree: usize, rng: &mut impl rand::Rng) -> Self {
+    pub(crate) fn random(degree: usize, rng: &mut impl rand::Rng) -> Self {
         let mut coefficients = Vec::with_capacity(degree + 1);
         for _ in 0..=degree {
             coefficients.push(rng.gen::<bool>());
@@ -43,7 +82,7 @@ impl Polynomial {
         unsafe { Polynomial::new_unchecked(coefficients, degree) }
     }
 
-    pub fn null() -> Self {
+    pub(crate) fn null() -> Self {
         Polynomial { coefficients: vec![false], degree: 0 }
     }
 
@@ -55,7 +94,7 @@ impl Polynomial {
         unsafe { Polynomial::new_unchecked(cloned_coefficients, self.degree) }
     }
 
-    pub fn evaluate(&self, x: bool) -> bool {
+    pub(crate) fn evaluate(&self, x: bool) -> bool {
         // If the evaluation is done at 0, the result is the constant term.
         if x == false {
             return self.coefficients[0];
@@ -68,7 +107,7 @@ impl Polynomial {
         result
     }
 
-    pub fn add_fn(&self, other: &Polynomial) -> Polynomial {
+    pub(crate) fn add_fn(&self, other: &Polynomial) -> Polynomial {
         // We know that degree of the sum is at most max(deg(p1), deg(p2)).
         let max_deg = std::cmp::max(self.degree, other.degree);
         let mut result = Vec::with_capacity(max_deg + 1);
@@ -90,7 +129,7 @@ impl Polynomial {
         }
     }
 
-    pub fn mul_fn(&self, other: &Polynomial) -> Polynomial {
+    pub(crate) fn mul_fn(&self, other: &Polynomial) -> Polynomial {
         // The degree of the product is deg(p1) + deg(p2).
         let sum_deg = self.degree + other.degree;
         let mut result = vec![false; sum_deg+1];
@@ -108,7 +147,7 @@ impl Polynomial {
         unsafe { Polynomial::new_unchecked(result, sum_deg) }
     }
 
-    pub fn rem(&self, other: &Polynomial) -> Polynomial {
+    pub(crate) fn rem(&self, other: &Polynomial) -> Polynomial {
         let mut self_coefficients = self.coefficients.clone();
         let mut other_coefficients = other.coefficients.clone();
         let mut last_index = other_coefficients.len();
@@ -143,15 +182,15 @@ impl Polynomial {
         unsafe { Polynomial::new_unchecked(self_coefficients, deg) }
     }
 
-    pub fn bit_and(&self, other: &Polynomial) -> Polynomial {
+    pub(crate) fn bit_and(&self, other: &Polynomial) -> Polynomial {
         self.mul_fn(other)
     }
 
-    pub fn bit_xor(&self, other: &Polynomial) -> Polynomial {
+    pub(crate) fn bit_xor(&self, other: &Polynomial) -> Polynomial {
         self.add_fn(other)
     }
 
-    pub fn bit_or(&self, other: &Polynomial) -> Polynomial {
+    pub(crate) fn bit_or(&self, other: &Polynomial) -> Polynomial {
         self.add_fn(other) + self.mul_fn(other)
     }
 }

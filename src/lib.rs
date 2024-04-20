@@ -46,12 +46,61 @@
 //! let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
 //! ```
 
+//! A library for homomorphic encryption.
+//! 
+//! # Usage
+//! 
+//! Data is represented as `Vec<bool>`, to match binary representation.
+//! `Data` instances can either be created from a `usize` or from a `Vec<bool>` (raw data).
+//! 
+//! User must then provide a context to its operations, which contains the secret key and the public key.
+//! `Context` contains the `Parameters`, `SecretKey` and `PublicKey`.
+//! 
+//! Once set, the secret key can be used to decrypt the data, while the public key can be used to encrypt the data.
+//! Encryption can only be performed on `Data` instances, while decryption can only be performed on `EncryptedData` instances.
+//! 
+//! For now, `EncryptedData` represents integers. This means you can perform addition as well as multiplication on encrypted data.
+//! 
+//! # Notes
+//! 
+//! The backend might undergo heavy changes for performance reasons.
+//! 
+//! Also, the fronted may change to provide a more generic interface.
+//! 
+//! The library is highly parallelized, using the `rayon` crate.
+//! 
+//! # Examples
+//! 
+//! ```
+//! use homomorph::{Context, Data, Parameters};
+//! use rand::thread_rng;
+//! 
+//! // Define the parameters
+//! // -------------------------- d, dp, delta, tau
+//! let params = Parameters::new(256, 256, 128, 256);
+//! 
+//! // Create a new context
+//! let mut context = Context::new(params);
+//! // Initialize keys
+//! context.generate_secret_key(&mut thread_rng());
+//! // Notice that the public key is generated after the secret key
+//! context.generate_public_key(&mut thread_rng());
+//! 
+//! // Create data from a usize
+//! let data = Data::from_usize(42);
+//! // Encrypt the data using the public key
+//! let encrypted_data = data.encrypt(&context.get_public_key().unwrap(), &mut thread_rng());
+//! // Decrypt the data using the secret key
+//! let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
+//! ```
+
 use rayon::prelude::*;
 use std::mem;
 use std::ops::{Add, Mul};
 
-mod polynomial;
+pub mod polynomial;
 use polynomial::Polynomial;
+
 
 /// Parameters for the algorithm.
 /// 
@@ -130,12 +179,42 @@ impl Parameters {
 /// use rand::thread_rng;
 /// 
 /// let s = SecretKey::random(5, &mut thread_rng());
+/// let s = SecretKey::random(5, &mut thread_rng());
 /// ```
 pub struct SecretKey {
     s: polynomial::Polynomial,
 }
 
 impl SecretKey {
+    /// Creates a new secret key.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `s` - The polynomial.
+    /// 
+    /// # Returns
+    /// 
+    /// A new secret key.
+    /// 
+    /// # Note
+    /// 
+    /// For security reseasons, the polynomial should only be retrieved from a previous generated secret key.
+    /// For a first time generation, use `SecretKey::random`.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::SecretKey;
+    /// use homomorph::polynomial::Polynomial;
+    /// 
+    /// let s = Polynomial::new(vec![true, false, true]);
+    /// 
+    /// let sk = SecretKey::new(s);
+    /// ```
+    pub fn new(s: polynomial::Polynomial) -> Self {
+        SecretKey { s }
+    }
+
     /// Creates a new random secret key.
     /// 
     /// # Arguments
@@ -158,7 +237,9 @@ impl SecretKey {
     /// use rand::thread_rng;
     /// 
     /// let s = SecretKey::random(5, &mut thread_rng());
+    /// let s = SecretKey::random(5, &mut thread_rng());
     /// ```
+    pub fn random(d: usize, rng: &mut impl rand::Rng) -> Self {
     pub fn random(d: usize, rng: &mut impl rand::Rng) -> Self {
         let s = polynomial::Polynomial::random(d, rng);
         SecretKey { s }
@@ -170,12 +251,17 @@ impl SecretKey {
     /// 
     /// A reference to the polynomial.
     /// 
+    /// # Note
+    /// 
+    /// Can be useful to save the secret key.
+    /// 
     /// # Examples
     /// 
     /// ```
     /// use homomorph::SecretKey;
     /// use rand::thread_rng;
     /// 
+    /// let s = SecretKey::random(5, &mut thread_rng());
     /// let s = SecretKey::random(5, &mut thread_rng());
     /// let s_ref = s.as_ref();
     /// ```
@@ -198,11 +284,42 @@ impl SecretKey {
 /// 
 /// let secret_key = SecretKey::random(5, &mut thread_rng());
 /// let pk = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
+/// let secret_key = SecretKey::random(5, &mut thread_rng());
+/// let pk = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
 pub struct PublicKey {
     list: Vec<polynomial::Polynomial>,
 }
 
 impl PublicKey {
+    /// Creates a new public key.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `v` - The list of polynomials.
+    /// 
+    /// # Returns
+    /// 
+    /// A new public key.
+    /// 
+    /// # Note
+    /// 
+    /// For security reseasons, the list of polynomials should only be retrieved from a previous generated public key.
+    /// For a first time generation, use `PublicKey::random`.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::PublicKey;
+    /// use homomorph::polynomial::Polynomial;
+    /// 
+    /// let p = Polynomial::new(vec![true, false, true]);
+    /// 
+    /// let pk = PublicKey::new(vec![p]);
+    /// ```
+    pub fn new(v: Vec<polynomial::Polynomial>) -> Self {
+        PublicKey { list: v }
+    }
+
     /// Creates a new random public key.
     /// 
     /// # Arguments
@@ -225,7 +342,10 @@ impl PublicKey {
     /// 
     /// let secret_key = SecretKey::random(5, &mut thread_rng());
     /// let pk = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
+    /// let secret_key = SecretKey::random(5, &mut thread_rng());
+    /// let pk = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
     /// ```
+    pub fn random(dp: usize, delta: usize, tau: usize, secret_key: &SecretKey, rng: &mut impl rand::Rng) -> Self {
     pub fn random(dp: usize, delta: usize, tau: usize, secret_key: &SecretKey, rng: &mut impl rand::Rng) -> Self {
         let mut list = Vec::with_capacity(tau);
         for _ in 0..tau {
@@ -239,6 +359,29 @@ impl PublicKey {
             }
         }
         PublicKey { list }
+    }
+
+    /// Returns a reference to the list of polynomials.
+    /// 
+    /// # Returns
+    /// 
+    /// A reference to the list of polynomials.
+    /// 
+    /// # Note
+    /// 
+    /// Can be useful to save the public key.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::{PublicKey, SecretKey};
+    /// use rand::thread_rng;
+    /// 
+    /// let secret_key = SecretKey::random(5, &mut thread_rng());
+    /// let pk = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
+    /// let pk_ref = pk.as_ref();
+    pub fn as_ref(&self) -> &Vec<polynomial::Polynomial> {
+        &self.list
     }
 }
 
@@ -305,6 +448,7 @@ impl Context {
     /// ```
     pub fn generate_secret_key(&mut self, rng: &mut impl rand::Rng) {
         self.secret_key = Some(SecretKey::random(self.parameters.d, rng));
+        self.secret_key = Some(SecretKey::random(self.parameters.d, rng));
     }
 
     /// Generates a public key out of the private key.
@@ -330,6 +474,7 @@ impl Context {
     /// This function will panic if the secret key has not been generated yet.
     pub fn generate_public_key(&mut self, rng: &mut impl rand::Rng) {
         if let Some(secret_key) = &self.secret_key {
+            self.public_key = Some(PublicKey::random(self.parameters.dp, self.parameters.delta, self.parameters.tau, secret_key, rng));
             self.public_key = Some(PublicKey::random(self.parameters.dp, self.parameters.delta, self.parameters.tau, secret_key, rng));
         } else {
             panic!("Secret key not generated yet");
@@ -394,6 +539,7 @@ impl Context {
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// let secret_key = SecretKey::random(5, &mut thread_rng());
+    /// let secret_key = SecretKey::random(5, &mut thread_rng());
     /// context.set_secret_key(secret_key);
     /// ```
     pub fn set_secret_key(&mut self, secret_key: SecretKey) {
@@ -414,6 +560,8 @@ impl Context {
     /// 
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
+    /// let secret_key = SecretKey::random(5, &mut thread_rng());
+    /// let public_key = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
     /// let secret_key = SecretKey::random(5, &mut thread_rng());
     /// let public_key = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
     /// context.set_public_key(public_key);
@@ -537,6 +685,23 @@ impl Data {
         result
     }
 
+    // Generates a random part of the integer interval \[1,`tau`\] as a vector of `bool`.
+    // 
+    // # Example
+    // 
+    // ```
+    // use homomorph::Data;
+    // use rand::thread_rng;
+    // 
+    // let part = Data::part(5, &mut thread_rng());
+    // 
+    // assert_eq!(part.len(), 5);
+    // 
+    // for bit in part {
+    //    assert!(bit == true || bit == false);
+    // }
+    // ```
+    fn part(tau: usize, rng: &mut impl rand::Rng) -> Vec<bool> {
     // Generates a random part of the integer interval \[1,`tau`\] as a vector of `bool`.
     // 
     // # Example
