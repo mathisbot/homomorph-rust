@@ -46,54 +46,6 @@
 //! let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
 //! ```
 
-//! A library for homomorphic encryption.
-//! 
-//! # Usage
-//! 
-//! Data is represented as `Vec<bool>`, to match binary representation.
-//! `Data` instances can either be created from a `usize` or from a `Vec<bool>` (raw data).
-//! 
-//! User must then provide a context to its operations, which contains the secret key and the public key.
-//! `Context` contains the `Parameters`, `SecretKey` and `PublicKey`.
-//! 
-//! Once set, the secret key can be used to decrypt the data, while the public key can be used to encrypt the data.
-//! Encryption can only be performed on `Data` instances, while decryption can only be performed on `EncryptedData` instances.
-//! 
-//! For now, `EncryptedData` represents integers. This means you can perform addition as well as multiplication on encrypted data.
-//! 
-//! # Notes
-//! 
-//! The backend might undergo heavy changes for performance reasons.
-//! 
-//! Also, the fronted may change to provide a more generic interface.
-//! 
-//! The library is highly parallelized, using the `rayon` crate.
-//! 
-//! # Examples
-//! 
-//! ```
-//! use homomorph::{Context, Data, Parameters};
-//! use rand::thread_rng;
-//! 
-//! // Define the parameters
-//! // -------------------------- d, dp, delta, tau
-//! let params = Parameters::new(256, 256, 128, 256);
-//! 
-//! // Create a new context
-//! let mut context = Context::new(params);
-//! // Initialize keys
-//! context.generate_secret_key(&mut thread_rng());
-//! // Notice that the public key is generated after the secret key
-//! context.generate_public_key(&mut thread_rng());
-//! 
-//! // Create data from a usize
-//! let data = Data::from_usize(42);
-//! // Encrypt the data using the public key
-//! let encrypted_data = data.encrypt(&context.get_public_key().unwrap(), &mut thread_rng());
-//! // Decrypt the data using the secret key
-//! let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
-//! ```
-
 use rayon::prelude::*;
 use std::mem;
 use std::ops::{Add, Mul};
@@ -179,7 +131,6 @@ impl Parameters {
 /// use rand::thread_rng;
 /// 
 /// let s = SecretKey::random(5, &mut thread_rng());
-/// let s = SecretKey::random(5, &mut thread_rng());
 /// ```
 pub struct SecretKey {
     s: polynomial::Polynomial,
@@ -237,9 +188,7 @@ impl SecretKey {
     /// use rand::thread_rng;
     /// 
     /// let s = SecretKey::random(5, &mut thread_rng());
-    /// let s = SecretKey::random(5, &mut thread_rng());
     /// ```
-    pub fn random(d: usize, rng: &mut impl rand::Rng) -> Self {
     pub fn random(d: usize, rng: &mut impl rand::Rng) -> Self {
         let s = polynomial::Polynomial::random(d, rng);
         SecretKey { s }
@@ -262,7 +211,6 @@ impl SecretKey {
     /// use rand::thread_rng;
     /// 
     /// let s = SecretKey::random(5, &mut thread_rng());
-    /// let s = SecretKey::random(5, &mut thread_rng());
     /// let s_ref = s.as_ref();
     /// ```
     pub fn as_ref(&self) -> &polynomial::Polynomial {
@@ -282,8 +230,6 @@ impl SecretKey {
 /// use homomorph::{PublicKey, SecretKey};
 /// use rand::thread_rng;
 /// 
-/// let secret_key = SecretKey::random(5, &mut thread_rng());
-/// let pk = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
 /// let secret_key = SecretKey::random(5, &mut thread_rng());
 /// let pk = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
 pub struct PublicKey {
@@ -342,10 +288,7 @@ impl PublicKey {
     /// 
     /// let secret_key = SecretKey::random(5, &mut thread_rng());
     /// let pk = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
-    /// let secret_key = SecretKey::random(5, &mut thread_rng());
-    /// let pk = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
     /// ```
-    pub fn random(dp: usize, delta: usize, tau: usize, secret_key: &SecretKey, rng: &mut impl rand::Rng) -> Self {
     pub fn random(dp: usize, delta: usize, tau: usize, secret_key: &SecretKey, rng: &mut impl rand::Rng) -> Self {
         let mut list = Vec::with_capacity(tau);
         for _ in 0..tau {
@@ -448,7 +391,6 @@ impl Context {
     /// ```
     pub fn generate_secret_key(&mut self, rng: &mut impl rand::Rng) {
         self.secret_key = Some(SecretKey::random(self.parameters.d, rng));
-        self.secret_key = Some(SecretKey::random(self.parameters.d, rng));
     }
 
     /// Generates a public key out of the private key.
@@ -474,7 +416,6 @@ impl Context {
     /// This function will panic if the secret key has not been generated yet.
     pub fn generate_public_key(&mut self, rng: &mut impl rand::Rng) {
         if let Some(secret_key) = &self.secret_key {
-            self.public_key = Some(PublicKey::random(self.parameters.dp, self.parameters.delta, self.parameters.tau, secret_key, rng));
             self.public_key = Some(PublicKey::random(self.parameters.dp, self.parameters.delta, self.parameters.tau, secret_key, rng));
         } else {
             panic!("Secret key not generated yet");
@@ -539,7 +480,6 @@ impl Context {
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// let secret_key = SecretKey::random(5, &mut thread_rng());
-    /// let secret_key = SecretKey::random(5, &mut thread_rng());
     /// context.set_secret_key(secret_key);
     /// ```
     pub fn set_secret_key(&mut self, secret_key: SecretKey) {
@@ -560,8 +500,6 @@ impl Context {
     /// 
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
-    /// let secret_key = SecretKey::random(5, &mut thread_rng());
-    /// let public_key = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
     /// let secret_key = SecretKey::random(5, &mut thread_rng());
     /// let public_key = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
     /// context.set_public_key(public_key);
@@ -652,7 +590,6 @@ impl Data {
     /// let data = Data::from_usize(42);
     /// ```
     pub fn from_usize(x: usize) -> Self {
-
         let mut result = Vec::with_capacity(mem::size_of::<usize>());
         for i in 0..mem::size_of::<usize>() {
             result.push((x >> i) & 1 == 1);
@@ -702,23 +639,6 @@ impl Data {
     // }
     // ```
     fn part(tau: usize, rng: &mut impl rand::Rng) -> Vec<bool> {
-    // Generates a random part of the integer interval \[1,`tau`\] as a vector of `bool`.
-    // 
-    // # Example
-    // 
-    // ```
-    // use homomorph::Data;
-    // use rand::thread_rng;
-    // 
-    // let part = Data::part(5, &mut thread_rng());
-    // 
-    // assert_eq!(part.len(), 5);
-    // 
-    // for bit in part {
-    //    assert!(bit == true || bit == false);
-    // }
-    // ```
-    fn part(tau: usize, rng: &mut impl rand::Rng) -> Vec<bool> {
         let mut result = Vec::with_capacity(tau);
         for _ in 0..tau {
             result.push(rng.gen::<bool>());
@@ -731,19 +651,19 @@ impl Data {
         let random_part = Data::part(tau, rng);
 
         let sum = (0..tau).into_par_iter()
-        .filter_map(|i| {
-            if random_part[i] {
-                    // We can't take ownership of the polynomial in the pk list
-                    Some(pk.list[i].clone())
-                } else {
-                    None
-                }
+            .filter_map(|i| {
+                    if random_part[i] {
+                        // We can't take ownership of the polynomial in the pk list
+                        Some(pk.list[i].clone())
+                    } else {
+                        None
+                    }
+                })
+            .reduce_with(|mut acc, poly| {
+                acc = acc.add_fn(&poly);
+                acc
             })
-        .reduce_with(|mut acc, poly| {
-            acc = acc.add_fn(&poly);
-            acc
-        })
-        .unwrap_or_else(Polynomial::null);
+            .unwrap_or_else(Polynomial::null);
 
         // Save computation if x is false
         if x {
@@ -1011,6 +931,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic] // Multiplication is not yet implemented
     fn test_encrypted_data_mul() {
         let params = Parameters::new(128, 64, 8, 32);
         let mut context = Context::new(params);
@@ -1029,6 +950,7 @@ mod tests {
 
     #[test]
     #[ignore = "Longer version of test_encrypted_data_mul"]
+    #[should_panic] // Multiplication is not yet implemented
     fn test_encrypted_data_mul_extensive() {
         const N: usize = 256;
         let params = Parameters::new(256, 64, 4, 32);
