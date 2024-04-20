@@ -9,7 +9,6 @@ use polynomial::Polynomial;
 /// 
 /// # Fields
 /// 
-/// * `N` - The number of bits of the input.
 /// * `d` - The degree of the secret key.
 /// * `dp` - The degree of the public key.
 /// * `delta` - The noise parameter.
@@ -25,7 +24,7 @@ use polynomial::Polynomial;
 /// 
 /// # Note
 /// 
-/// Delta MUST be strictly less than d.
+/// `delta` must be strictly less than `d`.
 pub struct Parameters {
     d: usize,
     dp: usize,
@@ -49,7 +48,7 @@ impl Parameters {
     /// 
     /// # Panics
     /// 
-    /// This function will panic if delta is greater than or equal to d.
+    /// This function will panic if `delta` is greater than or equal to `d`.
     /// 
     /// # Complexity
     /// 
@@ -141,7 +140,7 @@ impl SecretKey {
 /// 
 /// # Fields
 /// 
-/// * 'list' - The list of polynomials.
+/// * `list` - The list of polynomials.
 /// 
 /// # Examples
 /// 
@@ -314,7 +313,7 @@ impl Context {
     /// 
     /// # Returns
     /// 
-    /// A reference to the secret key.
+    /// A reference to the public key.
     /// 
     /// # Examples
     /// 
@@ -422,7 +421,7 @@ impl Data {
     /// 
     /// # Arguments
     /// 
-    /// * `x` - The data.
+    /// * `x` - The data as a vector of booleans.
     /// 
     /// # Returns
     /// 
@@ -439,11 +438,11 @@ impl Data {
         Data { x }
     }
 
-    /// Creates a new data from a usize.
+    /// Creates a new data from a `usize`.
     /// 
     /// # Arguments
     /// 
-    /// * `x` - The data.
+    /// * `x` - `usize` to convert.
     /// 
     /// # Returns
     /// 
@@ -465,11 +464,11 @@ impl Data {
         Data { x: result }
     }
 
-    /// Converts the data to a usize.
+    /// Converts the data to a `usize`.
     /// 
     /// # Returns
     /// 
-    /// The data as a usize.
+    /// The data as a `usize`.
     /// 
     /// # Examples
     /// 
@@ -490,7 +489,7 @@ impl Data {
         result
     }
 
-    /// Generates a random part of the data.
+    /// Generates a random part of the integer interval \[1,`tau`\] as a vector of `bool`.
     /// 
     /// # Arguments
     /// 
@@ -498,7 +497,7 @@ impl Data {
     /// 
     /// # Returns
     /// 
-    /// A random part of the data.
+    /// A random part of the integer interval \[1,`tau`\].
     /// 
     /// # Examples
     /// 
@@ -574,6 +573,11 @@ impl Data {
     /// let data = Data::new(vec![true, false, true]);
     /// let encrypted_data = data.encrypt(&context.get_public_key().unwrap(), &mut thread_rng());
     /// ```
+    /// 
+    /// # Note
+    /// 
+    /// This function is highly parallelized.
+    /// Parameter `_rng` is unused for now.
     pub fn encrypt(&self, pk: &PublicKey, _rng: &mut impl rand::Rng) -> EncryptedData {
         let result: Vec<_> = self.x.par_iter()
             .map(|&bit| {
@@ -637,6 +641,10 @@ impl EncryptedData {
     /// 
     /// let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
     /// ```
+    /// 
+    /// # Note
+    /// 
+    /// This function is highly parallelized.
     pub fn decrypt(&self, sk: &SecretKey) -> Data {
         let result: Vec<_> = self.p.par_iter()
             .map(|poly| {
