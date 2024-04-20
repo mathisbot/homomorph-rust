@@ -1,3 +1,5 @@
+/// A module for polynomial operations over Z/2Z.
+
 use std::ops::{Add, Deref, Mul};
 
 // A polynomial over Z/2Z.

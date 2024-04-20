@@ -521,7 +521,6 @@ impl Data {
         result
     }
 
-
     fn encrypt_bit(x: bool, pk: &PublicKey, rng: &mut impl rand::Rng) -> polynomial::Polynomial {
         let tau = pk.list.len();
         let random_part = Data::part(tau, rng);
@@ -535,11 +534,11 @@ impl Data {
                     None
                 }
             })
-            .reduce_with(|mut acc, poly| {
-                acc = acc.add_fn(&poly);
-                acc
-            })
-            .unwrap_or_else(Polynomial::null);
+        .reduce_with(|mut acc, poly| {
+            acc = acc.add_fn(&poly);
+            acc
+        })
+        .unwrap_or_else(Polynomial::null);
 
         // Save computation if x is false
         if x {

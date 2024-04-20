@@ -7,6 +7,8 @@ Homomorphic encryption is still a subject of research today, and no system that 
 
 Use with better-suited random-generation crates is WIP
 
+I might also rethink the system to use binary representation of numbers instead of polynomials for increased performance but same outcome.
+
 ## Features
 
 - [X] Encryption of data
@@ -130,7 +132,7 @@ Often, bruteforce or the use of order relations compatible with the encryption f
 
 In view of the preceding discussions, it would seem advisable to choose a $\tau$ greater than $128$, or even $256$ for more sensitive applications.
 
-As for the other parameters, I'm convinced that setting them to 256 is a good compromise between speed and security. It's always advisable to increase them according to capacity to benefit from increased guarantees. *Don't forget that $\delta$ needs to be strictly less than $d$*.
+As for the other parameters, I'm convinced that setting them to 256 is a good compromise between speed and security. It's always advisable to increase them according to capacity to benefit from increased guarantees.
 
 ### Properties
 

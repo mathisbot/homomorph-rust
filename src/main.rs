@@ -18,7 +18,7 @@ fn main() {
         let encrypted_data = data.encrypt(&context.get_public_key().unwrap(), &mut rng);
         let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
         if data.to_usize() != decrypted_data.to_usize() {
-            println!("O : {} -- D : {}", data.to_usize(), decrypted_data.to_usize());
+            println!("Expected : {} -- Got : {}", data.to_usize(), decrypted_data.to_usize());
         }
     }
 }
