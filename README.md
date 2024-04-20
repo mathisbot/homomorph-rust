@@ -13,8 +13,10 @@ I might also rethink the system to use binary representation of numbers instead 
 
 - [X] Encryption of data
 - [X] Decryption of encrypted data
-- [ ] Homomorphic addition operation -> Tests don't pass
+- [X] Homomorphic addition operation
 - [ ] Homomorphic multiplication operation
+
+Multiplcation is not yet to be implemented. I plan to refactor the whole code for it to be more generic, optimized and easy to use.
 
 ## Getting Started
 
@@ -150,6 +152,8 @@ Let's have a look at the implemation of an integer.
 Proceeding in a similar way to a processor, we can reduce the addition of integer ciphers (i.e. lists of bit ciphers) to the application of serial logic gates to the bits. It's then easy to find the Boolean function relating to the application of these gates. One can notice that the AND gate corresponds to multiplying two ciphers, XOR to adding two ciphers, and OR adding the sum and the product of two ciphers.
 
 By playing with the same adder patterns that are in our ALU, we can easily recreate a working addition for our ciphers.
+
+It seems that addition has a "boolean degree" of around 20, so you must have $\dfrac{d}{\delta}>20$ in order to use homomorphic addition. I recommend having it around over 32.
 
 #### Multiplication
 
