@@ -54,9 +54,17 @@ To use the homomorphic encryption scheme in your Rust project, add the following
 
 Benchmarks were made by hand, and will be recomputed later more precisely.
 
+Parameters used for this benchmark were :
+- `d` = 256
+- `dp` = 256
+- `delta` = 128
+- `tau` = 256.
+
+I believe these are great choices for a standard security level.
+
 | Operation       | Mean time (ms)   |
 |-----------------|------------------|
-| Enc + Dec       | < 9              |
+| Enc + Dec       | < 8.4            |
 | Add             | ?                |
 | Mult            | ?                |
 
@@ -108,10 +116,36 @@ Decryption of a cipher $C$ is done as follows :
 
 This is why $\delta$ is under the condition $\delta < d$. Indeed, we recall that $C = \sum_{i\in\mathcal{U}} (SQ_i + XR_i) + x$, where $R_i$ has a degree of at most $\delta$, and $Q_i$ of at most $d'$. Thus, $R$ is exactly $(\sum_{i\in\mathcal{U}} XR_i) + x$, which gives $x$ when evaluated at $0$.
 
+### Security
+
+Encryption schemes security is complex to quantify. However, we can be sure of a system's insecurity if, for example, it is possible to: retrieve the private key from one or more public keys; retrieve the plaintext of an encrypted message without having the private key, ...
+
+In our case, let's look at the potential loopholes.
+
+#### Retrieve $S$ with $T$
+
+Retrieving the private key with only the public key (or a set of them) is equivalent to solving the problem [RLWE](https://en.wikipedia.org/wiki/Ring_learning_with_errors) (thus the shape of our public key). This problem has been proved as computationally infisible, which means that no current machine, and no machine that may soon be developed, can solve it in a time that is humanly conceivable. Great!
+
+#### Retrieve $x$ with only $T$
+
+Often, bruteforce or the use of order relations compatible with the encryption function can be used to break the encryption. In our case, the parameter $\mathcal{U}$ is used to confuse and increase the $2^\tau$ the number of possibilities.
+
+#### Parameters
+
+In view of the preceding discussions, it would seem advisable to choose a $\tau$ greater than $128$, or even $256$ for more sensitive applications.
+
+As for the other parameters, I'm convinced that setting them to 256 is a good compromise between speed and security. It's always advisable to increase them according to capacity to benefit from increased guarantees. *Don't forget that $\delta$ needs to be strictly less than $d$*.
+
 ### Properties
 
 This system is partially homomorphic, which means that it is not homomorphic with every operations.
 However, one can prove that it is homomorphic with every [boolean function](https://en.wikipedia.org/wiki/Boolean_function#:~:text=In%20mathematics%2C%20a%20Boolean%20function,function\)%2C%20used%20in%20logic.) of degree less or equal than $\frac{d}{\delta}$.
+
+## Extension
+
+Our system targets bits. If we want to deal with integers, floats, strings, ... we need to extend the system. We can easily take advantage of the intuitive binary representation of objects in computers.
+
+Let's have a look at the implemation of an integer.
 
 #### Addition
 
