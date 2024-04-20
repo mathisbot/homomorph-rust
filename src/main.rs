@@ -14,8 +14,8 @@ fn main() {
         context.generate_secret_key(&mut rng);
         context.generate_public_key(&mut rng);
 
-        let data = homomorph::Data::from_usize(rng.gen());
-        let encrypted_data = data.encrypt(&context.get_public_key().unwrap(), &mut rng);
+        let data = homomorph::Data::from_usize(rng.gen::<usize>());
+        let encrypted_data = data.encrypt(&context.get_public_key().unwrap());
         let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
         if data.to_usize() != decrypted_data.to_usize() {
             println!("Expected : {} -- Got : {}", data.to_usize(), decrypted_data.to_usize());

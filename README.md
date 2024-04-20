@@ -3,9 +3,7 @@
 This repository contains a Rust implementation of a homomorphic encryption scheme. 
 
 Homomorphic encryption allows computations to be performed on encrypted data without decrypting it, preserving the privacy of the data.
-Homomorphic encryption is still a subject of research today, and no system that is both secure and efficient has yet been found. Furthermore, random number generation is done via the `rand` crate, which is notoriously unsuitable for cryptographic use. For these reasons, this library should not be used in production.
-
-Use with better-suited random-generation crates is WIP
+Homomorphic encryption is still a subject of research today, and no system that is both secure and efficient has yet been found.
 
 I might also rethink the system to use binary representation of numbers instead of polynomials for increased performance but same outcome.
 

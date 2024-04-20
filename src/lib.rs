@@ -746,10 +746,9 @@ impl Data {
     /// 
     /// This function is highly parallelized.
     /// Parameter `_rng` is unused for now.
-    pub fn encrypt(&self, pk: &PublicKey, _rng: &mut impl rand::Rng) -> EncryptedData {
+    pub fn encrypt(&self, pk: &PublicKey) -> EncryptedData {
         let result: Vec<_> = self.x.par_iter()
             .map(|&bit| {
-                // TODO: Use rng in parameter
                 let mut local_rng = rand::thread_rng();
                 Data::encrypt_bit(bit, pk, &mut local_rng)
             })
@@ -910,7 +909,7 @@ mod tests {
         context.generate_public_key(&mut rand::thread_rng());
 
         let data = Data::new(vec![true, false, true]);
-        let encrypted_data = data.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
+        let encrypted_data = data.encrypt(context.get_public_key().unwrap());
         let decrypted_data = encrypted_data.decrypt(context.get_secret_key().unwrap());
         assert_eq!(data.to_usize(), decrypted_data.to_usize());
     }
@@ -928,7 +927,7 @@ mod tests {
             context.generate_public_key(&mut rng);
 
             let data = Data::from_usize(rng.gen());
-            let encrypted_data = data.encrypt(context.get_public_key().unwrap(), &mut rng);
+            let encrypted_data = data.encrypt(context.get_public_key().unwrap());
             let decrypted_data = encrypted_data.decrypt(context.get_secret_key().unwrap());
             assert_eq!(data.to_usize(), decrypted_data.to_usize());
         }
@@ -943,8 +942,8 @@ mod tests {
 
         let data1 = Data::from_usize(12);
         let data2 = Data::from_usize(30);
-        let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
-        let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
+        let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap());
+        let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap());
         let encrypted_data3 = encrypted_data1 + encrypted_data2;
         let decrypted_data = encrypted_data3.decrypt(context.get_secret_key().unwrap());
         let data3 = data1 + data2;
@@ -965,8 +964,8 @@ mod tests {
 
             let data1 = Data::from_usize(rng.gen());
             let data2 = Data::from_usize(rng.gen());
-            let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
-            let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
+            let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap());
+            let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap());
             let encrypted_data3 = encrypted_data1 + encrypted_data2;
             let decrypted_data = encrypted_data3.decrypt(context.get_secret_key().unwrap());
             let data3 = data1 + data2;
@@ -984,8 +983,8 @@ mod tests {
 
         let data1 = Data::from_usize(12);
         let data2 = Data::from_usize(30);
-        let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
-        let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
+        let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap());
+        let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap());
         let encrypted_data3 = encrypted_data1 * encrypted_data2;
         let decrypted_data = encrypted_data3.decrypt(context.get_secret_key().unwrap());
         let data3 = data1 * data2;
@@ -1007,8 +1006,8 @@ mod tests {
 
             let data1 = Data::from_usize(rng.gen());
             let data2 = Data::from_usize(rng.gen());
-            let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
-            let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap(), &mut rand::thread_rng());
+            let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap());
+            let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap());
             let encrypted_data3 = encrypted_data1 * encrypted_data2;
             let decrypted_data = encrypted_data3.decrypt(context.get_secret_key().unwrap());
             let data3 = data1 * data2;
