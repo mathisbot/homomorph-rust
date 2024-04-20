@@ -47,7 +47,7 @@
 //! // Create data from a usize
 //! let data = Data::from_usize(42);
 //! // Encrypt the data using the public key
-//! let encrypted_data = data.encrypt(&context.get_public_key().unwrap(), &mut thread_rng());
+//! let encrypted_data = data.encrypt(&context.get_public_key().unwrap());
 //! // Decrypt the data using the secret key
 //! let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
 //! assert_eq!(data.to_usize(), decrypted_data.to_usize());
@@ -78,8 +78,8 @@
 //! let data2 = Data::from_usize(22);
 //! 
 //! // Encrypt the data using the public key
-//! let encrypted_data1 = data1.encrypt(&context.get_public_key().unwrap(), &mut thread_rng());
-//! let encrypted_data2 = data2.encrypt(&context.get_public_key().unwrap(), &mut thread_rng());
+//! let encrypted_data1 = data1.encrypt(&context.get_public_key().unwrap());
+//! let encrypted_data2 = data2.encrypt(&context.get_public_key().unwrap());
 //! 
 //! // Perform homomorphic addition
 //! let data3 = data1 + data2;
@@ -588,7 +588,7 @@ pub struct Data {
 /// context.generate_public_key(&mut thread_rng());
 /// 
 /// let data = Data::new(vec![true, false, true]);
-/// let encrypted_data = data.encrypt(&context.get_public_key().unwrap(), &mut thread_rng());
+/// let encrypted_data = data.encrypt(&context.get_public_key().unwrap());
 /// ```
 pub struct EncryptedData {
     p: Vec<polynomial::Polynomial>,
@@ -739,7 +739,7 @@ impl Data {
     /// context.generate_public_key(&mut thread_rng());
     /// 
     /// let data = Data::new(vec![true, false, true]);
-    /// let encrypted_data = data.encrypt(&context.get_public_key().unwrap(), &mut thread_rng());
+    /// let encrypted_data = data.encrypt(&context.get_public_key().unwrap());
     /// ```
     /// 
     /// # Note
@@ -823,7 +823,7 @@ impl EncryptedData {
     /// context.generate_public_key(&mut thread_rng());
     /// 
     /// let data = Data::new(vec![true, false, true]);
-    /// let encrypted_data = data.encrypt(&context.get_public_key().unwrap(), &mut thread_rng());
+    /// let encrypted_data = data.encrypt(&context.get_public_key().unwrap());
     /// 
     /// let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
     /// ```
