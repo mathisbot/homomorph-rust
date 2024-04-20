@@ -62,6 +62,8 @@ homomorph
 
 ## System
 
+For more information about what homomorphic encryption schemes are, see [Wikipedia](https://en.wikipedia.org/wiki/Homomorphic_encryption).
+
 ### Definition
 
 The system is defined by 4 parameters :
@@ -100,3 +102,13 @@ This is why $\delta$ is under the condition $\delta < d$. Indeed, we recall that
 
 This system is partially homomorphic, which means that it is not homomorphic with every operations.
 However, one can prove that it is homomorphic with every [boolean function](https://en.wikipedia.org/wiki/Boolean_function#:~:text=In%20mathematics%2C%20a%20Boolean%20function,function\)%2C%20used%20in%20logic.) of degree less or equal than $\frac{d}{\delta}$.
+
+#### Addition
+
+Proceeding in a similar way to a processor, we can reduce the addition of integer ciphers (i.e. lists of bit ciphers) to the application of serial logic gates to the bits. It's then easy to find the Boolean function relating to the application of these gates. One can notice that the AND gate corresponds to multiplying two ciphers, XOR to adding two ciphers, and OR adding the sum and the product of two ciphers.
+
+By playing with the same adder patterns that are in our ALU, we can easily recreate a working addition for our ciphers.
+
+#### Multiplication
+
+Immitting a processor is a winning procedure. By repeating the above process with multiplication, it is quite easy to implement it.
