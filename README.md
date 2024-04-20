@@ -83,7 +83,7 @@ So that $T = (SQ_i + XR_i)_{1 \leq i \leq \tau}$
 #### Encryption
 Encryption of bit $x$ is done as follows :
 
-- Generate $\mathcal{U} \in \mathcal{P}([1..\tau])$
+- Generate $\mathcal{U} \in \mathcal{P}([1,\tau])$
 - Encrypted polynomial is $C = (\sum_{i\in\mathcal{U}} T_i) + x$
 
 $\mathcal{U}$ is used in order to protect against bruteforce. Indeed, if the sum was made over $[1..\tau]$, a malicious person could compute the cipher of $0$ and $1$ and easily compare them with the desired cipher. With $\mathcal{U}$ in the way, the number of possibilities is now $2^\tau$.
