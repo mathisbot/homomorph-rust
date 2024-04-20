@@ -52,19 +52,18 @@ Multiplcation is not yet to be implemented. I plan to refactor the whole code fo
 
 Benchmarks were made by hand, and will be recomputed later more precisely.
 
-Parameters used for this benchmark were :
-- `d` = 256
-- `dp` = 256
-- `delta` = 128
+Parameters used for this benchmark were the ones that should be used for a standard application :
+- `d` = 512
+- `dp` = 128
+- `delta` = 16
 - `tau` = 256.
 
-I believe these are great choices for a standard security level.
+| Operation         | Mean time        |
+|-------------------|------------------|
+| Enc + Dec         | 200 µs           |
+| Add (unoptimized) | 45 ms            |
 
-| Operation       | Mean time (ms)   |
-|-----------------|------------------|
-| Enc + Dec       | < 8.4            |
-| Add             | ?                |
-| Mult            | ?                |
+Benchmark : Average over 10 000 tries.
 
 ## Architecture
 
