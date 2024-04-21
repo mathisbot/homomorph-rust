@@ -5,7 +5,7 @@ This repository contains a Rust implementation of a homomorphic encryption schem
 Homomorphic encryption allows computations to be performed on encrypted data without decrypting it, preserving the privacy of the data.
 Homomorphic encryption is still a subject of research today, and no system that is both secure and efficient has yet been found.
 
-I might also rethink the system to use binary representation of numbers instead of polynomials for increased performance but same outcome.
+I might also rewrite the system to use binary representation of numbers instead of polynomials for increased performance but same outcome.
 
 ## Features
 
@@ -13,8 +13,6 @@ I might also rethink the system to use binary representation of numbers instead 
 - [X] Decryption of encrypted data
 - [X] Homomorphic addition operation
 - [ ] Homomorphic multiplication operation
-
-Multiplcation is not yet to be implemented. I plan to refactor the whole code for it to be more generic, optimized and easy to use.
 
 ## Getting Started
 
@@ -42,7 +40,9 @@ Multiplcation is not yet to be implemented. I plan to refactor the whole code fo
     cargo test
     ```
 
-4. If you want to use this crate as a module for your own crate, please refer to the documentation; where you'll also find examples :
+### Usage
+
+4. If you want to use this crate as a module for your own crate, please refer to the documentation, where you'll also find examples :
 
     ```shell
     cargo doc
@@ -58,22 +58,18 @@ Parameters used for this benchmark were the ones that should be used for a stand
 - `delta` = 16
 - `tau` = 256.
 
-| Operation         | Mean time        |
-|-------------------|------------------|
-| Enc + Dec         | 200 µs           |
-| Add               | 40 ms            |
+| Operation         | Average time     |
+|:-----------------:|:----------------:|
+| Enc + Dec         |      200 µs      |
+| Add               |       40 ms      |
+| Mul               |         ?        |
+
 
 It appears that it's quicker to decrypt, add and then re-encrypt the data. Clearly, this system is only useful if you want to use its properties when security takes precedence over speed.
 
-## Architecture
-
-```bash
-homomorph
-├───src
-│   └───polynomial.rs # Polynomial module
-│   └───lib.rs # Library
-│   └───main.rs # Main file
-```
+It's worth remembering that the system is inherently slow: as a bit ciphered as a polynomial whose degree is $d+d'$.
+It takes more than 64 bytes for $d=d'=256$, so that storing one byte therefore takes 512 bytes.
+This makes operations computationally heavy.
 
 ## System
 
@@ -119,19 +115,17 @@ Encryption schemes security is complex to quantify. However, we can be sure of a
 
 In our case, let's look at the potential loopholes.
 
-#### Retrieve $S$ with $T$
+#### Retrieving $S$ with $T$
 
 Retrieving the private key with only the public key (or a set of them) is equivalent to solving the problem [RLWE](https://en.wikipedia.org/wiki/Ring_learning_with_errors) (thus the shape of our public key). This problem has been proved as computationally infisible, which means that no current machine, and no machine that may soon be developed, can solve it in a time that is humanly conceivable. Great!
 
-#### Retrieve $x$ with only $T$
+#### Retrieving $x$ with only $T$
 
 Often, bruteforce or the use of order relations compatible with the encryption function can be used to break the encryption. In our case, the parameter $\mathcal{U}$ is used to confuse and increase the $2^\tau$ the number of possibilities.
 
-#### Parameters
+#### $\tau$
 
 In view of the preceding discussions, it would seem advisable to choose a $\tau$ greater than $128$, or even $256$ for more sensitive applications.
-
-As for the other parameters, I'm convinced that setting them to 256 is a good compromise between speed and security. It's always advisable to increase them according to capacity to benefit from increased guarantees.
 
 ### Properties
 
@@ -142,11 +136,11 @@ However, one can prove that it is homomorphic with every [boolean function](http
 
 Our system targets bits. If we want to deal with integers, floats, strings, ... we need to extend the system. We can easily take advantage of the intuitive binary representation of objects in computers.
 
-Let's have a look at the implemation of an integer.
+Let's have a look at how to implement the system for integers.
 
 #### Addition
 
-Proceeding in a similar way to a processor, we can reduce the addition of integer ciphers (i.e. lists of bit ciphers) to the application of serial logic gates to the bits. It's then easy to find the Boolean function relating to the application of these gates. One can notice that the AND gate corresponds to multiplying two ciphers, XOR to adding two ciphers, and OR adding the sum and the product of two ciphers.
+Proceeding in a similar way to a processor, we can reduce the addition of integer ciphers (i.e. lists of ciphered bits) to the application of serial logic gates to the bits. It's then easy to find the Boolean function relating to the application of these gates. One can notice that the AND gate corresponds to multiplying two ciphers, XOR to adding two ciphers, and OR to adding the sum and the product of two ciphers.
 
 By playing with the same adder patterns that are in our ALU, we can easily recreate a working addition for our ciphers.
 
@@ -154,4 +148,6 @@ It seems that addition has a "boolean degree" of around 20, so you must have $\d
 
 #### Multiplication
 
-Immitting a processor is a winning procedure. By repeating the above process with multiplication, it is quite easy to implement it.
+Imitating a processor seems to be a winning strategy. 
+By repeating the above process with multiplication, it's fairly easy to implement (modulo the complexity of processor multipliers).
+ 

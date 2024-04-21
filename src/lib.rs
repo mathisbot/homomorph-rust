@@ -87,6 +87,44 @@
 //! let decrypted_data = encrypted_data3.decrypt(&context);
 //! assert_eq!(data3.to_usize(), decrypted_data.to_usize());
 //! ```
+//! 
+//! It's important to note that here, it's impossible to operate on a data stream: everything is stored in a structure in RAM.
+//! If you need to operate on data of several gigabytes in size,
+//! it's a good idea to separate them into blocks and process them one by one.
+//! 
+//! ```ignore
+//! use homomorph::{Context, Data, Parameters};
+//! use std::fs::File;
+//! use std::io::{BufReader, Read, BufWriter, Write};
+//! 
+//! let file = File::open("data.txt").unwrap();
+//! let mut reader = BufReader::new(file);
+//! const block_size: usize = 1024; // 524 KB when ciphered 
+//! let mut buffer = [0; block_size];
+//! 
+//! let params = Parameters::new(512, 256, 16, 256);
+//! let mut context = Context::new(params);
+//! context.generate_secret_key();
+//! context.generate_public_key();
+//! 
+//! loop {
+//!     let n = reader.read(&mut buffer).unwrap();
+//!     if n == 0 {
+//!         break;
+//!     }
+//!     process_block(&mut buffer[..n], &context);
+//! }
+//! 
+//! fn process_block(block: &mut [u8], context: &Context) {
+//!     let data = Data::new(block.iter().map(|&x| x == 1).collect());
+//!     // ...
+//! }
+//! ```
+//! 
+//! # Source
+//! 
+//! The source code is available on [GitHub](https://github.com/mathisbot/homomorph-rust).
+//! You will also find details on the system and its security.
 
 use rayon::prelude::*;
 use std::mem;
@@ -194,7 +232,7 @@ impl SecretKey {
     /// # Note
     /// 
     /// For security reseasons, the polynomial should only be retrieved from a previous generated secret key.
-    /// For a first time generation, use `SecretKey::random`.
+    /// For a first time generation, use `Context::generate_secret_key`.
     /// 
     /// # Examples
     /// 
@@ -273,7 +311,7 @@ impl PublicKey {
     /// # Note
     /// 
     /// For security reseasons, the list of polynomials should only be retrieved from a previous generated public key.
-    /// For a first time generation, use `PublicKey::random`.
+    /// For a first time generation, use `Context::generate_public_key`.
     /// 
     /// # Examples
     /// 
