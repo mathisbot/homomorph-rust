@@ -50,7 +50,7 @@ Multiplcation is not yet to be implemented. I plan to refactor the whole code fo
 
 ## Benchmarks
 
-Benchmarks were made by hand, and will be recomputed later more precisely.
+Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 10 000 tries.
 
 Parameters used for this benchmark were the ones that should be used for a standard application :
 - `d` = 512
@@ -61,9 +61,9 @@ Parameters used for this benchmark were the ones that should be used for a stand
 | Operation         | Mean time        |
 |-------------------|------------------|
 | Enc + Dec         | 200 µs           |
-| Add (unoptimized) | 45 ms            |
+| Add               | 40 ms            |
 
-Benchmark : Average over 10 000 tries.
+It appears that it's quicker to decrypt, add and then re-encrypt the data. Clearly, this system is only useful if you want to use its properties when security takes precedence over speed.
 
 ## Architecture
 
@@ -86,7 +86,7 @@ $d, d', \delta < d, \tau \in \mathbb{N}$
 
 A secret key $S$ is a randomly generated polynomial of degree $d$ in $\mathbb{Z}/2\mathbb{Z}_{d}[X]$.
 
-A public key $T$ is $\tau$-list of polynomials in $\mathbb{Z}/2\mathbb{Z}_{d+d'}[X]$. These polynomials are generated as follows :
+A public key $T$ is a $\tau$-list of polynomials in $\mathbb{Z}/2\mathbb{Z}_{d+d'}[X]$. These polynomials are generated as follows :
 
 - Generate two random polynomials :
     - $Q_i \in \mathbb{Z}/2\mathbb{Z}_{d'}[X]$
@@ -103,7 +103,7 @@ Encryption of bit $x$ is done as follows :
 - Generate $\mathcal{U} \in \mathcal{P}([1,\tau])$
 - Encrypted polynomial is $C = (\sum_{i\in\mathcal{U}} T_i) + x$
 
-$\mathcal{U}$ is used in order to protect against bruteforce. Indeed, if the sum was made over $[1..\tau]$, a malicious person could compute the cipher of $0$ and $1$ and easily compare them with the desired cipher. With $\mathcal{U}$ in the way, the number of possibilities is now $2^\tau$.
+$\mathcal{U}$ is used in order to protect against bruteforce. Indeed, if the sum was made over $[1,\tau]$, a malicious person could compute the cipher of $0$ and $1$ and easily compare them with the desired cipher. With $\mathcal{U}$ in the way, the number of possibilities is now $2^\tau$.
 
 #### Decryption
 Decryption of a cipher $C$ is done as follows :

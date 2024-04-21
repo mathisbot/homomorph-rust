@@ -31,7 +31,6 @@
 //! 
 //! ```
 //! use homomorph::{Context, Data, Parameters};
-//! use rand::thread_rng;
 //! 
 //! // Define the parameters
 //! // -------------------------- d   dp  delta tau
@@ -40,16 +39,16 @@
 //! // Create a new context
 //! let mut context = Context::new(params);
 //! // Initialize keys
-//! context.generate_secret_key(&mut thread_rng());
+//! context.generate_secret_key();
 //! // Notice that the public key is generated after the secret key
-//! context.generate_public_key(&mut thread_rng());
+//! context.generate_public_key();
 //! 
 //! // Create data from a usize
 //! let data = Data::from_usize(42);
 //! // Encrypt the data using the public key
-//! let encrypted_data = data.encrypt(&context.get_public_key().unwrap());
+//! let encrypted_data = data.encrypt(&context);
 //! // Decrypt the data using the secret key
-//! let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
+//! let decrypted_data = encrypted_data.decrypt(&context);
 //! assert_eq!(data.to_usize(), decrypted_data.to_usize());
 //! 
 //! // Save the secret key
@@ -64,29 +63,28 @@
 //! 
 //! ```
 //! use homomorph::{Context, Data, Parameters};
-//! use rand::thread_rng;
 //! 
 //! // Define the parameters
 //! // -------------------------- d   dp  delta tau
 //! let params = Parameters::new(512, 256, 16, 256);
 //! let mut context = Context::new(params);
-//! context.generate_secret_key(&mut thread_rng());
-//! context.generate_public_key(&mut thread_rng());
+//! context.generate_secret_key();
+//! context.generate_public_key();
 //! 
 //! // Create data from a usize
 //! let data1 = Data::from_usize(20);
 //! let data2 = Data::from_usize(22);
 //! 
 //! // Encrypt the data using the public key
-//! let encrypted_data1 = data1.encrypt(&context.get_public_key().unwrap());
-//! let encrypted_data2 = data2.encrypt(&context.get_public_key().unwrap());
+//! let encrypted_data1 = data1.encrypt(&context);
+//! let encrypted_data2 = data2.encrypt(&context);
 //! 
 //! // Perform homomorphic addition
 //! let data3 = data1 + data2;
 //! let encrypted_data3 = encrypted_data1 + encrypted_data2;
 //! 
 //! // Decrypt the data using the secret key
-//! let decrypted_data = encrypted_data3.decrypt(&context.get_secret_key().unwrap());
+//! let decrypted_data = encrypted_data3.decrypt(&context);
 //! assert_eq!(data3.to_usize(), decrypted_data.to_usize());
 //! ```
 
@@ -118,6 +116,7 @@ use polynomial::Polynomial;
 /// # Note
 /// 
 /// `delta` must be strictly less than `d`.
+// TODO: Hide delta ?
 pub struct Parameters {
     d: usize,
     dp: usize,
@@ -171,10 +170,11 @@ impl Parameters {
 /// # Examples
 /// 
 /// ```
-/// use homomorph::SecretKey;
-/// use rand::thread_rng;
+/// use homomorph::{Context, Parameters};
 /// 
-/// let s = SecretKey::random(5, &mut thread_rng());
+/// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
+/// 
+/// context.generate_secret_key();
 /// ```
 pub struct SecretKey {
     s: polynomial::Polynomial,
@@ -210,31 +210,8 @@ impl SecretKey {
         SecretKey { s }
     }
 
-    /// Creates a new random secret key.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `d` - The degree of the secret key.
-    /// * `rng` - A random number generator.
-    /// 
-    /// # Returns
-    /// 
-    /// A new secret key.
-    /// 
-    /// # Complexity
-    /// 
-    /// O(n) where n is the degree of the secret key.
-    /// 
-    /// # Examples
-    /// 
-    /// ```
-    /// use homomorph::SecretKey;
-    /// use rand::thread_rng;
-    /// 
-    /// let s = SecretKey::random(5, &mut thread_rng());
-    /// ```
-    pub fn random(d: usize, rng: &mut impl rand::Rng) -> Self {
-        let s = polynomial::Polynomial::random(d, rng);
+    pub(crate) fn random(d: usize) -> Self {
+        let s = polynomial::Polynomial::random(d, &mut rand::thread_rng());
         SecretKey { s }
     }
 
@@ -251,11 +228,12 @@ impl SecretKey {
     /// # Examples
     /// 
     /// ```
-    /// use homomorph::SecretKey;
-    /// use rand::thread_rng;
+    /// use homomorph::{Context, Parameters};
     /// 
-    /// let s = SecretKey::random(5, &mut thread_rng());
-    /// let s_ref = s.as_ref();
+    /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
+    /// context.generate_secret_key();
+    /// 
+    /// let s_ref = context.get_secret_key().unwrap().as_ref();
     /// ```
     pub fn as_ref(&self) -> &polynomial::Polynomial {
         &self.s
@@ -271,11 +249,12 @@ impl SecretKey {
 /// # Examples
 /// 
 /// ```
-/// use homomorph::{PublicKey, SecretKey};
-/// use rand::thread_rng;
+/// use homomorph::{Context, Parameters};
 /// 
-/// let secret_key = SecretKey::random(5, &mut thread_rng());
-/// let pk = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
+/// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
+/// 
+/// context.generate_secret_key();
+/// context.generate_public_key();
 pub struct PublicKey {
     list: Vec<polynomial::Polynomial>,
 }
@@ -310,41 +289,19 @@ impl PublicKey {
         PublicKey { list: v }
     }
 
-    /// Creates a new random public key.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `secret_key` - The secret key.
-    /// 
-    /// # Returns
-    /// 
-    /// A new public key.
-    /// 
-    /// # Complexity
-    /// 
-    /// O(n) where n is the size of the public key.
-    /// 
-    /// # Examples
-    /// 
-    /// ```
-    /// use homomorph::{PublicKey, SecretKey};
-    /// use rand::thread_rng;
-    /// 
-    /// let secret_key = SecretKey::random(5, &mut thread_rng());
-    /// let pk = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
-    /// ```
-    pub fn random(dp: usize, delta: usize, tau: usize, secret_key: &SecretKey, rng: &mut impl rand::Rng) -> Self {
-        let mut list = Vec::with_capacity(tau);
-        for _ in 0..tau {
-            let q = polynomial::Polynomial::random(dp, rng);
-            let sq = secret_key.s.clone()*q;
-            let r = polynomial::Polynomial::random(delta, rng);
-            unsafe {
-                let rx = r * (Polynomial::new_unchecked(vec![false, true], 1));
+    pub(crate) fn random(dp: usize, delta: usize, tau: usize, secret_key: &SecretKey) -> Self {
+        let list: Vec<_> = (0..tau)
+            .into_par_iter()
+            .map(|_| {
+                let q = polynomial::Polynomial::random(dp, &mut rand::thread_rng());
+                let sq = secret_key.s.clone() * q;
+                let r = polynomial::Polynomial::random(delta, &mut rand::thread_rng());
+                let rx = r * unsafe { Polynomial::new_unchecked(vec![false, true], 1) } ;
                 let ti = sq + rx;
-                list.push(ti);
-            }
-        }
+                ti
+            })
+            .collect();
+    
         PublicKey { list }
     }
 
@@ -361,11 +318,16 @@ impl PublicKey {
     /// # Examples
     /// 
     /// ```
-    /// use homomorph::{PublicKey, SecretKey};
-    /// use rand::thread_rng;
+    /// use homomorph::{Context, Parameters};
     /// 
-    /// let secret_key = SecretKey::random(5, &mut thread_rng());
-    /// let pk = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
+    /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
+    /// 
+    /// context.generate_secret_key();
+    /// context.generate_public_key();
+    /// 
+    /// let pk = context.get_public_key().unwrap();
+    /// 
+    /// // Saving the public key
     /// let pk_ref = pk.as_ref();
     pub fn as_ref(&self) -> &Vec<polynomial::Polynomial> {
         &self.list
@@ -427,14 +389,14 @@ impl Context {
     /// 
     /// ```
     /// use homomorph::{Context, Parameters};
-    /// use rand::thread_rng;
     /// 
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
-    /// context.generate_secret_key(&mut thread_rng());
+    /// 
+    /// context.generate_secret_key();
     /// ```
-    pub fn generate_secret_key(&mut self, rng: &mut impl rand::Rng) {
-        self.secret_key = Some(SecretKey::random(self.parameters.d, rng));
+    pub fn generate_secret_key(&mut self) {
+        self.secret_key = Some(SecretKey::random(self.parameters.d));
     }
 
     /// Generates a public key out of the private key.
@@ -442,6 +404,10 @@ impl Context {
     /// # Arguments
     /// 
     /// * `rng` - A random number generator.
+    /// 
+    /// # Panics
+    /// 
+    /// This function will panic if the secret key has not been generated yet.
     /// 
     /// # Examples
     /// 
@@ -451,16 +417,13 @@ impl Context {
     /// 
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
-    /// context.generate_secret_key(&mut thread_rng());
-    /// context.generate_public_key(&mut thread_rng());
+    /// context.generate_secret_key();
+    /// 
+    /// context.generate_public_key();
     /// ```
-    /// 
-    /// # Panics
-    /// 
-    /// This function will panic if the secret key has not been generated yet.
-    pub fn generate_public_key(&mut self, rng: &mut impl rand::Rng) {
+    pub fn generate_public_key(&mut self) {
         if let Some(secret_key) = &self.secret_key {
-            self.public_key = Some(PublicKey::random(self.parameters.dp, self.parameters.delta, self.parameters.tau, secret_key, rng));
+            self.public_key = Some(PublicKey::random(self.parameters.dp, self.parameters.delta, self.parameters.tau, secret_key));
         } else {
             panic!("Secret key not generated yet");
         }
@@ -476,11 +439,10 @@ impl Context {
     /// 
     /// ```
     /// use homomorph::{Context, Parameters};
-    /// use rand::thread_rng;
     /// 
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
-    /// context.generate_secret_key(&mut thread_rng());
+    /// context.generate_secret_key();
     /// let secret_key = context.get_secret_key().unwrap();
     /// ```
     pub fn get_secret_key(&self) -> Option<&SecretKey> {
@@ -497,12 +459,11 @@ impl Context {
     /// 
     /// ```
     /// use homomorph::{Context, Parameters};
-    /// use rand::thread_rng;
     /// 
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
-    /// context.generate_secret_key(&mut thread_rng());
-    /// context.generate_public_key(&mut thread_rng());
+    /// context.generate_secret_key();
+    /// context.generate_public_key();
     /// let public_key = context.get_public_key().unwrap();
     /// ```
     pub fn get_public_key(&self) -> Option<&PublicKey> {
@@ -519,11 +480,12 @@ impl Context {
     /// 
     /// ```
     /// use homomorph::{Context, Parameters, SecretKey};
-    /// use rand::thread_rng;
+    /// use homomorph::polynomial::Polynomial;
     /// 
-    /// let params = Parameters::new(6, 3, 2, 5);
-    /// let mut context = Context::new(params);
-    /// let secret_key = SecretKey::random(5, &mut thread_rng());
+    /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
+    /// 
+    /// let secret_key = SecretKey::new(Polynomial::new(vec![true, false, true]));
+    /// 
     /// context.set_secret_key(secret_key);
     /// ```
     pub fn set_secret_key(&mut self, secret_key: SecretKey) {
@@ -539,13 +501,13 @@ impl Context {
     /// # Examples
     /// 
     /// ```
-    /// use homomorph::{Context, Parameters, PublicKey, SecretKey};
-    /// use rand::thread_rng;
+    /// use homomorph::{Context, Parameters, PublicKey};
+    /// use homomorph::polynomial::Polynomial;
     /// 
-    /// let params = Parameters::new(6, 3, 2, 5);
-    /// let mut context = Context::new(params);
-    /// let secret_key = SecretKey::random(5, &mut thread_rng());
-    /// let public_key = PublicKey::random(3, 2, 5, &secret_key, &mut thread_rng());
+    /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
+    /// 
+    /// let public_key = PublicKey::new(vec![Polynomial::new(vec![true, false, true])]);
+    /// 
     /// context.set_public_key(public_key);
     /// ```
     pub fn set_public_key(&mut self, public_key: PublicKey) {
@@ -580,15 +542,14 @@ pub struct Data {
 /// 
 /// ```
 /// use homomorph::{Data, Context, Parameters};
-/// use rand::thread_rng;
 /// 
 /// let params = Parameters::new(6, 3, 2, 5);
 /// let mut context = Context::new(params);
-/// context.generate_secret_key(&mut thread_rng());
-/// context.generate_public_key(&mut thread_rng());
+/// context.generate_secret_key();
+/// context.generate_public_key();
 /// 
 /// let data = Data::new(vec![true, false, true]);
-/// let encrypted_data = data.encrypt(&context.get_public_key().unwrap());
+/// let encrypted_data = data.encrypt(&context);
 /// ```
 pub struct EncryptedData {
     p: Vec<polynomial::Polynomial>,
@@ -616,6 +577,31 @@ impl Data {
         Data { x }
     }
 
+    /// Creates a new data from a `u32`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `x` - `u32` to convert.
+    /// 
+    /// # Returns
+    /// 
+    /// A new data.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::Data;
+    /// 
+    /// let data = Data::from_u32(42 as u32);
+    /// ```
+    pub fn from_u32(x: u32) -> Self {
+        let mut result = Vec::with_capacity(mem::size_of::<u32>());
+        for i in 0..mem::size_of::<u32>() {
+            result.push((x >> i) & 1 == 1);
+        }
+        Data { x: result }
+    }
+
     /// Creates a new data from a `usize`.
     /// 
     /// # Arguments
@@ -631,7 +617,7 @@ impl Data {
     /// ```
     /// use homomorph::Data;
     /// 
-    /// let data = Data::from_usize(42);
+    /// let data = Data::from_usize(42 as usize);
     /// ```
     pub fn from_usize(x: usize) -> Self {
         let mut result = Vec::with_capacity(mem::size_of::<usize>());
@@ -639,6 +625,56 @@ impl Data {
             result.push((x >> i) & 1 == 1);
         }
         Data { x: result }
+    }
+
+    /// Creates a new data from a `u64`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `x` - `u64` to convert.
+    /// 
+    /// # Returns
+    /// 
+    /// A new data.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::Data;
+    /// 
+    /// let data = Data::from_u64(42 as u64);
+    /// ```
+    pub fn from_u64(x: u64) -> Self {
+        let mut result = Vec::with_capacity(mem::size_of::<u64>());
+        for i in 0..mem::size_of::<u64>() {
+            result.push((x >> i) & 1 == 1);
+        }
+        Data { x: result }
+    }
+
+    /// Converts the data to a `u32`.
+    /// 
+    /// # Returns
+    /// 
+    /// The data as a `u32`.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::Data;
+    /// 
+    /// let data = Data::new(vec![true, false, true]);
+    /// let x = data.to_u32();
+    /// ```
+    pub fn to_u32(&self) -> u32 {
+        let mut result = 0;
+        let end = self.x.len().min(mem::size_of::<u32>());
+        for i in 0..end {
+            if self.x[i] {
+                result |= 1 << i;
+            }
+        }
+        result
     }
 
     /// Converts the data to a `usize`.
@@ -658,6 +694,31 @@ impl Data {
     pub fn to_usize(&self) -> usize {
         let mut result = 0;
         let end = self.x.len().min(mem::size_of::<usize>());
+        for i in 0..end {
+            if self.x[i] {
+                result |= 1 << i;
+            }
+        }
+        result
+    }
+
+    /// Converts the data to a `u64`.
+    /// 
+    /// # Returns
+    /// 
+    /// The data as a `u64`.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::Data;
+    /// 
+    /// let data = Data::new(vec![true, false, true]);
+    /// let x = data.to_u64();
+    /// ```
+    pub fn to_u64(&self) -> u64 {
+        let mut result = 0;
+        let end = self.x.len().min(mem::size_of::<u64>());
         for i in 0..end {
             if self.x[i] {
                 result |= 1 << i;
@@ -735,26 +796,29 @@ impl Data {
     /// 
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
-    /// context.generate_secret_key(&mut thread_rng());
-    /// context.generate_public_key(&mut thread_rng());
+    /// context.generate_secret_key();
+    /// context.generate_public_key();
     /// 
     /// let data = Data::new(vec![true, false, true]);
-    /// let encrypted_data = data.encrypt(&context.get_public_key().unwrap());
+    /// let encrypted_data = data.encrypt(&context);
     /// ```
     /// 
     /// # Note
     /// 
     /// This function is highly parallelized.
     /// Parameter `_rng` is unused for now.
-    pub fn encrypt(&self, pk: &PublicKey) -> EncryptedData {
-        let result: Vec<_> = self.x.par_iter()
-            .map(|&bit| {
-                let mut local_rng = rand::thread_rng();
-                Data::encrypt_bit(bit, pk, &mut local_rng)
-            })
-            .collect();
-    
-        EncryptedData { p: result }
+    pub fn encrypt(&self, context: &Context) -> EncryptedData {
+        if let Some(pk) = context.get_public_key() {
+            let result: Vec<_> = self.x.par_iter()
+                .map(|&bit| {
+                    Data::encrypt_bit(bit, pk, &mut rand::thread_rng())
+                })
+                .collect();
+        
+            EncryptedData { p: result }
+        } else {
+            panic!("Public key not generated yet");
+        }
     }
 }
 
@@ -815,29 +879,32 @@ impl EncryptedData {
     /// 
     /// ```
     /// use homomorph::{Data, Context, Parameters};
-    /// use rand::thread_rng;
     /// 
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
-    /// context.generate_secret_key(&mut thread_rng());
-    /// context.generate_public_key(&mut thread_rng());
+    /// context.generate_secret_key();
+    /// context.generate_public_key();
     /// 
     /// let data = Data::new(vec![true, false, true]);
-    /// let encrypted_data = data.encrypt(&context.get_public_key().unwrap());
+    /// let encrypted_data = data.encrypt(&context);
     /// 
-    /// let decrypted_data = encrypted_data.decrypt(&context.get_secret_key().unwrap());
+    /// let decrypted_data = encrypted_data.decrypt(&context);
     /// ```
     /// 
     /// # Note
     /// 
     /// This function is highly parallelized.
-    pub fn decrypt(&self, sk: &SecretKey) -> Data {
-        let result: Vec<_> = self.p.par_iter()
-            .map(|poly| {
-                EncryptedData::decrypt_bit(poly, sk)
-            })
-            .collect();
-        Data { x: result }
+    pub fn decrypt(&self, context: &Context) -> Data {
+        if let Some(sk) = context.get_secret_key() {
+            let result: Vec<_> = self.p.par_iter()
+                .map(|poly| {
+                    EncryptedData::decrypt_bit(poly, sk)
+                })
+                .collect();
+            Data { x: result }
+        } else {
+            panic!("Secret key not generated yet");
+        }
     }
 }
 
@@ -846,7 +913,6 @@ impl EncryptedData {
 /// # Notes
 /// 
 /// Factor `d`/`delta` must be at least 20. 32 is a good value.
-// TODO: Use a better method to ensure the factor is at least 20.
 impl Add for EncryptedData {
     type Output = Self;
 
@@ -860,7 +926,13 @@ impl Add for EncryptedData {
             let p1 = self.p.get(i).unwrap_or(&null_p);
             let p2 = other.p.get(i).unwrap_or(&null_p);
             let s = p1.bit_xor(&p2).bit_xor(&carry);
-            carry = p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
+            /* This is too long and can be simplified :
+            c <- (p1+p2)*c + p2*p2 + p1*p2*(p1+p2)*c
+            c <- c*(p1+p2)*(1+p1*p2) + p1*p2 */
+            // carry = p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
+            let p1p2 = p1.mul_fn(&p2);
+            carry = unsafe { p1.add_fn(&p2).mul_fn(&carry).mul_fn(&Polynomial::new_unchecked(vec![true], 1).add_fn(&p1p2)).add_fn(&p1p2) };
+
             result.push(s);
         }
         EncryptedData { p: result }
@@ -905,12 +977,12 @@ mod tests {
     fn test_encrypted_data() {
         let params = Parameters::new(16, 8, 4, 8);
         let mut context = Context::new(params);
-        context.generate_secret_key(&mut rand::thread_rng());
-        context.generate_public_key(&mut rand::thread_rng());
+        context.generate_secret_key();
+        context.generate_public_key();
 
         let data = Data::new(vec![true, false, true]);
-        let encrypted_data = data.encrypt(context.get_public_key().unwrap());
-        let decrypted_data = encrypted_data.decrypt(context.get_secret_key().unwrap());
+        let encrypted_data = data.encrypt(&context);
+        let decrypted_data = encrypted_data.decrypt(&context);
         assert_eq!(data.to_usize(), decrypted_data.to_usize());
     }
 
@@ -923,12 +995,12 @@ mod tests {
 
         let mut rng = rand::thread_rng();
         for _ in 0..N {
-            context.generate_secret_key(&mut rng);
-            context.generate_public_key(&mut rng);
+            context.generate_secret_key();
+            context.generate_public_key();
 
             let data = Data::from_usize(rng.gen());
-            let encrypted_data = data.encrypt(context.get_public_key().unwrap());
-            let decrypted_data = encrypted_data.decrypt(context.get_secret_key().unwrap());
+            let encrypted_data = data.encrypt(&context);
+            let decrypted_data = encrypted_data.decrypt(&context);
             assert_eq!(data.to_usize(), decrypted_data.to_usize());
         }
     }
@@ -937,15 +1009,15 @@ mod tests {
     fn test_encrypted_data_add() {
         let params = Parameters::new(128, 32, 4, 16);
         let mut context = Context::new(params);
-        context.generate_secret_key(&mut rand::thread_rng());
-        context.generate_public_key(&mut rand::thread_rng());
+        context.generate_secret_key();
+        context.generate_public_key();
 
         let data1 = Data::from_usize(12);
         let data2 = Data::from_usize(30);
-        let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap());
-        let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap());
+        let encrypted_data1 = data1.encrypt(&context);
+        let encrypted_data2 = data2.encrypt(&context);
         let encrypted_data3 = encrypted_data1 + encrypted_data2;
-        let decrypted_data = encrypted_data3.decrypt(context.get_secret_key().unwrap());
+        let decrypted_data = encrypted_data3.decrypt(&context);
         let data3 = data1 + data2;
         assert_eq!(data3.to_usize(), decrypted_data.to_usize());
     }
@@ -959,15 +1031,15 @@ mod tests {
 
         let mut rng = rand::thread_rng();
         for _ in 0..N {
-            context.generate_secret_key(&mut rand::thread_rng());
-            context.generate_public_key(&mut rand::thread_rng());
+            context.generate_secret_key();
+            context.generate_public_key();
 
             let data1 = Data::from_usize(rng.gen());
             let data2 = Data::from_usize(rng.gen());
-            let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap());
-            let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap());
+            let encrypted_data1 = data1.encrypt(&context);
+            let encrypted_data2 = data2.encrypt(&context);
             let encrypted_data3 = encrypted_data1 + encrypted_data2;
-            let decrypted_data = encrypted_data3.decrypt(context.get_secret_key().unwrap());
+            let decrypted_data = encrypted_data3.decrypt(&context);
             let data3 = data1 + data2;
             assert_eq!(data3.to_usize(), decrypted_data.to_usize());
         }
@@ -978,15 +1050,15 @@ mod tests {
     fn test_encrypted_data_mul() {
         let params = Parameters::new(128, 64, 8, 32);
         let mut context = Context::new(params);
-        context.generate_secret_key(&mut rand::thread_rng());
-        context.generate_public_key(&mut rand::thread_rng());
+        context.generate_secret_key();
+        context.generate_public_key();
 
         let data1 = Data::from_usize(12);
         let data2 = Data::from_usize(30);
-        let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap());
-        let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap());
+        let encrypted_data1 = data1.encrypt(&context);
+        let encrypted_data2 = data2.encrypt(&context);
         let encrypted_data3 = encrypted_data1 * encrypted_data2;
-        let decrypted_data = encrypted_data3.decrypt(context.get_secret_key().unwrap());
+        let decrypted_data = encrypted_data3.decrypt(&context);
         let data3 = data1 * data2;
         assert_eq!(data3.to_usize(), decrypted_data.to_usize());
     }
@@ -1001,15 +1073,15 @@ mod tests {
 
         let mut rng = rand::thread_rng();
         for _ in 0..N {
-            context.generate_secret_key(&mut rand::thread_rng());
-            context.generate_public_key(&mut rand::thread_rng());
+            context.generate_secret_key();
+            context.generate_public_key();
 
             let data1 = Data::from_usize(rng.gen());
             let data2 = Data::from_usize(rng.gen());
-            let encrypted_data1 = data1.encrypt(context.get_public_key().unwrap());
-            let encrypted_data2 = data2.encrypt(context.get_public_key().unwrap());
+            let encrypted_data1 = data1.encrypt(&context);
+            let encrypted_data2 = data2.encrypt(&context);
             let encrypted_data3 = encrypted_data1 * encrypted_data2;
-            let decrypted_data = encrypted_data3.decrypt(context.get_secret_key().unwrap());
+            let decrypted_data = encrypted_data3.decrypt(&context);
             let data3 = data1 * data2;
             assert_eq!(data3.to_usize(), decrypted_data.to_usize());
         }

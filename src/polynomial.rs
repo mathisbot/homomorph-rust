@@ -197,17 +197,19 @@ impl Polynomial {
         unsafe { Polynomial::new_unchecked(self_coefficients, deg) }
     }
 
-    pub(crate) fn bit_and(&self, other: &Polynomial) -> Polynomial {
+    // Unused
+    /*pub(crate) fn bit_and(&self, other: &Polynomial) -> Polynomial {
         self.mul_fn(other)
-    }
+    }*/
 
     pub(crate) fn bit_xor(&self, other: &Polynomial) -> Polynomial {
         self.add_fn(other)
     }
 
-    pub(crate) fn bit_or(&self, other: &Polynomial) -> Polynomial {
+    // Unused
+    /*pub(crate) fn bit_or(&self, other: &Polynomial) -> Polynomial {
         self.add_fn(other) + self.mul_fn(other)
-    }
+    }*/
 }
 
 // Unlike add_fn, add takes ownership of the two polynomials.
