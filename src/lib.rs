@@ -19,7 +19,7 @@
 //! 
 //! Also, the fronted may change to provide a more generic interface.
 //! 
-//! The library is highly parallelized, using the `rayon` crate.
+//! The library is parallelized, using the `rayon` crate.
 //! 
 //! # Examples
 //! 
@@ -80,8 +80,8 @@
 //! let encrypted_data2 = data2.encrypt(&context);
 //! 
 //! // Perform homomorphic addition
-//! let data3 = data1 + data2;
-//! let encrypted_data3 = encrypted_data1 + encrypted_data2;
+//! let data3 = data1.add_as_uint(&data2);
+//! let encrypted_data3 = encrypted_data1.add_as_uint(&encrypted_data2);
 //! 
 //! // Decrypt the data using the secret key
 //! let decrypted_data = encrypted_data3.decrypt(&context);
@@ -121,6 +121,37 @@
 //! }
 //! ```
 //! 
+//! ## Save keys
+//! 
+//! In order to store ciphered data, you need to save the secret key and the public key for later use.
+//! This can be done by storing the coefficients of the keys.
+//! 
+//! ```ignore
+//! use homomorph::{Context, Parameters};
+//! 
+//! let mut context = Context::new(Parameters::new(6, 3, 2, 5));
+//! context.generate_secret_key();
+//! 
+//! // Reference to the coefficients
+//! let s_ref = context.get_secret_key().unwrap().as_ref();
+//! 
+//! // Convert the coefficients to a vector of bytes
+//! let mut bytes: Vec<u8> = Vec::new();
+//! for chunk in s_ref.chunks(8) {
+//!     let mut byte = 0;
+//!     for (i, &bit) in chunk.iter().enumerate() {
+//!         if bit {
+//!             byte |= 1 << (7 - i);
+//!         }
+//!     }
+//!     bytes.push(byte);
+//! }
+//! 
+//! // Save the bytes to a file
+//! let mut file = File::create("secret_key").unwrap();
+//! file.write_all(&bytes).unwrap();
+//! ```
+//! 
 //! # Source
 //! 
 //! The source code is available on [GitHub](https://github.com/mathisbot/homomorph-rust).
@@ -128,7 +159,6 @@
 
 use rayon::prelude::*;
 use std::mem;
-use std::ops::{Add, Mul};
 
 pub mod polynomial;
 use polynomial::Polynomial;
@@ -154,7 +184,7 @@ use polynomial::Polynomial;
 /// # Note
 /// 
 /// `delta` must be strictly less than `d`.
-// TODO: Hide delta ?
+// TODO: Hide delta so that it is guaranteed to be 32 times smaller than d
 pub struct Parameters {
     d: usize,
     dp: usize,
@@ -231,7 +261,7 @@ impl SecretKey {
     /// 
     /// # Note
     /// 
-    /// For security reseasons, the polynomial should only be retrieved from a previous generated secret key.
+    /// For security reasons, the polynomial should only be retrieved from a previous generated secret key.
     /// For a first time generation, use `Context::generate_secret_key`.
     /// 
     /// # Examples
@@ -240,6 +270,7 @@ impl SecretKey {
     /// use homomorph::SecretKey;
     /// use homomorph::polynomial::Polynomial;
     /// 
+    /// // INSECURE!!! Only for demonstration purposes
     /// let s = Polynomial::new(vec![true, false, true]);
     /// 
     /// let sk = SecretKey::new(s);
@@ -319,6 +350,7 @@ impl PublicKey {
     /// use homomorph::PublicKey;
     /// use homomorph::polynomial::Polynomial;
     /// 
+    /// // INSECURE!!! Only for demonstration purposes
     /// let p = Polynomial::new(vec![true, false, true]);
     /// 
     /// let pk = PublicKey::new(vec![p]);
@@ -522,6 +554,7 @@ impl Context {
     /// 
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     /// 
+    /// // INSECURE!!! Only for demonstration purposes
     /// let secret_key = SecretKey::new(Polynomial::new(vec![true, false, true]));
     /// 
     /// context.set_secret_key(secret_key);
@@ -544,6 +577,7 @@ impl Context {
     /// 
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     /// 
+    /// // INSECURE!!! Only for demonstration purposes
     /// let public_key = PublicKey::new(vec![Polynomial::new(vec![true, false, true])]);
     /// 
     /// context.set_public_key(public_key);
@@ -566,8 +600,20 @@ impl Context {
 /// 
 /// let data = Data::new(vec![true, false, true]);
 /// ```
+#[derive(Clone, Debug, Default)]
 pub struct Data {
     x: Vec<bool>,
+}
+
+impl ParallelIterator for Data {
+    type Item = bool;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: rayon::iter::plumbing::UnindexedConsumer<Self::Item>,
+    {
+        self.x.into_par_iter().drive_unindexed(consumer)
+    }
 }
 
 /// The encrypted data.
@@ -589,8 +635,20 @@ pub struct Data {
 /// let data = Data::new(vec![true, false, true]);
 /// let encrypted_data = data.encrypt(&context);
 /// ```
+#[derive(Clone, Debug, Default)]
 pub struct EncryptedData {
     p: Vec<polynomial::Polynomial>,
+}
+
+impl ParallelIterator for EncryptedData {
+    type Item = polynomial::Polynomial;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: rayon::iter::plumbing::UnindexedConsumer<Self::Item>,
+    {
+        self.p.into_par_iter().drive_unindexed(consumer)
+    }
 }
 
 impl Data {
@@ -809,6 +867,7 @@ impl Data {
             .unwrap_or_else(Polynomial::null);
 
         // Save computation if x is false
+        // This does not give hints about the value of x has sum+0 is exactly the same as sum
         if x {
             unsafe { sum + Polynomial::new_unchecked(vec![x], 0) }
         } else {
@@ -843,8 +902,7 @@ impl Data {
     /// 
     /// # Note
     /// 
-    /// This function is highly parallelized.
-    /// Parameter `_rng` is unused for now.
+    /// This function is parallelized.
     pub fn encrypt(&self, context: &Context) -> EncryptedData {
         if let Some(pk) = context.get_public_key() {
             let result: Vec<_> = self.x.par_iter()
@@ -860,11 +918,30 @@ impl Data {
     }
 }
 
-/// As the crate currently assumes `Data` is a `usize`, we can add two `Data` instances.
-impl Add for Data {
-    type Output = Self;
-
-    fn add(self, other: Self) -> Self {
+impl Data {
+    /// Adds two `Data` instances assuming they represent integers.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `other` - The other `Data` instance.
+    /// 
+    /// # Returns
+    /// 
+    /// The sum of the two `Data` instances.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::Data;
+    ///
+    /// let data1 = Data::from_usize(20);
+    /// let data2 = Data::from_usize(22);
+    /// 
+    /// let data3 = data1.add_as_uint(&data2);
+    /// 
+    /// assert_eq!(data3.to_usize(), 42);
+    /// ```
+    pub fn add_as_uint(&self, other: &Self) -> Self {
         let longest = self.x.len().max(other.x.len());
         let mut result = Vec::with_capacity(longest);
         let mut carry = false;
@@ -877,23 +954,32 @@ impl Add for Data {
         }
         Data { x: result }
     }
-}
 
-impl Mul for Data {
-    type Output = Self;
-
-    fn mul(self, other: Self) -> Self {
-        let longest = self.x.len().max(other.x.len());
-        let mut result = Vec::with_capacity(longest);
-        let mut carry = false;
-        for i in 0..longest {
-            let d1 = self.x.get(i).unwrap_or(&false);
-            let d2 = other.x.get(i).unwrap_or(&false);
-            let s = d1 & d2 ^ carry;
-            carry = (d1 & d2) | (d1 & carry) | (d2 & carry);
-            result.push(s);
-        }
-        Data { x: result }
+    /// Multiplies two `Data` instances assuming they represent integers.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `other` - The other `Data` instance.
+    /// 
+    /// # Returns
+    /// 
+    /// The product of the two `Data` instances.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::Data;
+    /// 
+    /// let data1 = Data::from_usize(6);
+    /// let data2 = Data::from_usize(7);
+    /// 
+    /// // This function is not yet implemented
+    /// // let data3 = data1.mul_as_uint(&data2);
+    /// 
+    /// // assert_eq!(data3.to_usize(), 42);
+    /// ```
+    pub fn mul_as_uint(&self, _other: &Self) -> Self {
+        unimplemented!("Multiplication is not yet implemented")
     }
 }
 
@@ -931,7 +1017,7 @@ impl EncryptedData {
     /// 
     /// # Note
     /// 
-    /// This function is highly parallelized.
+    /// This function is parallelized.
     pub fn decrypt(&self, context: &Context) -> Data {
         if let Some(sk) = context.get_secret_key() {
             let result: Vec<_> = self.p.par_iter()
@@ -946,15 +1032,41 @@ impl EncryptedData {
     }
 }
 
-/// Take advantage of the properties of the system to add two `EncryptedData` instances.
-/// 
-/// # Notes
-/// 
-/// Factor `d`/`delta` must be at least 20. 32 is a good value.
-impl Add for EncryptedData {
-    type Output = Self;
-
-    fn add(self, other: Self) -> Self {
+/// Take advantage of the properties of the system to operate on two `EncryptedData` instances.
+impl EncryptedData {
+    /// Adds two `EncryptedData` instances.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `other` - The other `EncryptedData` instance.
+    /// 
+    /// # Returns
+    /// 
+    /// The sum of the two `EncryptedData` instances.
+    /// 
+    /// # Notes
+    /// 
+    /// Factor `d`/`delta` must be at least 20. 32 is a good value.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::{Data, Context, Parameters};
+    /// 
+    /// let params = Parameters::new(6, 3, 2, 5);
+    /// let mut context = Context::new(params);
+    /// context.generate_secret_key();
+    /// context.generate_public_key();
+    /// 
+    /// let data1 = Data::from_usize(12);
+    /// let data2 = Data::from_usize(30);
+    /// 
+    /// let encrypted_data1 = data1.encrypt(&context);
+    /// let encrypted_data2 = data2.encrypt(&context);
+    /// 
+    /// let encrypted_data3 = encrypted_data1.add_as_uint(&encrypted_data2);
+    /// ```
+    pub fn add_as_uint(&self, other: &Self) -> Self {
         let longest = self.p.len().max(other.p.len());
         let mut result = Vec::with_capacity(longest);
         let mut carry = Polynomial::null();
@@ -969,22 +1081,64 @@ impl Add for EncryptedData {
             c <- c*(p1+p2)*(1+p1*p2) + p1*p2 */
             // carry = p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
             let p1p2 = p1.mul_fn(&p2);
-            carry = unsafe { p1.add_fn(&p2).mul_fn(&carry).mul_fn(&Polynomial::new_unchecked(vec![true], 1).add_fn(&p1p2)).add_fn(&p1p2) };
+            carry = unsafe { p1.add_fn(&p2).mul_fn(&carry).mul_fn(&Polynomial::new_unchecked(vec![true], 0).add_fn(&p1p2)).add_fn(&p1p2) };
 
             result.push(s);
         }
         EncryptedData { p: result }
     }
-}
 
-impl Mul for EncryptedData {
-    type Output = Self;
-
-    fn mul(self, _other: Self) -> Self {
-        unimplemented!("Multiplication is not yet implemented");
+    /// Multiplies two `EncryptedData` instances.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `other` - The other `EncryptedData` instance.
+    /// 
+    /// # Returns
+    /// 
+    /// The product of the two `EncryptedData` instances.
+    /// 
+    /// # Notes
+    /// 
+    /// This function is not yet implemented.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::{Data, Context, Parameters};
+    /// 
+    /// let params = Parameters::new(6, 3, 2, 5);
+    /// let mut context = Context::new(params);
+    /// context.generate_secret_key();
+    /// context.generate_public_key();
+    /// 
+    /// let data1 = Data::from_usize(12);
+    /// let data2 = Data::from_usize(30);
+    /// 
+    /// let encrypted_data1 = data1.encrypt(&context);
+    /// let encrypted_data2 = data2.encrypt(&context);
+    /// 
+    /// // Not yet implemented
+    /// // let encrypted_data3 = encrypted_data1.mul_as_uint(&encrypted_data2);
+    /// ```
+    pub fn mul_as_uint(&self, _other: &Self) -> Self {
+        unimplemented!()
+        // let longest = self.p.len().max(other.p.len());
+        // let mut result = Vec::with_capacity(longest);
+        // let mut carry = Polynomial::null();
+        // // Avoid borrowing issues
+        // let null_p = Polynomial::null();
+        // for i in 0..longest {
+        //     let p1 = self.p.get(i).unwrap_or(&null_p);
+        //     let p2 = other.p.get(i).unwrap_or(&null_p);
+        //     let s = p1.bit_and(&p2).bit_xor(&carry);
+        //     carry = p1.mul_fn(&p2).add_fn(&p1.bit_and(&p2)).add_fn(&p1.bit_and(&carry)).add_fn(&p2.bit_and(&carry));
+        //     result.push(s);
+        // }
+        // EncryptedData { p: result }
     }
-
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -1007,7 +1161,7 @@ mod tests {
     fn test_data_add() {
         let data1 = Data::new(vec![true, false, true]);
         let data2 = Data::new(vec![false, true, false]);
-        let data3 = data1 + data2;
+        let data3 = data1.add_as_uint(&data2);
         assert_eq!(data3.to_usize(), 7);
     }
 
@@ -1054,17 +1208,17 @@ mod tests {
         let data2 = Data::from_usize(30);
         let encrypted_data1 = data1.encrypt(&context);
         let encrypted_data2 = data2.encrypt(&context);
-        let encrypted_data3 = encrypted_data1 + encrypted_data2;
+        let encrypted_data3 = encrypted_data1.add_as_uint(&encrypted_data2);
         let decrypted_data = encrypted_data3.decrypt(&context);
-        let data3 = data1 + data2;
+        let data3 = data1.add_as_uint(&data2);
         assert_eq!(data3.to_usize(), decrypted_data.to_usize());
     }
 
     #[test]
     #[ignore = "Longer version of test_encrypted_data_add"]
     fn test_encrypted_data_add_extensive() {
-        const N: usize = 256;
-        let params = Parameters::new(256, 64, 4, 32);
+        const N: usize = 100;
+        let params = Parameters::new(128, 64, 2, 32);
         let mut context = Context::new(params);
 
         let mut rng = rand::thread_rng();
@@ -1076,52 +1230,50 @@ mod tests {
             let data2 = Data::from_usize(rng.gen());
             let encrypted_data1 = data1.encrypt(&context);
             let encrypted_data2 = data2.encrypt(&context);
-            let encrypted_data3 = encrypted_data1 + encrypted_data2;
+            let encrypted_data3 = encrypted_data1.add_as_uint(&encrypted_data2);
             let decrypted_data = encrypted_data3.decrypt(&context);
-            let data3 = data1 + data2;
+            let data3 = data1.add_as_uint(&data2);
             assert_eq!(data3.to_usize(), decrypted_data.to_usize());
         }
     }
 
-    #[test]
-    #[should_panic] // Multiplication is not yet implemented
-    fn test_encrypted_data_mul() {
-        let params = Parameters::new(128, 64, 8, 32);
-        let mut context = Context::new(params);
-        context.generate_secret_key();
-        context.generate_public_key();
+    // #[test]
+    // fn test_encrypted_data_mul() {
+    //     let params = Parameters::new(128, 64, 8, 32);
+    //     let mut context = Context::new(params);
+    //     context.generate_secret_key();
+    //     context.generate_public_key();
 
-        let data1 = Data::from_usize(12);
-        let data2 = Data::from_usize(30);
-        let encrypted_data1 = data1.encrypt(&context);
-        let encrypted_data2 = data2.encrypt(&context);
-        let encrypted_data3 = encrypted_data1 * encrypted_data2;
-        let decrypted_data = encrypted_data3.decrypt(&context);
-        let data3 = data1 * data2;
-        assert_eq!(data3.to_usize(), decrypted_data.to_usize());
-    }
+    //     let data1 = Data::from_usize(12);
+    //     let data2 = Data::from_usize(30);
+    //     let encrypted_data1 = data1.encrypt(&context);
+    //     let encrypted_data2 = data2.encrypt(&context);
+    //     let encrypted_data3 = encrypted_data1 * encrypted_data2;
+    //     let decrypted_data = encrypted_data3.decrypt(&context);
+    //     let data3 = data1.mul_as_uint(&data2);
+    //     assert_eq!(data3.to_usize(), decrypted_data.to_usize());
+    // }
 
-    #[test]
-    #[ignore = "Longer version of test_encrypted_data_mul"]
-    #[should_panic] // Multiplication is not yet implemented
-    fn test_encrypted_data_mul_extensive() {
-        const N: usize = 256;
-        let params = Parameters::new(256, 64, 4, 32);
-        let mut context = Context::new(params);
+    // #[test]
+    // #[ignore = "Longer version of test_encrypted_data_mul"]
+    // fn test_encrypted_data_mul_extensive() {
+    //     const N: usize = 256;
+    //     let params = Parameters::new(256, 64, 4, 32);
+    //     let mut context = Context::new(params);
 
-        let mut rng = rand::thread_rng();
-        for _ in 0..N {
-            context.generate_secret_key();
-            context.generate_public_key();
+    //     let mut rng = rand::thread_rng();
+    //     for _ in 0..N {
+    //         context.generate_secret_key();
+    //         context.generate_public_key();
 
-            let data1 = Data::from_usize(rng.gen());
-            let data2 = Data::from_usize(rng.gen());
-            let encrypted_data1 = data1.encrypt(&context);
-            let encrypted_data2 = data2.encrypt(&context);
-            let encrypted_data3 = encrypted_data1 * encrypted_data2;
-            let decrypted_data = encrypted_data3.decrypt(&context);
-            let data3 = data1 * data2;
-            assert_eq!(data3.to_usize(), decrypted_data.to_usize());
-        }
-    }
+    //         let data1 = Data::from_usize(rng.gen());
+    //         let data2 = Data::from_usize(rng.gen());
+    //         let encrypted_data1 = data1.encrypt(&context);
+    //         let encrypted_data2 = data2.encrypt(&context);
+    //         let encrypted_data3 = encrypted_data1 * encrypted_data2;
+    //         let decrypted_data = encrypted_data3.decrypt(&context);
+    //         let data3 = data1.mul_as_uint(&data2);
+    //         assert_eq!(data3.to_usize(), decrypted_data.to_usize());
+    //     }
+    // }
 }

@@ -19,12 +19,13 @@ use std::ops::{Add, Deref, Mul};
 
 // A polynomial over Z/2Z.
 // A polynomial is represented as a vector of coefficients, where the i-th element is the coefficient of x^i.
+#[derive(Debug, PartialEq)]
 pub struct Polynomial {
     coefficients: Vec<bool>, // Isn't guaranteed to be of size degree+1.
     degree: usize, // The exact degree of the polynomial.
 }
 
-fn get_degree(coefficients: &[bool]) -> usize {
+fn compute_degree(coefficients: &[bool]) -> usize {
     for i in (0..coefficients.len()).rev() {
         if coefficients[i] {
             return i;
@@ -63,7 +64,7 @@ impl Polynomial {
         if coefficients.is_empty() {
             panic!("The vector of coefficients must not be empty.");
         }
-        let degree = get_degree(&coefficients);
+        let degree = compute_degree(&coefficients);
         Polynomial { coefficients, degree }
     }
 
@@ -90,23 +91,19 @@ impl Polynomial {
     }
 
     pub(crate) fn random(degree: usize, rng: &mut impl rand::Rng) -> Self {
+        if degree == 0 {
+            return Polynomial::null();
+        }
         let mut coefficients = Vec::with_capacity(degree + 1);
-        for _ in 0..=degree {
+        for _ in 0..degree {
             coefficients.push(rng.gen::<bool>());
         }
+        coefficients.push(true);
         unsafe { Polynomial::new_unchecked(coefficients, degree) }
     }
 
     pub(crate) fn null() -> Self {
         Polynomial { coefficients: vec![false], degree: 0 }
-    }
-
-    fn clone_fn(&self) -> Polynomial {
-        let mut cloned_coefficients = Vec::with_capacity(self.degree + 1);
-        for i in 0..=self.degree {
-            cloned_coefficients.push(self.coefficients[i]);
-        }
-        unsafe { Polynomial::new_unchecked(cloned_coefficients, self.degree) }
     }
 
     pub(crate) fn evaluate(&self, x: bool) -> bool {
@@ -117,21 +114,21 @@ impl Polynomial {
         // Horner's method for polynomial evaluation.
         let mut result = self.coefficients[self.degree];
         for i in (0..self.degree).rev() {
-            result = result ^ (self.coefficients[i] & x);
+            result ^= self.coefficients[i]; // as x^i = 1 here
         }
         result
     }
 
     pub(crate) fn add_fn(&self, other: &Polynomial) -> Polynomial {
         // We know that degree of the sum is at most max(deg(p1), deg(p2)).
-        let max_deg = std::cmp::max(self.degree, other.degree);
+        let max_deg = self.degree.max(other.degree);
         let mut result = Vec::with_capacity(max_deg + 1);
         for i in 0..=max_deg {
             let mut coeff = false;
-            if i < self.coefficients.len() {
+            if i <= self.degree {
                 coeff ^= self.coefficients[i];
             }
-            if i < other.coefficients.len() {
+            if i <= other.degree {
                 coeff ^= other.coefficients[i];
             }
             result.push(coeff);
@@ -142,6 +139,26 @@ impl Polynomial {
         } else {
             Polynomial::new(result)
         }
+
+        // Parallelized version seems to be slower.
+
+        // // We know that degree of the sum is at most max(deg(p1), deg(p2)).
+        // let max_deg = self.degree.max(other.degree);
+        // let result = (0..=max_deg).into_par_iter().map(|i| {
+        //     let mut coeff = false;
+        //     if i <= self.degree {
+        //         coeff ^= self.coefficients[i];
+        //     }
+        //     if i <= other.degree {
+        //         coeff ^= other.coefficients[i];
+        //     }
+        //     coeff
+        // }).collect();
+        // if self.degree != other.degree {
+        //     unsafe { Polynomial::new_unchecked(result, max_deg) }
+        // } else {
+        //     Polynomial::new(result)
+        // }
     }
 
     pub(crate) fn mul_fn(&self, other: &Polynomial) -> Polynomial {
@@ -149,27 +166,33 @@ impl Polynomial {
         let sum_deg = self.degree + other.degree;
         let mut result = vec![false; sum_deg+1];
 
-        /*for (i, a) in self.coefficients.iter().enumerate().take(self.degree+1) {
+        for (i, a) in self.coefficients.iter().enumerate().take(self.degree+1) {
             for (j, b) in other.coefficients.iter().enumerate().take(other.degree+1) {
                 result[i + j] ^= a & b;
             }
-        }*/
-        for (i, _) in self.coefficients.iter().enumerate().take(self.degree + 1).filter(|(_, &a)| a) {
-            for (j, _) in other.coefficients.iter().enumerate().take(other.degree + 1).filter(|(_, &b)| b) {
-                result[i + j] ^= true; // a & b est true, donc XOR avec true
-            }
         }
         unsafe { Polynomial::new_unchecked(result, sum_deg) }
+
+        // Parallelized version seems to be VERY slower.
+
+        // // The degree of the product is deg(p1) + deg(p2).
+        // let sum_deg = self.degree + other.degree;
+        // let result = (0..=sum_deg).into_par_iter().map(|i| {
+        //     let mut coeff = false;
+        //     for j in 0..=i {
+        //         if j <= self.degree && i - j <= other.degree {
+        //             coeff ^= self.coefficients[j] & other.coefficients[i - j];
+        //         }
+        //     }
+        //     coeff
+        // }).collect();
+        // unsafe { Polynomial::new_unchecked(result, sum_deg) }
     }
 
     pub(crate) fn rem(&self, other: &Polynomial) -> Polynomial {
         let mut self_coefficients = self.coefficients.clone();
         let mut other_coefficients = other.coefficients.clone();
-        let mut last_index = other_coefficients.len();
-        while last_index > 0 && !other_coefficients[last_index - 1] {
-            last_index -= 1;
-        }
-        other_coefficients.truncate(last_index);
+        other_coefficients.truncate(other.degree+1);
 
         let ocl = other_coefficients.len();
 
@@ -181,11 +204,7 @@ impl Polynomial {
                     self_coefficients[i + diff] ^= other_coefficients[i];
                 }
             }
-            let mut last_index = self_coefficients.len();
-            while last_index > 0 && !self_coefficients[last_index - 1] {
-                last_index -= 1;
-            }
-            self_coefficients.truncate(last_index);
+            self_coefficients.truncate(compute_degree(&self_coefficients)+1);
         }
 
         if self_coefficients.is_empty() {
@@ -233,7 +252,11 @@ impl Mul for Polynomial {
 // Shortcut
 impl Clone for Polynomial {
     fn clone(&self) -> Polynomial {
-        self.clone_fn()
+        let mut cloned_coefficients = Vec::with_capacity(self.degree + 1);
+        for i in 0..=self.degree {
+            cloned_coefficients.push(self.coefficients[i]);
+        }
+        unsafe { Polynomial::new_unchecked(cloned_coefficients, self.degree) }
     }
 }
 
@@ -254,7 +277,7 @@ mod test {
     #[test]
     fn test_get_degree() {
         let coefficients = vec![true, false, false, true, false, false];
-        assert_eq!(super::get_degree(&coefficients), 3);
+        assert_eq!(super::compute_degree(&coefficients), 3);
     }
 
     #[test]
@@ -295,9 +318,9 @@ mod test {
     }
 
     #[test]
-    fn test_clone_fn() {
+    fn test_clone() {
         let p1 = Polynomial::new(vec![true, false, false, true]);
-        let p2 = p1.clone_fn();
+        let p2 = p1.clone();
         assert_eq!(p1.coefficients, p2.coefficients);
     }
 
@@ -318,7 +341,7 @@ mod test {
         let p1 = Polynomial::new(vec![true, false, false, true]);
         let p2 = Polynomial::new(vec![false, true, false, true]);
         let p3 = p1.add_fn(&p2);
-        assert!(p3.degree < p1.degree);
+        assert_eq!(p3.degree, 1);
         assert_eq!(p3.coefficients, vec![true, true, false, false]);
     }
 

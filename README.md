@@ -1,6 +1,6 @@
 # Homomorphic Encryption Scheme in Rust
 
-This repository contains a Rust implementation of a homomorphic encryption scheme. 
+This repository contains a Rust implementation of an homomorphic encryption scheme targetting unsigned integers (other types of numbers are WIP).
 
 Homomorphic encryption allows computations to be performed on encrypted data without decrypting it, preserving the privacy of the data.
 Homomorphic encryption is still a subject of research today, and no system that is both secure and efficient has yet been found.
@@ -9,18 +9,20 @@ I might also rewrite the system to use binary representation of numbers instead 
 
 ## Features
 
-- [X] Encryption of data
-- [X] Decryption of encrypted data
-- [X] Homomorphic addition operation
-- [ ] Homomorphic multiplication operation
+- [X] Encryption/Decryption
+- [X] Homomorphic addition for `uint`
+- [ ] Homomorphic multiplication for `uint`
+- [ ] Other types of numbers
 
 ## Getting Started
 
 ### Prerequisites
 
-- [Rust/Cargo](https://www.rust-lang.org/) (version ^1.77.2)
+- [Rust/Cargo](https://www.rust-lang.org/)
 
 ### Installation
+
+I do not intend to publish the crate on `crates.io`.
 
 1. Clone the repository:
 
@@ -31,7 +33,7 @@ I might also rewrite the system to use binary representation of numbers instead 
 2. Build the project:
 
     ```shell
-    cargo build
+    cargo build --lib --release
     ```
 
 3. Run the tests:
@@ -50,7 +52,7 @@ I might also rewrite the system to use binary representation of numbers instead 
 
 ## Benchmarks
 
-Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 10 000 tries.
+Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 10 000 tries on `usize` (`u64`) data.
 
 Parameters used for this benchmark were the ones that should be used for a standard application :
 - `d` = 512
@@ -60,16 +62,17 @@ Parameters used for this benchmark were the ones that should be used for a stand
 
 | Operation         | Average time     |
 |:-----------------:|:----------------:|
-| Enc + Dec         |      200 µs      |
-| Add               |       40 ms      |
-| Mul               |         ?        |
+| Encryption        |      129.8 µs    |
+| Decryption        |      12.5 µs     |
+| Dec. after op.    |      582.0 µs    |
+| Add as uint       |      3.9 ms      |
+| Mul               |   Unimplemented  |
 
 
-It appears that it's quicker to decrypt, add and then re-encrypt the data. Clearly, this system is only useful if you want to use its properties when security takes precedence over speed.
+It is still more efficient to decrypt, operate and then re-encrypt the data. This limits the use of the system to applications where security is paramount, and takes precedence over speed.
 
-It's worth remembering that the system is inherently slow: as a bit ciphered as a polynomial whose degree is $d+d'$.
-It takes more than 64 bytes for $d=d'=256$, so that storing one byte therefore takes 512 bytes.
-This makes operations computationally heavy.
+It's worth remembering that the system is inherently slow, as each bit is ciphered as a polynomial whose degree is $d+d'$.
+Hence, it takes more than 160 bytes for $d+d'=640$. This makes operations computationally heavy.
 
 ## System
 
