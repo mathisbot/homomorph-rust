@@ -27,7 +27,7 @@
 //! 
 //! Of course, this system can be used without performing any homomorphic operation.
 //! 
-//! Note that you can use the `as_ref()` method on either the `SecretKey` or the `PublicKey` to gain access to their content if you want to save them.
+//! Note that you can use the `get_bytes()` method on either the `SecretKey` or the `PublicKey` to gain access to their content if you want to save them.
 //! 
 //! ```
 //! use homomorph::{Context, Data, Parameters};
@@ -52,9 +52,9 @@
 //! assert_eq!(data.to_usize(), decrypted_data.to_usize());
 //! 
 //! // Save the secret key
-//! let secret_key = context.get_secret_key().unwrap().as_ref().clone();
+//! let secret_key = context.get_secret_key().unwrap().get_bytes();
 //! // Save the public key
-//! let public_key = context.get_public_key().unwrap().as_ref().clone();
+//! let public_key = context.get_public_key().unwrap().get_bytes();
 //! ```
 //! 
 //! ## Advanced usage
@@ -126,6 +126,8 @@
 //! In order to store ciphered data, you need to save the secret key and the public key for later use.
 //! This can be done by storing the coefficients of the keys.
 //! 
+//! ### Save to a file
+//! 
 //! ```ignore
 //! use homomorph::{Context, Parameters};
 //! 
@@ -133,23 +135,28 @@
 //! context.generate_secret_key();
 //! 
 //! // Reference to the coefficients
-//! let s_ref = context.get_secret_key().unwrap().as_ref();
-//! 
-//! // Convert the coefficients to a vector of bytes
-//! let mut bytes: Vec<u8> = Vec::new();
-//! for chunk in s_ref.chunks(8) {
-//!     let mut byte = 0;
-//!     for (i, &bit) in chunk.iter().enumerate() {
-//!         if bit {
-//!             byte |= 1 << (7 - i);
-//!         }
-//!     }
-//!     bytes.push(byte);
-//! }
+//! let key_bytes = context.get_secret_key().unwrap().get_bytes();
 //! 
 //! // Save the bytes to a file
 //! let mut file = File::create("secret_key").unwrap();
-//! file.write_all(&bytes).unwrap();
+//! file.write_all(&key_bytes).unwrap();
+//! ```
+//! 
+//! ### Retrieve from a file
+//! 
+//! ```ignore
+//! use homomorph::{Context, Parameters};
+//! 
+//! let mut context = Context::new(Parameters::new(6, 3, 2, 5));
+//! 
+//! // Read the bytes from a file
+//! let mut file = File::open("secret_key").expect("Could not open file");
+//! let mut key_bytes = Vec::new();
+//! file.read_to_end(&mut key_bytes).unwrap();
+//! 
+//! // Create the secret key from the bytes
+//! let secret_key = SecretKey::new(key_bytes);
+//! context.set_secret_key(secret_key);
 //! ```
 //! 
 //! # Source
@@ -160,7 +167,7 @@
 use rayon::prelude::*;
 use std::mem;
 
-pub mod polynomial;
+mod polynomial;
 use polynomial::Polynomial;
 
 
@@ -268,14 +275,20 @@ impl SecretKey {
     /// 
     /// ```
     /// use homomorph::SecretKey;
-    /// use homomorph::polynomial::Polynomial;
     /// 
     /// // INSECURE!!! Only for demonstration purposes
-    /// let s = Polynomial::new(vec![true, false, true]);
+    /// let s = vec![5, 14, 8];
     /// 
     /// let sk = SecretKey::new(s);
     /// ```
-    pub fn new(s: polynomial::Polynomial) -> Self {
+    pub fn new(bytes: Vec<u8>) -> Self {
+        let mut bits: Vec<bool> = Vec::new();
+        for byte in bytes.iter() {
+            for i in 0..8 {
+                bits.push(byte & (1 << i) != 0);
+            }
+        }
+        let s = polynomial::Polynomial::new(bits);
         SecretKey { s }
     }
 
@@ -284,11 +297,11 @@ impl SecretKey {
         SecretKey { s }
     }
 
-    /// Returns a reference to the polynomial.
+    /// Returns bytes representing the secret key.
     /// 
     /// # Returns
     /// 
-    /// A reference to the polynomial.
+    /// A `Vec<u8>` representing the secret key.
     /// 
     /// # Note
     /// 
@@ -302,10 +315,20 @@ impl SecretKey {
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     /// context.generate_secret_key();
     /// 
-    /// let s_ref = context.get_secret_key().unwrap().as_ref();
+    /// let key_bytes = context.get_secret_key().unwrap().get_bytes();
     /// ```
-    pub fn as_ref(&self) -> &polynomial::Polynomial {
-        &self.s
+    pub fn get_bytes(&self) -> Vec<u8> {
+        let mut bytes: Vec<u8> = Vec::new();
+        for chunk in self.s.chunks(8) {
+            let mut byte = 0;
+            for (i, &bit) in chunk.iter().enumerate() {
+                if bit {
+                    byte |= 1 << i;
+                }
+            }
+            bytes.push(byte);
+        };
+        bytes
     }
 }
 
@@ -348,15 +371,25 @@ impl PublicKey {
     /// 
     /// ```
     /// use homomorph::PublicKey;
-    /// use homomorph::polynomial::Polynomial;
     /// 
     /// // INSECURE!!! Only for demonstration purposes
-    /// let p = Polynomial::new(vec![true, false, true]);
+    /// let p = vec![vec![4, 7, 5], vec![1, 2, 3], vec![5, 4, 6]];
     /// 
-    /// let pk = PublicKey::new(vec![p]);
+    /// let pk = PublicKey::new(p);
     /// ```
-    pub fn new(v: Vec<polynomial::Polynomial>) -> Self {
-        PublicKey { list: v }
+    pub fn new(bytes: Vec<Vec<u8>>) -> Self {
+        let mut list: Vec<polynomial::Polynomial> = Vec::new();
+        for bytes in bytes.iter() {
+            let mut bits: Vec<bool> = Vec::new();
+            for byte in bytes.iter() {
+                for i in 0..8 {
+                    bits.push(byte & (1 << i) != 0);
+                }
+            }
+            let p = polynomial::Polynomial::new(bits);
+            list.push(p);
+        }
+        PublicKey { list }
     }
 
     pub(crate) fn random(dp: usize, delta: usize, tau: usize, secret_key: &SecretKey) -> Self {
@@ -375,11 +408,11 @@ impl PublicKey {
         PublicKey { list }
     }
 
-    /// Returns a reference to the list of polynomials.
+    /// Returns bytes representing the public key.
     /// 
     /// # Returns
     /// 
-    /// A reference to the list of polynomials.
+    /// A `Vec<Vec<u8>>` representing the public key.
     /// 
     /// # Note
     /// 
@@ -391,16 +424,27 @@ impl PublicKey {
     /// use homomorph::{Context, Parameters};
     /// 
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
-    /// 
     /// context.generate_secret_key();
     /// context.generate_public_key();
     /// 
-    /// let pk = context.get_public_key().unwrap();
-    /// 
-    /// // Saving the public key
-    /// let pk_ref = pk.as_ref();
-    pub fn as_ref(&self) -> &Vec<polynomial::Polynomial> {
-        &self.list
+    /// let key_bytes = context.get_public_key().unwrap().get_bytes();
+    /// ```
+    pub fn get_bytes(&self) -> Vec<Vec<u8>> {
+        let mut bytes_outer: Vec<Vec<u8>> = Vec::new();
+        for pol in self.list.iter() {
+            let mut bytes: Vec<u8> = Vec::new();
+            for chunk in pol.chunks(8) {
+                let mut byte = 0;
+                for (i, &bit) in chunk.iter().enumerate() {
+                    if bit {
+                        byte |= 1 << i;
+                    }
+                }
+                bytes.push(byte);
+            }
+            bytes_outer.push(bytes);
+        }
+        bytes_outer
     }
 }
 
@@ -550,14 +594,14 @@ impl Context {
     /// 
     /// ```
     /// use homomorph::{Context, Parameters, SecretKey};
-    /// use homomorph::polynomial::Polynomial;
     /// 
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     /// 
     /// // INSECURE!!! Only for demonstration purposes
-    /// let secret_key = SecretKey::new(Polynomial::new(vec![true, false, true]));
+    /// let s = vec![5, 14, 8];
+    /// let sk = SecretKey::new(s);
     /// 
-    /// context.set_secret_key(secret_key);
+    /// context.set_secret_key(sk);
     /// ```
     pub fn set_secret_key(&mut self, secret_key: SecretKey) {
         self.secret_key = Some(secret_key);
@@ -573,14 +617,14 @@ impl Context {
     /// 
     /// ```
     /// use homomorph::{Context, Parameters, PublicKey};
-    /// use homomorph::polynomial::Polynomial;
     /// 
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     /// 
     /// // INSECURE!!! Only for demonstration purposes
-    /// let public_key = PublicKey::new(vec![Polynomial::new(vec![true, false, true])]);
+    /// let p = vec![vec![4, 7, 5], vec![1, 2, 3], vec![5, 4, 6]];
+    /// let pk = PublicKey::new(p);
     /// 
-    /// context.set_public_key(public_key);
+    /// context.set_public_key(pk);
     /// ```
     pub fn set_public_key(&mut self, public_key: PublicKey) {
         self.public_key = Some(public_key);
@@ -638,17 +682,6 @@ impl ParallelIterator for Data {
 #[derive(Clone, Debug, Default)]
 pub struct EncryptedData {
     p: Vec<polynomial::Polynomial>,
-}
-
-impl ParallelIterator for EncryptedData {
-    type Item = polynomial::Polynomial;
-
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-    where
-        C: rayon::iter::plumbing::UnindexedConsumer<Self::Item>,
-    {
-        self.p.into_par_iter().drive_unindexed(consumer)
-    }
 }
 
 impl Data {
@@ -985,7 +1018,7 @@ impl Data {
 
 impl EncryptedData {
     fn decrypt_bit(poly: &polynomial::Polynomial, sk: &SecretKey) -> bool {
-        let remainder = poly.rem(sk.as_ref());
+        let remainder = poly.rem(&sk.s);
         remainder.evaluate(false)
     }
 
@@ -1034,7 +1067,7 @@ impl EncryptedData {
 
 /// Take advantage of the properties of the system to operate on two `EncryptedData` instances.
 impl EncryptedData {
-    /// Adds two `EncryptedData` instances.
+    /// Adds two `EncryptedData` instances, assuming they represent unsigned integers.
     /// 
     /// # Arguments
     /// 
@@ -1088,7 +1121,7 @@ impl EncryptedData {
         EncryptedData { p: result }
     }
 
-    /// Multiplies two `EncryptedData` instances.
+    /// Multiplies two `EncryptedData` instances, assuming they represent unsigned integers.
     /// 
     /// # Arguments
     /// 
