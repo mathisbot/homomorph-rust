@@ -4,6 +4,7 @@
 //! 
 //! Data is represented as `Vec<bool>`, to match binary representation.
 //! `Data` instances can either be created from a `usize` or from a `Vec<bool>` (raw data).
+//! In the future, other types of data will be supported.
 //! 
 //! User must then provide a context to its operations, which contains the secret key and the public key.
 //! `Context` contains the `Parameters`, `SecretKey` and `PublicKey`.
@@ -11,15 +12,10 @@
 //! Once set, the secret key can be used to decrypt the data, while the public key can be used to encrypt the data.
 //! Encryption can only be performed on `Data` instances, while decryption can only be performed on `EncryptedData` instances.
 //! 
-//! For now, `EncryptedData` represents integers. This means you can perform addition as well as multiplication on encrypted data.
+//! Because of the properties of the cryposystem, you can perform several operations on encrypted data.
+//! As an example, if encrypted data represents unsigned integers, you can perform addition as well as multiplication.
 //! 
-//! # Notes
-//! 
-//! The backend might undergo heavy changes for performance reasons.
-//! 
-//! Also, the fronted may change to provide a more generic interface.
-//! 
-//! The library is parallelized, using the `rayon` crate.
+//! Recommanded parameters are `d >= 512`, `dp >= 128`, `delta = d/32` and `tau = 256`.
 //! 
 //! # Examples
 //! 
@@ -27,14 +23,12 @@
 //! 
 //! Of course, this system can be used without performing any homomorphic operation.
 //! 
-//! Note that you can use the `get_bytes()` method on either the `SecretKey` or the `PublicKey` to gain access to their content if you want to save them.
-//! 
 //! ```
 //! use homomorph::{Context, Data, Parameters};
 //! 
 //! // Define the parameters
-//! // -------------------------- d   dp  delta tau
-//! let params = Parameters::new(64, 32, 16, 64);
+//! // -------------------------  d  dp delta tau
+//! let params = Parameters::new(16, 16, 8, 8);
 //! 
 //! // Create a new context
 //! let mut context = Context::new(params);
@@ -50,16 +44,12 @@
 //! // Decrypt the data using the secret key
 //! let decrypted_data = encrypted_data.decrypt(&context);
 //! assert_eq!(data.to_usize(), decrypted_data.to_usize());
-//! 
-//! // Save the secret key
-//! let secret_key = context.get_secret_key().unwrap().get_bytes();
-//! // Save the public key
-//! let public_key = context.get_public_key().unwrap().get_bytes();
 //! ```
 //! 
 //! ## Advanced usage
 //! 
-//! This example shows how to perform homomorphic addition.
+//! This example shows how to perform homomorphic addition on unsigned integers.
+//! `delta` should be at least 20 times smaller than `d`.
 //! 
 //! ```
 //! use homomorph::{Context, Data, Parameters};
@@ -191,7 +181,6 @@ use polynomial::Polynomial;
 /// # Note
 /// 
 /// `delta` must be strictly less than `d`.
-// TODO: Hide delta so that it is guaranteed to be 32 times smaller than d
 pub struct Parameters {
     d: usize,
     dp: usize,
@@ -215,7 +204,8 @@ impl Parameters {
     /// 
     /// # Note
     /// 
-    /// `d` should be 32 times greater than `delta` in order to use homomorphic addition.
+    /// As the system properties highly depends on the quantity `d`/`delta`, it is advised
+    /// to take a look at recommandations in the documentation.
     /// 
     /// # Panics
     /// 
@@ -237,20 +227,6 @@ impl Parameters {
 }
 
 /// The secret key.
-/// 
-/// # Fields
-/// 
-/// * 's' - The polynomial.
-/// 
-/// # Examples
-/// 
-/// ```
-/// use homomorph::{Context, Parameters};
-/// 
-/// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
-/// 
-/// context.generate_secret_key();
-/// ```
 pub struct SecretKey {
     s: polynomial::Polynomial,
 }
@@ -260,7 +236,7 @@ impl SecretKey {
     /// 
     /// # Arguments
     /// 
-    /// * `s` - The polynomial.
+    /// * `bytes` - The bytes representing the secret key.
     /// 
     /// # Returns
     /// 
@@ -292,7 +268,7 @@ impl SecretKey {
         SecretKey { s }
     }
 
-    pub(crate) fn random(d: usize) -> Self {
+    pub(self) fn random(d: usize) -> Self {
         let s = polynomial::Polynomial::random(d, &mut rand::thread_rng());
         SecretKey { s }
     }
@@ -333,20 +309,6 @@ impl SecretKey {
 }
 
 /// The public key.
-/// 
-/// # Fields
-/// 
-/// * `list` - The list of polynomials.
-/// 
-/// # Examples
-/// 
-/// ```
-/// use homomorph::{Context, Parameters};
-/// 
-/// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
-/// 
-/// context.generate_secret_key();
-/// context.generate_public_key();
 pub struct PublicKey {
     list: Vec<polynomial::Polynomial>,
 }
@@ -356,7 +318,7 @@ impl PublicKey {
     /// 
     /// # Arguments
     /// 
-    /// * `v` - The list of polynomials.
+    /// * `bytes` - The bytes representing the public key.
     /// 
     /// # Returns
     /// 
@@ -392,7 +354,7 @@ impl PublicKey {
         PublicKey { list }
     }
 
-    pub(crate) fn random(dp: usize, delta: usize, tau: usize, secret_key: &SecretKey) -> Self {
+    pub(self) fn random(dp: usize, delta: usize, tau: usize, secret_key: &SecretKey) -> Self {
         let list: Vec<_> = (0..tau)
             .into_par_iter()
             .map(|_| {
@@ -448,22 +410,7 @@ impl PublicKey {
     }
 }
 
-/// The context.
-/// 
-/// # Fields
-/// 
-/// * `secret_key` - The secret key.
-/// * `public_key` - The public key.
-/// * `parameters` - The parameters.
-/// 
-/// # Examples
-/// 
-/// ```
-/// use homomorph::{Context, Parameters};
-/// 
-/// let params = Parameters::new(6, 3, 2, 5);
-/// let mut context = Context::new(params);
-/// ```
+/// The cipher context.
 pub struct Context {
     secret_key: Option<SecretKey>,
     public_key: Option<PublicKey>,
@@ -495,10 +442,6 @@ impl Context {
 
     /// Generates a secret key.
     /// 
-    /// # Arguments
-    /// 
-    /// * `rng` - A random number generator.
-    /// 
     /// # Examples
     /// 
     /// ```
@@ -514,10 +457,6 @@ impl Context {
     }
 
     /// Generates a public key out of the private key.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `rng` - A random number generator.
     /// 
     /// # Panics
     /// 
@@ -632,53 +571,12 @@ impl Context {
 }
 
 /// The data.
-/// 
-/// # Fields
-/// 
-/// * `x` - The data.
-/// 
-/// # Examples
-/// 
-/// ```
-/// use homomorph::Data;
-/// 
-/// let data = Data::new(vec![true, false, true]);
-/// ```
 #[derive(Clone, Debug, Default)]
 pub struct Data {
     x: Vec<bool>,
 }
 
-impl ParallelIterator for Data {
-    type Item = bool;
-
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-    where
-        C: rayon::iter::plumbing::UnindexedConsumer<Self::Item>,
-    {
-        self.x.into_par_iter().drive_unindexed(consumer)
-    }
-}
-
 /// The encrypted data.
-/// 
-/// # Fields
-/// 
-/// * `p` - The encrypted data.
-/// 
-/// # Examples
-/// 
-/// ```
-/// use homomorph::{Data, Context, Parameters};
-/// 
-/// let params = Parameters::new(6, 3, 2, 5);
-/// let mut context = Context::new(params);
-/// context.generate_secret_key();
-/// context.generate_public_key();
-/// 
-/// let data = Data::new(vec![true, false, true]);
-/// let encrypted_data = data.encrypt(&context);
-/// ```
 #[derive(Clone, Debug, Default)]
 pub struct EncryptedData {
     p: Vec<polynomial::Polynomial>,
@@ -689,7 +587,7 @@ impl Data {
     /// 
     /// # Arguments
     /// 
-    /// * `x` - The data as a vector of booleans.
+    /// * `x` - The data as a raw vector of booleans.
     /// 
     /// # Returns
     /// 
@@ -856,22 +754,6 @@ impl Data {
         result
     }
 
-    // Generates a random part of the integer interval \[1,`tau`\] as a vector of `bool`.
-    // 
-    // # Example
-    // 
-    // ```
-    // use homomorph::Data;
-    // use rand::thread_rng;
-    // 
-    // let part = Data::part(5, &mut thread_rng());
-    // 
-    // assert_eq!(part.len(), 5);
-    // 
-    // for bit in part {
-    //    assert!(bit == true || bit == false);
-    // }
-    // ```
     fn part(tau: usize, rng: &mut impl rand::Rng) -> Vec<bool> {
         let mut result = Vec::with_capacity(tau);
         for _ in 0..tau {
@@ -912,7 +794,7 @@ impl Data {
     /// 
     /// # Arguments
     /// 
-    /// * `pk` - The public key.
+    /// * `context` - The context.
     /// 
     /// # Returns
     /// 
@@ -1026,7 +908,7 @@ impl EncryptedData {
     /// 
     /// # Arguments
     /// 
-    /// * `sk` - The secret key.
+    /// * `context` - The context.
     /// 
     /// # Returns
     /// 
