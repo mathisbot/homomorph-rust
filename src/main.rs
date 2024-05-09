@@ -35,7 +35,7 @@ fn main() {
     let start = Instant::now();
     // Unparallelized operations for benchmarking
     for i in 0..DATA_SIZE {
-        encrypted_data3.push(encrypted_data1[i].add_as_uint(&encrypted_data2[i]))
+        encrypted_data3.push(unsafe { encrypted_data1[i].add_as_uint(&encrypted_data2[i]) })
     }
     let elapsed = start.elapsed();
     println!("Time needed to perform {} homomorphic operations on encrypted data: {:?}", DATA_SIZE, elapsed);

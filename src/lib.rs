@@ -71,7 +71,7 @@
 //! 
 //! // Perform homomorphic addition
 //! let data3 = data1.add_as_uint(&data2);
-//! let encrypted_data3 = encrypted_data1.add_as_uint(&encrypted_data2);
+//! let encrypted_data3 = unsafe { encrypted_data1.add_as_uint(&encrypted_data2) };
 //! 
 //! // Decrypt the data using the secret key
 //! let decrypted_data = encrypted_data3.decrypt(&context);
@@ -870,6 +870,12 @@ impl Data {
         Data { x: result }
     }
 
+    fn shift_left(&mut self, n: usize) {
+        for _ in 0..n {
+            self.x.push(false);
+        }
+    }
+
     /// Multiplies two `Data` instances assuming they represent integers.
     /// 
     /// # Arguments
@@ -893,8 +899,16 @@ impl Data {
     /// 
     /// // assert_eq!(data3.to_usize(), 42);
     /// ```
-    pub fn mul_as_uint(&self, _other: &Self) -> Self {
-        unimplemented!("Multiplication is not yet implemented")
+    pub fn mul_as_uint(&self, other: &Self) -> Self {
+        let mut result = Data { x: vec![false] }; // Initialize result with zero
+        for (i, &digit) in other.x.iter().enumerate() {
+            if digit {
+                let mut temp = self.clone();
+                temp.shift_left(i);
+                result = result.add_as_uint(&temp);
+            }
+        }
+        result
     }
 }
 
@@ -959,7 +973,7 @@ impl EncryptedData {
     /// 
     /// The sum of the two `EncryptedData` instances.
     /// 
-    /// # Notes
+    /// # Safety
     /// 
     /// Factor `d`/`delta` must be at least 20. 32 is a good value.
     /// 
@@ -968,7 +982,7 @@ impl EncryptedData {
     /// ```
     /// use homomorph::{Data, Context, Parameters};
     /// 
-    /// let params = Parameters::new(6, 3, 2, 5);
+    /// let params = Parameters::new(128, 3, 4, 5);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
     /// context.generate_public_key();
@@ -979,9 +993,9 @@ impl EncryptedData {
     /// let encrypted_data1 = data1.encrypt(&context);
     /// let encrypted_data2 = data2.encrypt(&context);
     /// 
-    /// let encrypted_data3 = encrypted_data1.add_as_uint(&encrypted_data2);
+    /// let encrypted_data3 = unsafe { encrypted_data1.add_as_uint(&encrypted_data2) };
     /// ```
-    pub fn add_as_uint(&self, other: &Self) -> Self {
+    pub unsafe fn add_as_uint(&self, other: &Self) -> Self {
         let longest = self.p.len().max(other.p.len());
         let mut result = Vec::with_capacity(longest);
         let mut carry = Polynomial::null();
@@ -1013,6 +1027,10 @@ impl EncryptedData {
     /// 
     /// The product of the two `EncryptedData` instances.
     /// 
+    /// # Safety
+    /// 
+    /// Factor `d`/`delta` must be at least ...
+    /// 
     /// # Notes
     /// 
     /// This function is not yet implemented.
@@ -1034,9 +1052,9 @@ impl EncryptedData {
     /// let encrypted_data2 = data2.encrypt(&context);
     /// 
     /// // Not yet implemented
-    /// // let encrypted_data3 = encrypted_data1.mul_as_uint(&encrypted_data2);
+    /// // let encrypted_data3 = unsafe { encrypted_data1.mul_as_uint(&encrypted_data2) };
     /// ```
-    pub fn mul_as_uint(&self, _other: &Self) -> Self {
+    pub unsafe fn mul_as_uint(&self, _other: &Self) -> Self {
         unimplemented!()
         // let longest = self.p.len().max(other.p.len());
         // let mut result = Vec::with_capacity(longest);
@@ -1079,6 +1097,14 @@ mod tests {
         let data3 = data1.add_as_uint(&data2);
         assert_eq!(data3.to_usize(), 7);
     }
+
+    // #[test]
+    // fn test_data_mul() {
+    //     let data1 = Data::new(vec![true, false, true]);
+    //     let data2 = Data::new(vec![false, true, false]);
+    //     let data3 = data1.mul_as_uint(&data2);
+    //     assert_eq!(10, data3.to_usize());
+    // }
 
     #[test]
     fn test_encrypted_data() {
@@ -1123,7 +1149,7 @@ mod tests {
         let data2 = Data::from_usize(30);
         let encrypted_data1 = data1.encrypt(&context);
         let encrypted_data2 = data2.encrypt(&context);
-        let encrypted_data3 = encrypted_data1.add_as_uint(&encrypted_data2);
+        let encrypted_data3 = unsafe { encrypted_data1.add_as_uint(&encrypted_data2) };
         let decrypted_data = encrypted_data3.decrypt(&context);
         let data3 = data1.add_as_uint(&data2);
         assert_eq!(data3.to_usize(), decrypted_data.to_usize());
@@ -1145,7 +1171,7 @@ mod tests {
             let data2 = Data::from_usize(rng.gen());
             let encrypted_data1 = data1.encrypt(&context);
             let encrypted_data2 = data2.encrypt(&context);
-            let encrypted_data3 = encrypted_data1.add_as_uint(&encrypted_data2);
+            let encrypted_data3 = unsafe { encrypted_data1.add_as_uint(&encrypted_data2) };
             let decrypted_data = encrypted_data3.decrypt(&context);
             let data3 = data1.add_as_uint(&data2);
             assert_eq!(data3.to_usize(), decrypted_data.to_usize());
@@ -1191,4 +1217,24 @@ mod tests {
     //         assert_eq!(data3.to_usize(), decrypted_data.to_usize());
     //     }
     // }
+
+    #[test]
+    fn test_get_bytes() {
+        let params = Parameters::new(64, 64, 32, 64);
+        let mut context = Context::new(params);
+        context.generate_secret_key();
+        context.generate_public_key();
+
+        let secret_key = context.get_secret_key().unwrap();
+        let public_key = context.get_public_key().unwrap();
+
+        let secret_key_bytes = secret_key.get_bytes();
+        let public_key_bytes = public_key.get_bytes();
+
+        let secret_key2 = SecretKey::new(secret_key_bytes);
+        let public_key2 = PublicKey::new(public_key_bytes);
+
+        assert_eq!(secret_key.get_bytes(), secret_key2.get_bytes());
+        assert_eq!(public_key.get_bytes(), public_key2.get_bytes());
+    }
 }
