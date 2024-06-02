@@ -11,8 +11,9 @@ I might also rewrite the system to use binary representation of numbers instead 
 
 - [X] Encryption/Decryption
 - [X] Homomorphic addition for `uint`
-- [ ] Homomorphic multiplication for `uint`
+- [X] Homomorphic multiplication for `uint`
 - [ ] Other types of numbers
+- [ ] Other types of data
 
 ## Getting Started
 
@@ -62,10 +63,10 @@ Parameters used for this benchmark were the ones that should be used for a stand
 
 | Operation         | Average time     |
 |:-----------------:|:----------------:|
-| Encryption        |      129.8 µs    |
-| Decryption        |      12.5 µs     |
-| Dec. after op.    |      582.0 µs    |
-| Add as uint       |      3.9 ms      |
+| Encryption        |      1.34 ms     |
+| Decryption        |      954 µs      |
+| Dec. after op.    |      55.4 ms     |
+| Add as uint       |      26.6 ms     |
 | Mul               |   Unimplemented  |
 
 
@@ -147,10 +148,11 @@ Proceeding in a similar way to a processor, we can reduce the addition of intege
 
 By playing with the same adder patterns that are in our ALU, we can easily recreate a working addition for our ciphers.
 
-It seems that addition has a "boolean degree" of around 20, so you must have $\dfrac{d}{\delta}>20$ in order to use homomorphic addition. I recommend having it around over 32.
+It seems that addition has a "boolean degree" of around 2 times the size of the data, so you must have $\dfrac{d}{\delta}>=64$ in order to use homomorphic addition on `u32`.
 
 #### Multiplication
 
 Imitating a processor seems to be a winning strategy. 
-By repeating the above process with multiplication, it's fairly easy to implement (modulo the complexity of processor multipliers).
- 
+By repeating the above process with multiplication, it's fairly easy to implement.
+
+It seems that multiplication has a "boolean degree" of around 2 times the size of the data, so you must have $\dfrac{d}{\delta}>=64$ in order to use homomorphic multiplication on `u32`.

@@ -51,7 +51,7 @@
 //! This example shows how to perform homomorphic addition on unsigned integers.
 //! `delta` should be at least 20 times smaller than `d`.
 //! 
-//! ```
+//! ```no_run
 //! use homomorph::{Context, Data, Parameters};
 //! 
 //! // Define the parameters
@@ -82,7 +82,7 @@
 //! If you need to operate on data of several gigabytes in size,
 //! it's a good idea to separate them into blocks and process them one by one.
 //! 
-//! ```ignore
+//! ```no_run
 //! use homomorph::{Context, Data, Parameters};
 //! use std::fs::File;
 //! use std::io::{BufReader, Read, BufWriter, Write};
@@ -118,8 +118,10 @@
 //! 
 //! ### Save to a file
 //! 
-//! ```ignore
+//! ```no_run
 //! use homomorph::{Context, Parameters};
+//! use std::fs::File;
+//! use std::io::Write;
 //! 
 //! let mut context = Context::new(Parameters::new(6, 3, 2, 5));
 //! context.generate_secret_key();
@@ -134,8 +136,10 @@
 //! 
 //! ### Retrieve from a file
 //! 
-//! ```ignore
-//! use homomorph::{Context, Parameters};
+//! ```no_run
+//! use homomorph::{Context, Parameters, SecretKey};
+//! use std::fs::File;
+//! use std::io::Read;
 //! 
 //! let mut context = Context::new(Parameters::new(6, 3, 2, 5));
 //! 
@@ -604,6 +608,31 @@ impl Data {
         Data { x }
     }
 
+    /// Creates a new data from a `u16`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `x` - `u16` to convert.
+    /// 
+    /// # Returns
+    /// 
+    /// A new data.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::Data;
+    /// 
+    /// let data = Data::from_u16(42 as u16);
+    /// ```
+    pub fn from_u16(x: u16) -> Self {
+        let mut result = Vec::with_capacity(mem::size_of::<u16>()*8);
+        for i in 0..mem::size_of::<u16>()*8 {
+            result.push((x >> i) & 1 == 1);
+        }
+        Data { x: result }
+    }
+
     /// Creates a new data from a `u32`.
     /// 
     /// # Arguments
@@ -622,8 +651,8 @@ impl Data {
     /// let data = Data::from_u32(42 as u32);
     /// ```
     pub fn from_u32(x: u32) -> Self {
-        let mut result = Vec::with_capacity(mem::size_of::<u32>());
-        for i in 0..mem::size_of::<u32>() {
+        let mut result = Vec::with_capacity(mem::size_of::<u32>()*8);
+        for i in 0..mem::size_of::<u32>()*8 {
             result.push((x >> i) & 1 == 1);
         }
         Data { x: result }
@@ -647,8 +676,8 @@ impl Data {
     /// let data = Data::from_usize(42 as usize);
     /// ```
     pub fn from_usize(x: usize) -> Self {
-        let mut result = Vec::with_capacity(mem::size_of::<usize>());
-        for i in 0..mem::size_of::<usize>() {
+        let mut result = Vec::with_capacity(mem::size_of::<usize>()*8);
+        for i in 0..mem::size_of::<usize>()*8 {
             result.push((x >> i) & 1 == 1);
         }
         Data { x: result }
@@ -672,11 +701,36 @@ impl Data {
     /// let data = Data::from_u64(42 as u64);
     /// ```
     pub fn from_u64(x: u64) -> Self {
-        let mut result = Vec::with_capacity(mem::size_of::<u64>());
-        for i in 0..mem::size_of::<u64>() {
+        let mut result = Vec::with_capacity(mem::size_of::<u64>()*8);
+        for i in 0..mem::size_of::<u64>()*8 {
             result.push((x >> i) & 1 == 1);
         }
         Data { x: result }
+    }
+
+    /// Converts the data to a `u16`.
+    /// 
+    /// # Returns
+    /// 
+    /// The data as a `u16`.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use homomorph::Data;
+    /// 
+    /// let data = Data::new(vec![true, false, true]);
+    /// let x = data.to_u16();
+    /// ```
+    pub fn to_u16(&self) -> u16 {
+        let mut result = 0;
+        let end = self.x.len().min(mem::size_of::<u16>()*8);
+        for i in 0..end {
+            if self.x[i] {
+                result |= 1 << i;
+            }
+        }
+        result
     }
 
     /// Converts the data to a `u32`.
@@ -695,7 +749,7 @@ impl Data {
     /// ```
     pub fn to_u32(&self) -> u32 {
         let mut result = 0;
-        let end = self.x.len().min(mem::size_of::<u32>());
+        let end = self.x.len().min(mem::size_of::<u32>()*8);
         for i in 0..end {
             if self.x[i] {
                 result |= 1 << i;
@@ -720,7 +774,7 @@ impl Data {
     /// ```
     pub fn to_usize(&self) -> usize {
         let mut result = 0;
-        let end = self.x.len().min(mem::size_of::<usize>());
+        let end = self.x.len().min(mem::size_of::<usize>()*8);
         for i in 0..end {
             if self.x[i] {
                 result |= 1 << i;
@@ -745,7 +799,7 @@ impl Data {
     /// ```
     pub fn to_u64(&self) -> u64 {
         let mut result = 0;
-        let end = self.x.len().min(mem::size_of::<u64>());
+        let end = self.x.len().min(mem::size_of::<u64>()*8);
         for i in 0..end {
             if self.x[i] {
                 result |= 1 << i;
@@ -870,10 +924,12 @@ impl Data {
         Data { x: result }
     }
 
-    fn shift_left(&mut self, n: usize) {
-        for _ in 0..n {
-            self.x.push(false);
+    fn _clone_shifted(&self, n: usize) -> Data {
+        let mut new = vec![false; n];
+        for &digit in self.x.iter() {
+            new.push(digit);
         }
+        Data { x: new }
     }
 
     /// Multiplies two `Data` instances assuming they represent integers.
@@ -886,6 +942,11 @@ impl Data {
     /// 
     /// The product of the two `Data` instances.
     /// 
+    /// # Note
+    /// 
+    /// It should be faster to convert data to `usize` and multiply them directly.
+    /// The only advantage of this function is that it has no overflow as `Data` is `Vec<bool>`.
+    /// 
     /// # Examples
     /// 
     /// ```
@@ -894,21 +955,20 @@ impl Data {
     /// let data1 = Data::from_usize(6);
     /// let data2 = Data::from_usize(7);
     /// 
-    /// // This function is not yet implemented
     /// // let data3 = data1.mul_as_uint(&data2);
     /// 
     /// // assert_eq!(data3.to_usize(), 42);
     /// ```
-    pub fn mul_as_uint(&self, other: &Self) -> Self {
-        let mut result = Data { x: vec![false] }; // Initialize result with zero
-        for (i, &digit) in other.x.iter().enumerate() {
-            if digit {
-                let mut temp = self.clone();
-                temp.shift_left(i);
-                result = result.add_as_uint(&temp);
-            }
-        }
-        result
+    pub fn mul_as_uint(&self, _other: &Self) -> Self {
+        unimplemented!("This function is not implemented yet");
+        // let mut result = Data { x: vec![false] }; // Initialize result with zero
+        // for (i, &digit) in other.x.iter().enumerate() {
+        //     if digit {
+        //         let temp = self.clone_shifted(i);
+        //         result = result.add_as_uint(&temp);
+        //     }
+        // }
+        // result
     }
 }
 
@@ -975,7 +1035,7 @@ impl EncryptedData {
     /// 
     /// # Safety
     /// 
-    /// Factor `d`/`delta` must be at least 20. 32 is a good value.
+    /// Factor `d`/`delta` must be at least `2*(self.len() + other.len())`.
     /// 
     /// # Examples
     /// 
@@ -1006,9 +1066,9 @@ impl EncryptedData {
             let p2 = other.p.get(i).unwrap_or(&null_p);
             let s = p1.bit_xor(&p2).bit_xor(&carry);
             /* This is too long and can be simplified :
+            carry <- p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
             c <- (p1+p2)*c + p2*p2 + p1*p2*(p1+p2)*c
             c <- c*(p1+p2)*(1+p1*p2) + p1*p2 */
-            // carry = p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
             let p1p2 = p1.mul_fn(&p2);
             carry = unsafe { p1.add_fn(&p2).mul_fn(&carry).mul_fn(&Polynomial::new_unchecked(vec![true], 0).add_fn(&p1p2)).add_fn(&p1p2) };
 
@@ -1016,6 +1076,14 @@ impl EncryptedData {
         }
         EncryptedData { p: result }
     }
+
+    // fn clone_shifted(&self, n: usize) -> Vec<Polynomial> {
+    //     let mut new = vec![Polynomial::null(); n];
+    //     for digit in self.p.iter() {
+    //         new.push(digit.clone());
+    //     }
+    //     new
+    // }
 
     /// Multiplies two `EncryptedData` instances, assuming they represent unsigned integers.
     /// 
@@ -1029,46 +1097,58 @@ impl EncryptedData {
     /// 
     /// # Safety
     /// 
-    /// Factor `d`/`delta` must be at least ...
-    /// 
-    /// # Notes
-    /// 
-    /// This function is not yet implemented.
+    /// Factor `d`/`delta` must be at least `2*(self.len() + other.len())`.
     /// 
     /// # Examples
     /// 
     /// ```
     /// use homomorph::{Data, Context, Parameters};
     /// 
-    /// let params = Parameters::new(6, 3, 2, 5);
+    /// let params = Parameters::new(64, 32, 2, 16);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
     /// context.generate_public_key();
     /// 
-    /// let data1 = Data::from_usize(12);
-    /// let data2 = Data::from_usize(30);
+    /// let data1 = Data::from_usize(6);
+    /// let data2 = Data::from_usize(7);
     /// 
     /// let encrypted_data1 = data1.encrypt(&context);
     /// let encrypted_data2 = data2.encrypt(&context);
     /// 
-    /// // Not yet implemented
     /// // let encrypted_data3 = unsafe { encrypted_data1.mul_as_uint(&encrypted_data2) };
     /// ```
-    pub unsafe fn mul_as_uint(&self, _other: &Self) -> Self {
-        unimplemented!()
-        // let longest = self.p.len().max(other.p.len());
-        // let mut result = Vec::with_capacity(longest);
-        // let mut carry = Polynomial::null();
-        // // Avoid borrowing issues
-        // let null_p = Polynomial::null();
-        // for i in 0..longest {
-        //     let p1 = self.p.get(i).unwrap_or(&null_p);
-        //     let p2 = other.p.get(i).unwrap_or(&null_p);
-        //     let s = p1.bit_and(&p2).bit_xor(&carry);
-        //     carry = p1.mul_fn(&p2).add_fn(&p1.bit_and(&p2)).add_fn(&p1.bit_and(&carry)).add_fn(&p2.bit_and(&carry));
-        //     result.push(s);
-        // }
-        // EncryptedData { p: result }
+    pub unsafe fn mul_as_uint(&self, other: &Self) -> Self {
+        let max_index = self.p.len() + other.p.len() - 1;
+        let mut result: Vec<Polynomial> = vec![Polynomial::null(); max_index];
+        let mut carry = vec![Polynomial::null(); max_index];
+        let mut last_carry = vec![Polynomial::null(); max_index];
+    
+        for i in 0..max_index {
+            let mut sum_i = Polynomial::null();
+            let mut carry_i = carry[i].clone();
+            for j in 0..self.p.len().min(i + 1) {
+                if i - j < other.p.len() {
+                    let p1 = &self.p[j];
+                    let p2 = &other.p[i - j];
+                    let s = p1.mul_fn(&p2);
+                    sum_i = sum_i.add_fn(&s);
+                    let last_carry_i = carry_i.clone();
+                    carry_i = s.bit_xor(&carry_i);
+                    if i + 1 < carry.len() {
+                        last_carry[i + 1] = carry[i + 1].clone();
+                        carry[i + 1] =
+                            last_carry_i.bit_xor(&carry_i).bit_and(&last_carry_i).bit_xor(&carry[i + 1]);
+                    }
+                } else {
+                    break;
+                }
+            }
+            if i < result.len() {
+                result[i] = sum_i.add_fn(&carry[i]);
+            }
+        }
+    
+        EncryptedData { p: result }
     }
 }
 
@@ -1088,6 +1168,9 @@ mod tests {
     fn test_data_from_usize() {
         let data = Data::from_usize(42);
         assert_eq!(data.to_usize(), 42);
+
+        let data = Data::from_usize(usize::MAX);
+        assert_eq!(data.to_usize(), usize::MAX);
     }
 
     #[test]
@@ -1098,13 +1181,19 @@ mod tests {
         assert_eq!(data3.to_usize(), 7);
     }
 
-    // #[test]
-    // fn test_data_mul() {
-    //     let data1 = Data::new(vec![true, false, true]);
-    //     let data2 = Data::new(vec![false, true, false]);
-    //     let data3 = data1.mul_as_uint(&data2);
-    //     assert_eq!(10, data3.to_usize());
-    // }
+    #[test]
+    #[should_panic]
+    fn test_data_mul() {
+        let data1 = Data::new(vec![true, false, true]);
+        let data2 = Data::new(vec![false, true, false]);
+        let data3 = data1.mul_as_uint(&data2);
+        assert_eq!(10, data3.to_usize());
+
+        let data1 = Data::from_usize(999);
+        let data2 = Data::from_usize(999);
+        let data3 = data1.mul_as_uint(&data2);
+        assert_eq!(999*999, data3.to_usize());
+    }
 
     #[test]
     fn test_encrypted_data() {
@@ -1140,7 +1229,7 @@ mod tests {
 
     #[test]
     fn test_encrypted_data_add() {
-        let params = Parameters::new(128, 32, 4, 16);
+        let params = Parameters::new(128, 8, 1, 8);
         let mut context = Context::new(params);
         context.generate_secret_key();
         context.generate_public_key();
@@ -1178,45 +1267,56 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn test_encrypted_data_mul() {
-    //     let params = Parameters::new(128, 64, 8, 32);
-    //     let mut context = Context::new(params);
-    //     context.generate_secret_key();
-    //     context.generate_public_key();
+    #[test]
+    #[should_panic]
+    fn test_encrypted_data_mul() {
+        let params = Parameters::new(128, 8, 1, 8);
+        let mut context = Context::new(params);
+        context.generate_secret_key();
+        context.generate_public_key();
 
-    //     let data1 = Data::from_usize(12);
-    //     let data2 = Data::from_usize(30);
-    //     let encrypted_data1 = data1.encrypt(&context);
-    //     let encrypted_data2 = data2.encrypt(&context);
-    //     let encrypted_data3 = encrypted_data1 * encrypted_data2;
-    //     let decrypted_data = encrypted_data3.decrypt(&context);
-    //     let data3 = data1.mul_as_uint(&data2);
-    //     assert_eq!(data3.to_usize(), decrypted_data.to_usize());
-    // }
+        let data1 = Data::from_u32(6);
+        let data2 = Data::from_u32(7);
+        let encrypted_data1 = data1.encrypt(&context);
+        let encrypted_data2 = data2.encrypt(&context);
+        let encrypted_data3 = unsafe { encrypted_data1.mul_as_uint(&encrypted_data2) };
+        let decrypted_data = encrypted_data3.decrypt(&context);
+        let data3 = data1.mul_as_uint(&data2);
+        assert_eq!(data3.to_u32(), decrypted_data.to_u32());
 
-    // #[test]
-    // #[ignore = "Longer version of test_encrypted_data_mul"]
-    // fn test_encrypted_data_mul_extensive() {
-    //     const N: usize = 256;
-    //     let params = Parameters::new(256, 64, 4, 32);
-    //     let mut context = Context::new(params);
+        let data1 = Data::from_usize(999);
+        let data2 = Data::from_usize(999);
+        let encrypted_data1 = data1.encrypt(&context);
+        let encrypted_data2 = data2.encrypt(&context);
+        let encrypted_data3 = unsafe { encrypted_data1.mul_as_uint(&encrypted_data2) };
+        let decrypted_data = encrypted_data3.decrypt(&context);
+        let data3 = data1.mul_as_uint(&data2);
+        assert_eq!(data3.to_usize(), decrypted_data.to_usize());
+    }
 
-    //     let mut rng = rand::thread_rng();
-    //     for _ in 0..N {
-    //         context.generate_secret_key();
-    //         context.generate_public_key();
+    #[test]
+    #[should_panic]
+    #[ignore = "Longer version of test_encrypted_data_mul"]
+    fn test_encrypted_data_mul_extensive() {
+        const N: usize = 100;
+        let params = Parameters::new(128, 64, 4, 32);
+        let mut context = Context::new(params);
 
-    //         let data1 = Data::from_usize(rng.gen());
-    //         let data2 = Data::from_usize(rng.gen());
-    //         let encrypted_data1 = data1.encrypt(&context);
-    //         let encrypted_data2 = data2.encrypt(&context);
-    //         let encrypted_data3 = encrypted_data1 * encrypted_data2;
-    //         let decrypted_data = encrypted_data3.decrypt(&context);
-    //         let data3 = data1.mul_as_uint(&data2);
-    //         assert_eq!(data3.to_usize(), decrypted_data.to_usize());
-    //     }
-    // }
+        let mut rng = rand::thread_rng();
+        for _ in 0..N {
+            context.generate_secret_key();
+            context.generate_public_key();
+
+            let data1 = Data::from_usize(rng.gen());
+            let data2 = Data::from_usize(rng.gen());
+            let encrypted_data1 = data1.encrypt(&context);
+            let encrypted_data2 = data2.encrypt(&context);
+            let encrypted_data3 = unsafe { encrypted_data1.mul_as_uint(&encrypted_data2) };
+            let decrypted_data = encrypted_data3.decrypt(&context);
+            let data3 = data1.mul_as_uint(&data2);
+            assert_eq!(data3.to_usize(), decrypted_data.to_usize());
+        }
+    }
 
     #[test]
     fn test_get_bytes() {

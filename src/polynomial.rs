@@ -63,6 +63,10 @@ impl Polynomial {
         result
     }
 
+    // pub fn degree(&self) -> usize {
+    //     self.degree
+    // }
+
     pub fn add_fn(&self, other: &Polynomial) -> Polynomial {
         // We know that degree of the sum is at most max(deg(p1), deg(p2)).
         let max_deg = self.degree.max(other.degree);
@@ -160,19 +164,17 @@ impl Polynomial {
         unsafe { Polynomial::new_unchecked(self_coefficients, deg) }
     }
 
-    // Unused
-    /*pub fn bit_and(&self, other: &Polynomial) -> Polynomial {
+    pub fn bit_and(&self, other: &Polynomial) -> Polynomial {
         self.mul_fn(other)
-    }*/
+    }
 
     pub fn bit_xor(&self, other: &Polynomial) -> Polynomial {
         self.add_fn(other)
     }
 
-    // Unused
-    /*pub fn bit_or(&self, other: &Polynomial) -> Polynomial {
-        self.add_fn(other) + self.mul_fn(other)
-    }*/
+    // pub fn bit_or(&self, other: &Polynomial) -> Polynomial {
+    //     self.add_fn(other) + self.mul_fn(other)
+    // }
 }
 
 // Unlike add_fn, add takes ownership of the two polynomials.
