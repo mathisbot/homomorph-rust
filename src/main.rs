@@ -7,7 +7,7 @@ use homomorph::{self, Data, EncryptedData};
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-const DATA_SIZE: usize = 100;
+const DATA_SIZE: usize = 1_000;
 
 fn main() {
     let mut rng = rand::thread_rng();

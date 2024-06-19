@@ -49,7 +49,7 @@
 //! ## Advanced usage
 //! 
 //! This example shows how to perform homomorphic addition on unsigned integers.
-//! `delta` should be at least 20 times smaller than `d`.
+//! `delta` should be at least x (TBD) times smaller than `d`.
 //! 
 //! ```no_run
 //! use homomorph::{Context, Data, Parameters};
@@ -262,13 +262,19 @@ impl SecretKey {
     /// let sk = SecretKey::new(s);
     /// ```
     pub fn new(bytes: Vec<u8>) -> Self {
-        let mut bits: Vec<bool> = Vec::new();
-        for byte in bytes.iter() {
-            for i in 0..8 {
-                bits.push(byte & (1 << i) != 0);
+        let mut coeffs: Vec<u128> = Vec::with_capacity(bytes.len()/16+1);
+        let mut n = 0u128;
+        for (i, byte) in bytes.iter().enumerate() {
+            n |= (*byte as u128) << (i%8 * 8);
+            if i % 8 == 7 {
+                coeffs.push(n);
+                n = 0;
             }
         }
-        let s = polynomial::Polynomial::new(bits);
+        if n != 0 {
+            coeffs.push(n);
+        }
+        let s = polynomial::Polynomial::new(coeffs);
         SecretKey { s }
     }
 
@@ -299,14 +305,10 @@ impl SecretKey {
     /// ```
     pub fn get_bytes(&self) -> Vec<u8> {
         let mut bytes: Vec<u8> = Vec::new();
-        for chunk in self.s.chunks(8) {
-            let mut byte = 0;
-            for (i, &bit) in chunk.iter().enumerate() {
-                if bit {
-                    byte |= 1 << i;
-                }
+        for x in self.s.coefficients() {
+            for i in 0..8 {
+                bytes.push((x >> (i * 8)) as u8);
             }
-            bytes.push(byte);
         };
         bytes
     }
@@ -344,15 +346,21 @@ impl PublicKey {
     /// let pk = PublicKey::new(p);
     /// ```
     pub fn new(bytes: Vec<Vec<u8>>) -> Self {
-        let mut list: Vec<polynomial::Polynomial> = Vec::new();
+        let mut list: Vec<polynomial::Polynomial> = Vec::with_capacity(bytes.capacity());
         for bytes in bytes.iter() {
-            let mut bits: Vec<bool> = Vec::new();
-            for byte in bytes.iter() {
-                for i in 0..8 {
-                    bits.push(byte & (1 << i) != 0);
+            let mut coeffs: Vec<u128> = Vec::with_capacity(bytes.len()/16+1);
+            let mut n = 0u128;
+            for (i, byte) in bytes.iter().enumerate() {
+                n |= (*byte as u128) << (i%8 * 8);
+                if i % 8 == 7 {
+                    coeffs.push(n);
+                    n = 0;
                 }
             }
-            let p = polynomial::Polynomial::new(bits);
+            if n != 0 {
+                coeffs.push(n);
+            }
+            let p = polynomial::Polynomial::new(coeffs);
             list.push(p);
         }
         PublicKey { list }
@@ -363,10 +371,10 @@ impl PublicKey {
             .into_par_iter()
             .map(|_| {
                 let q = polynomial::Polynomial::random(dp, &mut rand::thread_rng());
-                let sq = secret_key.s.clone() * q;
+                let sq = secret_key.s.clone().mul_fn(&q);
                 let r = polynomial::Polynomial::random(delta, &mut rand::thread_rng());
-                let rx = r * unsafe { Polynomial::new_unchecked(vec![false, true], 1) } ;
-                let ti = sq + rx;
+                let rx = r.mul_fn(& unsafe { Polynomial::new_unchecked(vec![0b10], 1) } );
+                let ti = sq.add_fn(&rx);
                 ti
             })
             .collect();
@@ -396,17 +404,13 @@ impl PublicKey {
     /// let key_bytes = context.get_public_key().unwrap().get_bytes();
     /// ```
     pub fn get_bytes(&self) -> Vec<Vec<u8>> {
-        let mut bytes_outer: Vec<Vec<u8>> = Vec::new();
+        let mut bytes_outer: Vec<Vec<u8>> = Vec::with_capacity(self.list.len());
         for pol in self.list.iter() {
-            let mut bytes: Vec<u8> = Vec::new();
-            for chunk in pol.chunks(8) {
-                let mut byte = 0;
-                for (i, &bit) in chunk.iter().enumerate() {
-                    if bit {
-                        byte |= 1 << i;
-                    }
+            let mut bytes: Vec<u8> = Vec::with_capacity((pol.coefficients().len()-1)*16);
+            for x in pol.coefficients() {
+                for i in 0..8 {
+                    bytes.push((x >> (i * 8)) as u8);
                 }
-                bytes.push(byte);
             }
             bytes_outer.push(bytes);
         }
@@ -818,8 +822,9 @@ impl Data {
 
     fn encrypt_bit(x: bool, pk: &PublicKey, rng: &mut impl rand::Rng) -> polynomial::Polynomial {
         let tau = pk.list.len();
-        let random_part = Data::part(tau, rng);
+        let random_part = Self::part(tau, rng);
 
+        // Interesting to parallelize because tau can be large
         let sum = (0..tau).into_par_iter()
             .filter_map(|i| {
                     if random_part[i] {
@@ -838,7 +843,7 @@ impl Data {
         // Save computation if x is false
         // This does not give hints about the value of x has sum+0 is exactly the same as sum
         if x {
-            unsafe { sum + Polynomial::new_unchecked(vec![x], 0) }
+            sum.add_fn(&Polynomial::monomial(0))
         } else {
             sum
         }
@@ -876,7 +881,7 @@ impl Data {
         if let Some(pk) = context.get_public_key() {
             let result: Vec<_> = self.x.par_iter()
                 .map(|&bit| {
-                    Data::encrypt_bit(bit, pk, &mut rand::thread_rng())
+                    Self::encrypt_bit(bit, pk, &mut rand::thread_rng())
                 })
                 .collect();
         
@@ -922,14 +927,6 @@ impl Data {
             result.push(s);
         }
         Data { x: result }
-    }
-
-    fn _clone_shifted(&self, n: usize) -> Data {
-        let mut new = vec![false; n];
-        for &digit in self.x.iter() {
-            new.push(digit);
-        }
-        Data { x: new }
     }
 
     /// Multiplies two `Data` instances assuming they represent integers.
@@ -1009,9 +1006,9 @@ impl EncryptedData {
     /// This function is parallelized.
     pub fn decrypt(&self, context: &Context) -> Data {
         if let Some(sk) = context.get_secret_key() {
-            let result: Vec<_> = self.p.par_iter()
+            let result: Vec<bool> = self.p.par_iter()
                 .map(|poly| {
-                    EncryptedData::decrypt_bit(poly, sk)
+                    Self::decrypt_bit(poly, sk)
                 })
                 .collect();
             Data { x: result }
@@ -1035,7 +1032,7 @@ impl EncryptedData {
     /// 
     /// # Safety
     /// 
-    /// Factor `d`/`delta` must be at least `2*(self.len() + other.len())`.
+    /// Factor `d`/`delta` must be at least x (TBD).
     /// 
     /// # Examples
     /// 
@@ -1065,25 +1062,19 @@ impl EncryptedData {
             let p1 = self.p.get(i).unwrap_or(&null_p);
             let p2 = other.p.get(i).unwrap_or(&null_p);
             let s = p1.bit_xor(&p2).bit_xor(&carry);
-            /* This is too long and can be simplified :
-            carry <- p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
-            c <- (p1+p2)*c + p2*p2 + p1*p2*(p1+p2)*c
-            c <- c*(p1+p2)*(1+p1*p2) + p1*p2 */
+            // This is too long and can be simplified :
+            // carry = p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
+            // c <- (p1+p2)*c + p1*p2 + p1*p2*(p1+p2)*c
+            // c <- c*(p1+p2)*(1+p1*p2) + p1*p2
             let p1p2 = p1.mul_fn(&p2);
-            carry = unsafe { p1.add_fn(&p2).mul_fn(&carry).mul_fn(&Polynomial::new_unchecked(vec![true], 0).add_fn(&p1p2)).add_fn(&p1p2) };
+            carry = p1.add_fn(&p2).mul_fn(&carry).mul_fn(&Polynomial::monomial(0).add_fn(&p1p2)).add_fn(&p1p2);
 
             result.push(s);
         }
+        result.push(carry);
+
         EncryptedData { p: result }
     }
-
-    // fn clone_shifted(&self, n: usize) -> Vec<Polynomial> {
-    //     let mut new = vec![Polynomial::null(); n];
-    //     for digit in self.p.iter() {
-    //         new.push(digit.clone());
-    //     }
-    //     new
-    // }
 
     /// Multiplies two `EncryptedData` instances, assuming they represent unsigned integers.
     /// 
@@ -1097,7 +1088,7 @@ impl EncryptedData {
     /// 
     /// # Safety
     /// 
-    /// Factor `d`/`delta` must be at least `2*(self.len() + other.len())`.
+    /// Factor `d`/`delta` must be at least x (TBD).
     /// 
     /// # Examples
     /// 
@@ -1229,7 +1220,7 @@ mod tests {
 
     #[test]
     fn test_encrypted_data_add() {
-        let params = Parameters::new(128, 8, 1, 8);
+        let params = Parameters::new(128, 32, 1, 8);
         let mut context = Context::new(params);
         context.generate_secret_key();
         context.generate_public_key();
@@ -1320,7 +1311,7 @@ mod tests {
 
     #[test]
     fn test_get_bytes() {
-        let params = Parameters::new(64, 64, 32, 64);
+        let params = Parameters::new(128, 64, 32, 32);
         let mut context = Context::new(params);
         context.generate_secret_key();
         context.generate_public_key();
@@ -1331,10 +1322,31 @@ mod tests {
         let secret_key_bytes = secret_key.get_bytes();
         let public_key_bytes = public_key.get_bytes();
 
-        let secret_key2 = SecretKey::new(secret_key_bytes);
-        let public_key2 = PublicKey::new(public_key_bytes);
+        let secret_key2 = SecretKey::new(secret_key_bytes.clone());
+        let public_key2 = PublicKey::new(public_key_bytes.clone());
 
-        assert_eq!(secret_key.get_bytes(), secret_key2.get_bytes());
-        assert_eq!(public_key.get_bytes(), public_key2.get_bytes());
+        assert_eq!(secret_key_bytes, secret_key2.get_bytes());
+        assert_eq!(public_key_bytes, public_key2.get_bytes());
+    }
+
+    #[test]
+    fn test_secret_key_degree() {
+        let params = Parameters::new(128, 64, 32, 32);
+        let mut context = Context::new(params);
+        context.generate_secret_key();
+        let secret_key = context.get_secret_key().unwrap();
+        assert_eq!(secret_key.s._degree(), 128);
+    }
+
+    #[test]
+    fn test_public_key_degree() {
+        let params = Parameters::new(128, 64, 32, 32);
+        let mut context = Context::new(params);
+        context.generate_secret_key();
+        context.generate_public_key();
+        let public_key = context.get_public_key().unwrap();
+        for p in public_key.list.iter() {
+            assert!(p._degree() <= 128+64);
+        }
     }
 }

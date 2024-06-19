@@ -53,26 +53,26 @@ I do not intend to publish the crate on `crates.io`.
 
 ## Benchmarks
 
-Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 10 000 tries on `usize` (`u64`) data.
+Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 1000 tries on `usize` (`u64`) data.
 
-Parameters used for this benchmark were the ones that should be used for a standard application :
+Parameters used for this benchmark were :
 - `d` = 512
 - `dp` = 128
-- `delta` = 16
+- `delta` = 8
 - `tau` = 256.
 
 | Operation         | Average time     |
 |:-----------------:|:----------------:|
-| Encryption        |      1.34 ms     |
-| Decryption        |      954 µs      |
-| Dec. after op.    |      55.4 ms     |
-| Add as uint       |      26.6 ms     |
+| Encryption        |      57.9 µs     |
+| Decryption        |      46.2 µs     |
+| Add as uint       |      99.8 ms     |
+| Dec. after add    |      26.5 ms     |
 | Mul               |   Unimplemented  |
 
 
 It is still more efficient to decrypt, operate and then re-encrypt the data. This limits the use of the system to applications where security is paramount, and takes precedence over speed.
 
-It's worth remembering that the system is inherently slow, as each bit is ciphered as a polynomial whose degree is $d+d'$.
+It's worth remembering that the system is inherently slow, as each bit is ciphered as a polynomial whose degree is $d+d'$, and that no system that is both secure and fast has yet been found.
 Hence, it takes more than 160 bytes for $d+d'=640$. This makes operations computationally heavy.
 
 ## System
@@ -148,11 +148,11 @@ Proceeding in a similar way to a processor, we can reduce the addition of intege
 
 By playing with the same adder patterns that are in our ALU, we can easily recreate a working addition for our ciphers.
 
-It seems that addition has a "boolean degree" of around 2 times the size of the data, so you must have $\dfrac{d}{\delta}>=64$ in order to use homomorphic addition on `u32`.
+It SEEMS that addition has a "boolean degree" of around 2 times the size of the data, so you must have $\dfrac{d}{\delta}>=64$ in order to use homomorphic addition on `u32`.
 
 #### Multiplication
 
 Imitating a processor seems to be a winning strategy. 
 By repeating the above process with multiplication, it's fairly easy to implement.
 
-It seems that multiplication has a "boolean degree" of around 2 times the size of the data, so you must have $\dfrac{d}{\delta}>=64$ in order to use homomorphic multiplication on `u32`.
+It SEEMS that multiplication also has a "boolean degree" of around 2 times the size of the data, so you must have $\dfrac{d}{\delta}>=64$ in order to use homomorphic multiplication on `u32`.
