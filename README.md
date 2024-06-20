@@ -58,15 +58,15 @@ Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 1 000
 Parameters used for this benchmark were :
 - `d` = 512
 - `dp` = 128
-- `delta` = 8
+- `delta` = 1 (does not affect benchmark)
 - `tau` = 256.
 
 | Operation         | Average time     |
 |:-----------------:|:----------------:|
-| Encryption        |      57.9 µs     |
-| Decryption        |      46.2 µs     |
+| Encryption        |      92.5 µs     |
+| Decryption        |      17.5 µs     |
 | Add as uint       |      99.8 ms     |
-| Dec. after add    |      26.5 ms     |
+| Dec. after add    |      31.6 ms     |
 | Mul               |   Unimplemented  |
 
 

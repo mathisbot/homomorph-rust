@@ -13,7 +13,7 @@ fn main() {
     let mut rng = rand::thread_rng();
 
     // Create a new context with the following parameters
-    let params = homomorph::Parameters::new(512, 128, 8, 256);
+    let params = homomorph::Parameters::new(512, 128, 1, 256);
     let mut context = homomorph::Context::new(params);
     context.generate_secret_key();
     context.generate_public_key();
@@ -24,11 +24,17 @@ fn main() {
 
     // Encrypt the data
     let start = Instant::now();
-    let encrypted_data1: Vec<EncryptedData> = data1.par_iter().map(|data| data.encrypt(&context)).collect();
+    let encrypted_data1: Vec<EncryptedData> = data1.iter().map(|data| data.encrypt(&context)).collect();
     let elapsed = start.elapsed();
     println!("Time needed to encrypt {} data: {:?}", DATA_SIZE, elapsed);
     println!("Time needed to encrypt 1 data: {:?}", elapsed / DATA_SIZE as u32);
     let encrypted_data2: Vec<EncryptedData> = data2.par_iter().map(|data| data.encrypt(&context)).collect();
+
+    let start = Instant::now();
+    let _decrypted_data: Vec<Data> = encrypted_data1.iter().map(|data| data.decrypt(&context)).collect();
+    let elapsed = start.elapsed();
+    println!("Time needed to decrypt {} data: {:?}", DATA_SIZE, elapsed);
+    println!("Time needed to decrypt 1 data: {:?}", elapsed / DATA_SIZE as u32);
 
     // Perform the homomorphic operation
     let mut encrypted_data3: Vec<EncryptedData> = Vec::with_capacity(DATA_SIZE);
@@ -53,9 +59,9 @@ fn main() {
 
     // Decrypt the result
     let start = Instant::now();
-    let decrypted_data_add: Vec<Data> = encrypted_data3.par_iter().map(|data| data.decrypt(&context)).collect();
+    let decrypted_data_add: Vec<Data> = encrypted_data3.iter().map(|data| data.decrypt(&context)).collect();
     let elapsed = start.elapsed();
-    println!("Time needed to decrypt {} data: {:?}", DATA_SIZE, elapsed);
+    println!("Time needed to decrypt {} processed data: {:?}", DATA_SIZE, elapsed);
     println!("Time needed to decrypt 1 data: {:?}", elapsed / DATA_SIZE as u32);
     // let decrypted_data_mul: Vec<Data> = encrypted_data4.par_iter().map(|data| data.decrypt(&context)).collect();
 

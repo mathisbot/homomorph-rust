@@ -13,9 +13,9 @@ pub struct Polynomial {
 }
 
 fn compute_degree(coefficients: &[u128]) -> usize {
-    for i in (0..coefficients.len()).rev() {
-        if coefficients[i] != 0 {
-            return 127-coefficients[i].leading_zeros() as usize + 128*i;
+    for (i, &coeff) in coefficients.iter().enumerate().rev() {
+        if coeff != 0 {
+            return 127 - coeff.leading_zeros() as usize + 128 * i;
         }
     }
     0
@@ -39,20 +39,16 @@ impl Polynomial {
     }
 
     pub fn random(degree: usize, rng: &mut impl rand::Rng) -> Self {
-        if degree == 0 {
-            return Polynomial::null();
-        }
-        let mut coefficients = Vec::with_capacity(degree + 1);
-        for _ in 0..(degree/128+1) {
-            coefficients.push(rng.gen::<u128>());
-        }
-        // Overflow (underflow in this case) is a wanted behavior here.
-        // #[allow(overflowing_literals)]
-        coefficients[degree/128] &= (1 << (degree % 128)) - 1;
-        coefficients[degree/128] |= 1 << (degree % 128);
+        let num_elements = degree / 128 + 1;
+        let mut coefficients = Vec::with_capacity(num_elements);
+        coefficients.extend((0..num_elements).map(|_| rng.gen::<u128>()));
+        let bit_pos = degree % 128;
+        coefficients[num_elements - 1] &= (1 << bit_pos) - 1;
+        coefficients[num_elements - 1] |= 1 << bit_pos;
         unsafe { Polynomial::new_unchecked(coefficients, degree) }
     }
 
+    // It is not a problem to consider the null polynomial as a monomial of degree 0.
     pub fn null() -> Self {
         Polynomial { coefficients: vec![0], degree: 0 }
     }
@@ -88,15 +84,12 @@ impl Polynomial {
         // We know that degree of the sum is at most max(deg(p1), deg(p2)).
         let max_deg = self.degree.max(other.degree);
         let mut result = Vec::with_capacity(max_deg/128 + 1);
-        for i in 0..=(max_deg/128) {
-            let mut coeff = 0;
-            if i < self.coefficients.len() {
-                coeff ^= self.coefficients[i];
-            }
-            if i < other.coefficients.len() {
-                coeff ^= other.coefficients[i];
-            }
-            result.push(coeff);
+
+        for i in 0..self.coefficients.len().max(other.coefficients.len()) {
+            result.push(
+                self.coefficients.get(i).copied().unwrap_or(0)
+                ^ other.coefficients.get(i).copied().unwrap_or(0)
+            );
         }
 
         if self.degree != other.degree {
@@ -115,7 +108,7 @@ impl Polynomial {
 
         for (i, &a) in self.coefficients.iter().enumerate() {
             for (j, &b) in other.coefficients.iter().enumerate() {
-                if i + j >= result.len() {
+                if i + j >= result_len {
                     break;
                 }
                 let mut temp_a = a;
@@ -125,7 +118,7 @@ impl Polynomial {
                         if k < 128 {
                             result[i + j] ^= b << k;
                         }
-                        if k > 0 && i + j + 1 < result.len() {
+                        if k > 0 && i + j + 1 < result_len {
                             result[i + j + 1] ^= b >> (128 - k);
                         }
                     }
@@ -190,12 +183,8 @@ impl Polynomial {
         }
 
         // Remove any leading zero coefficients
-        while let Some(&last) = r.coefficients.last() {
-            if last == 0 && r.coefficients.len() > 1 {
-                r.coefficients.pop();
-            } else {
-                break;
-            }
+        while r.coefficients.len() > 1 && *r.coefficients.last().unwrap() == 0 {
+            r.coefficients.pop();
         }
 
         r.degree = r_degree;

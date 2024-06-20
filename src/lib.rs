@@ -1110,35 +1110,29 @@ impl EncryptedData {
     /// ```
     pub unsafe fn mul_as_uint(&self, other: &Self) -> Self {
         let max_index = self.p.len() + other.p.len() - 1;
-        let mut result: Vec<Polynomial> = vec![Polynomial::null(); max_index];
-        let mut carry = vec![Polynomial::null(); max_index];
-        let mut last_carry = vec![Polynomial::null(); max_index];
-    
+        let mut result = vec![Polynomial::null(); max_index];
+        let mut carry = Polynomial::null();
+
         for i in 0..max_index {
             let mut sum_i = Polynomial::null();
-            let mut carry_i = carry[i].clone();
-            for j in 0..self.p.len().min(i + 1) {
-                if i - j < other.p.len() {
+            for j in 0..=i.min(self.p.len() - 1) {
+                if i >= j && (i - j) < other.p.len() {
                     let p1 = &self.p[j];
                     let p2 = &other.p[i - j];
-                    let s = p1.mul_fn(&p2);
-                    sum_i = sum_i.add_fn(&s);
-                    let last_carry_i = carry_i.clone();
-                    carry_i = s.bit_xor(&carry_i);
-                    if i + 1 < carry.len() {
-                        last_carry[i + 1] = carry[i + 1].clone();
-                        carry[i + 1] =
-                            last_carry_i.bit_xor(&carry_i).bit_and(&last_carry_i).bit_xor(&carry[i + 1]);
-                    }
-                } else {
-                    break;
+                    let product = p1.mul_fn(&p2);
+                    sum_i = sum_i.add_fn(&product);
                 }
             }
-            if i < result.len() {
-                result[i] = sum_i.add_fn(&carry[i]);
-            }
+            // Add the carry from the previous step
+            sum_i = sum_i.add_fn(&carry);
+            // Calculate the new carry
+            carry = sum_i.clone().bit_and(&Polynomial::monomial(0));
+            // Store the result
+            result[i] = sum_i;
         }
-    
+
+        result.push(carry);
+        
         EncryptedData { p: result }
     }
 }
@@ -1203,7 +1197,7 @@ mod tests {
     #[ignore = "Longer version of test_encrypted_data"]
     fn test_encrypted_data_extensive() {
         const N: usize = 256;
-        let params = Parameters::new(128, 128, 64, 128);
+        let params = Parameters::new(512, 256, 64, 256);
         let mut context = Context::new(params);
 
         let mut rng = rand::thread_rng();
@@ -1220,7 +1214,7 @@ mod tests {
 
     #[test]
     fn test_encrypted_data_add() {
-        let params = Parameters::new(128, 32, 1, 8);
+        let params = Parameters::new(128, 32, 2, 8);
         let mut context = Context::new(params);
         context.generate_secret_key();
         context.generate_public_key();
@@ -1231,15 +1225,14 @@ mod tests {
         let encrypted_data2 = data2.encrypt(&context);
         let encrypted_data3 = unsafe { encrypted_data1.add_as_uint(&encrypted_data2) };
         let decrypted_data = encrypted_data3.decrypt(&context);
-        let data3 = data1.add_as_uint(&data2);
-        assert_eq!(data3.to_usize(), decrypted_data.to_usize());
+        assert_eq!(42, decrypted_data.to_usize());
     }
 
     #[test]
     #[ignore = "Longer version of test_encrypted_data_add"]
     fn test_encrypted_data_add_extensive() {
         const N: usize = 100;
-        let params = Parameters::new(128, 64, 2, 32);
+        let params = Parameters::new(256, 128, 1, 64);
         let mut context = Context::new(params);
 
         let mut rng = rand::thread_rng();
@@ -1253,8 +1246,7 @@ mod tests {
             let encrypted_data2 = data2.encrypt(&context);
             let encrypted_data3 = unsafe { encrypted_data1.add_as_uint(&encrypted_data2) };
             let decrypted_data = encrypted_data3.decrypt(&context);
-            let data3 = data1.add_as_uint(&data2);
-            assert_eq!(data3.to_usize(), decrypted_data.to_usize());
+            assert_eq!(data1.to_usize()+data2.to_usize(), decrypted_data.to_usize());
         }
     }
 
@@ -1272,8 +1264,7 @@ mod tests {
         let encrypted_data2 = data2.encrypt(&context);
         let encrypted_data3 = unsafe { encrypted_data1.mul_as_uint(&encrypted_data2) };
         let decrypted_data = encrypted_data3.decrypt(&context);
-        let data3 = data1.mul_as_uint(&data2);
-        assert_eq!(data3.to_u32(), decrypted_data.to_u32());
+        assert_eq!(data1.to_u32()*data2.to_u32(), decrypted_data.to_u32());
 
         let data1 = Data::from_usize(999);
         let data2 = Data::from_usize(999);
@@ -1281,8 +1272,7 @@ mod tests {
         let encrypted_data2 = data2.encrypt(&context);
         let encrypted_data3 = unsafe { encrypted_data1.mul_as_uint(&encrypted_data2) };
         let decrypted_data = encrypted_data3.decrypt(&context);
-        let data3 = data1.mul_as_uint(&data2);
-        assert_eq!(data3.to_usize(), decrypted_data.to_usize());
+        assert_eq!(data1.to_usize()*data2.to_usize(), decrypted_data.to_usize());
     }
 
     #[test]
@@ -1290,7 +1280,7 @@ mod tests {
     #[ignore = "Longer version of test_encrypted_data_mul"]
     fn test_encrypted_data_mul_extensive() {
         const N: usize = 100;
-        let params = Parameters::new(128, 64, 4, 32);
+        let params = Parameters::new(256, 128, 1, 64);
         let mut context = Context::new(params);
 
         let mut rng = rand::thread_rng();
