@@ -71,7 +71,6 @@ impl Polynomial {
         
         // Horners method
         let result = self.coefficients.iter()
-            .rev()
             .fold(0, |acc, &coeff| acc + coeff.count_ones());
         
         (result % 2) == 1
