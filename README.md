@@ -5,15 +5,15 @@ This repository contains a Rust implementation of an homomorphic encryption sche
 Homomorphic encryption allows computations to be performed on encrypted data without decrypting it, preserving the privacy of the data.
 Homomorphic encryption is still a subject of research today, and no system that is both secure and efficient has yet been found.
 
-I might also rewrite the system to use binary representation of numbers instead of polynomials for increased performance but same outcome.
+I may also rewrite the crate to use traits to allow everyone to implement homomorphic operations for their structs.
 
 ## Features
 
 - [X] Encryption/Decryption
 - [X] Homomorphic addition for `uint`
-- [X] Homomorphic multiplication for `uint`
+- [ ] Homomorphic multiplication for `uint`
 - [ ] Other types of numbers
-- [ ] Other types of data
+- [ ] Other types of std data
 
 ## Getting Started
 
@@ -28,7 +28,7 @@ I do not intend to publish the crate on `crates.io`.
 1. Clone the repository:
 
     ```shell
-    git clone https://github.com/your-username/homomorphic-encryption-rust.git
+    git clone https://github.com/mathisbot/homomorph-rust.git
     ```
 
 2. Build the project:
@@ -53,7 +53,7 @@ I do not intend to publish the crate on `crates.io`.
 
 ## Benchmarks
 
-Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 1000 tries on `usize` (`u64`) data.
+Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 1 000 tries on `usize` (`u64`) data.
 
 Parameters used for this benchmark were :
 - `d` = 512
