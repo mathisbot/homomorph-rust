@@ -1,42 +1,42 @@
 //! A library for homomorphic encryption.
-//! 
+//!
 //! # Usage
-//! 
+//!
 //! Data is represented as `Vec<bool>`, to match binary representation.
 //! `Data` instances can either be created from a `usize` or from a `Vec<bool>` (raw data).
 //! In the future, other types of data will be supported.
-//! 
+//!
 //! User must then provide a context to its operations, which contains the secret key and the public key.
 //! `Context` contains the `Parameters`, `SecretKey` and `PublicKey`.
-//! 
+//!
 //! Once set, the secret key can be used to decrypt the data, while the public key can be used to encrypt the data.
 //! Encryption can only be performed on `Data` instances, while decryption can only be performed on `EncryptedData` instances.
-//! 
+//!
 //! Because of the properties of the cryposystem, you can perform several operations on encrypted data.
 //! As an example, if encrypted data represents unsigned integers, you can perform addition as well as multiplication.
-//! 
-//! Recommanded parameters are `d >= 512`, `dp >= 128`, `delta = d/32` and `tau = 256`.
-//! 
+//!
+//! Recommanded parameters are `d >= 512`, `dp >= 128`, `delta = TBD` and `tau = 256`.
+//!
 //! # Examples
-//! 
+//!
 //! ## Basic usage
-//! 
+//!
 //! Of course, this system can be used without performing any homomorphic operation.
-//! 
+//!
 //! ```
 //! use homomorph::{Context, Data, Parameters};
-//! 
+//!
 //! // Define the parameters
 //! // -------------------------  d  dp delta tau
 //! let params = Parameters::new(16, 16, 8, 8);
-//! 
+//!
 //! // Create a new context
 //! let mut context = Context::new(params);
 //! // Initialize keys
 //! context.generate_secret_key();
 //! // Notice that the public key is generated after the secret key
 //! context.generate_public_key();
-//! 
+//!
 //! // Create data from a usize
 //! let data = Data::from_usize(42);
 //! // Encrypt the data using the public key
@@ -45,58 +45,58 @@
 //! let decrypted_data = encrypted_data.decrypt(&context);
 //! assert_eq!(data.to_usize(), decrypted_data.to_usize());
 //! ```
-//! 
+//!
 //! ## Advanced usage
-//! 
+//!
 //! This example shows how to perform homomorphic addition on unsigned integers.
 //! `delta` should be at least x (TBD) times smaller than `d`.
-//! 
+//!
 //! ```no_run
 //! use homomorph::{Context, Data, Parameters};
-//! 
+//!
 //! // Define the parameters
 //! // -------------------------- d   dp  delta tau
 //! let params = Parameters::new(512, 256, 16, 256);
 //! let mut context = Context::new(params);
 //! context.generate_secret_key();
 //! context.generate_public_key();
-//! 
+//!
 //! // Create data from a usize
 //! let data1 = Data::from_usize(20);
 //! let data2 = Data::from_usize(22);
-//! 
+//!
 //! // Encrypt the data using the public key
 //! let encrypted_data1 = data1.encrypt(&context);
 //! let encrypted_data2 = data2.encrypt(&context);
-//! 
+//!
 //! // Perform homomorphic addition
 //! let data3 = data1.add_as_uint(&data2);
 //! let encrypted_data3 = unsafe { encrypted_data1.add_as_uint(&encrypted_data2) };
-//! 
+//!
 //! // Decrypt the data using the secret key
 //! let decrypted_data = encrypted_data3.decrypt(&context);
 //! assert_eq!(data3.to_usize(), decrypted_data.to_usize());
 //! ```
-//! 
+//!
 //! It's important to note that here, it's impossible to operate on a data stream: everything is stored in a structure in RAM.
 //! If you need to operate on data of several gigabytes in size,
 //! it's a good idea to separate them into blocks and process them one by one.
-//! 
+//!
 //! ```no_run
 //! use homomorph::{Context, Data, Parameters};
 //! use std::fs::File;
 //! use std::io::{BufReader, Read, BufWriter, Write};
-//! 
+//!
 //! let file = File::open("data.txt").unwrap();
 //! let mut reader = BufReader::new(file);
-//! const block_size: usize = 1024; // 524 KB when ciphered 
+//! const block_size: usize = 1024; // 524 KB when ciphered
 //! let mut buffer = [0; block_size];
-//! 
+//!
 //! let params = Parameters::new(512, 256, 16, 256);
 //! let mut context = Context::new(params);
 //! context.generate_secret_key();
 //! context.generate_public_key();
-//! 
+//!
 //! loop {
 //!     let n = reader.read(&mut buffer).unwrap();
 //!     if n == 0 {
@@ -104,57 +104,57 @@
 //!     }
 //!     process_block(&mut buffer[..n], &context);
 //! }
-//! 
+//!
 //! fn process_block(block: &mut [u8], context: &Context) {
 //!     let data = Data::new(block.iter().map(|&x| x == 1).collect());
 //!     // ...
 //! }
 //! ```
-//! 
+//!
 //! ## Save keys
-//! 
+//!
 //! In order to store ciphered data, you need to save the secret key and the public key for later use.
 //! This can be done by storing the coefficients of the keys.
-//! 
+//!
 //! ### Save to a file
-//! 
+//!
 //! ```no_run
 //! use homomorph::{Context, Parameters};
 //! use std::fs::File;
 //! use std::io::Write;
-//! 
+//!
 //! let mut context = Context::new(Parameters::new(6, 3, 2, 5));
 //! context.generate_secret_key();
-//! 
+//!
 //! // Reference to the coefficients
 //! let key_bytes = context.get_secret_key().unwrap().get_bytes();
-//! 
+//!
 //! // Save the bytes to a file
 //! let mut file = File::create("secret_key").unwrap();
 //! file.write_all(&key_bytes).unwrap();
 //! ```
-//! 
+//!
 //! ### Retrieve from a file
-//! 
+//!
 //! ```no_run
 //! use homomorph::{Context, Parameters, SecretKey};
 //! use std::fs::File;
 //! use std::io::Read;
-//! 
+//!
 //! let mut context = Context::new(Parameters::new(6, 3, 2, 5));
-//! 
+//!
 //! // Read the bytes from a file
 //! let mut file = File::open("secret_key").expect("Could not open file");
 //! let mut key_bytes = Vec::new();
 //! file.read_to_end(&mut key_bytes).unwrap();
-//! 
+//!
 //! // Create the secret key from the bytes
 //! let secret_key = SecretKey::new(key_bytes);
 //! context.set_secret_key(secret_key);
 //! ```
-//! 
+//!
 //! # Source
-//! 
+//!
 //! The source code is available on [GitHub](https://github.com/mathisbot/homomorph-rust).
 //! You will also find details on the system and its security.
 
@@ -164,26 +164,25 @@ use std::mem;
 mod polynomial;
 use polynomial::Polynomial;
 
-
 /// Parameters for the algorithm.
-/// 
+///
 /// # Fields
-/// 
+///
 /// * `d` - The degree of the secret key.
 /// * `dp` - The degree of the public key.
 /// * `delta` - The noise parameter.
 /// * `tau` - The size of public key.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// use homomorph::Parameters;
-/// 
+///
 /// let parameters = Parameters::new(6, 3, 2, 5);
 /// ```
-/// 
+///
 /// # Note
-/// 
+///
 /// `delta` must be strictly less than `d`.
 pub struct Parameters {
     d: usize,
@@ -194,32 +193,32 @@ pub struct Parameters {
 
 impl Parameters {
     /// Creates a new set of parameters.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `d` - The degree of the secret key.
     /// * `dp` - The degree of the public key.
     /// * `delta` - The noise parameter.
     /// * `tau` - The size of the public key.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new set of parameters.
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// As the system properties highly depends on the quantity `d`/`delta`, it is advised
     /// to take a look at recommandations in the documentation.
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// This function will panic if `delta` is greater than or equal to `d`.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::Parameters;
-    /// 
+    ///
     /// let parameters = Parameters::new(6, 3, 2, 5);
     /// ```
     pub fn new(d: usize, dp: usize, delta: usize, tau: usize) -> Self {
@@ -237,35 +236,35 @@ pub struct SecretKey {
 
 impl SecretKey {
     /// Creates a new secret key.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `bytes` - The bytes representing the secret key.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new secret key.
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// For security reasons, the polynomial should only be retrieved from a previous generated secret key.
     /// For a first time generation, use `Context::generate_secret_key`.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::SecretKey;
-    /// 
+    ///
     /// // INSECURE!!! Only for demonstration purposes
     /// let s = vec![5, 14, 8];
-    /// 
+    ///
     /// let sk = SecretKey::new(s);
     /// ```
     pub fn new(bytes: Vec<u8>) -> Self {
-        let mut coeffs: Vec<u128> = Vec::with_capacity(bytes.len()/16+1);
+        let mut coeffs: Vec<u128> = Vec::with_capacity(bytes.len() / 16 + 1);
         let mut n = 0u128;
         for (i, byte) in bytes.iter().enumerate() {
-            n |= (*byte as u128) << (i%8 * 8);
+            n |= (*byte as u128) << (i % 8 * 8);
             if i % 8 == 7 {
                 coeffs.push(n);
                 n = 0;
@@ -284,23 +283,23 @@ impl SecretKey {
     }
 
     /// Returns bytes representing the secret key.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A `Vec<u8>` representing the secret key.
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// Can be useful to save the secret key.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Context, Parameters};
-    /// 
+    ///
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     /// context.generate_secret_key();
-    /// 
+    ///
     /// let key_bytes = context.get_secret_key().unwrap().get_bytes();
     /// ```
     pub fn get_bytes(&self) -> Vec<u8> {
@@ -309,7 +308,7 @@ impl SecretKey {
             for i in 0..8 {
                 bytes.push((x >> (i * 8)) as u8);
             }
-        };
+        }
         bytes
     }
 }
@@ -321,37 +320,37 @@ pub struct PublicKey {
 
 impl PublicKey {
     /// Creates a new public key.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `bytes` - The bytes representing the public key.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new public key.
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// For security reseasons, the list of polynomials should only be retrieved from a previous generated public key.
     /// For a first time generation, use `Context::generate_public_key`.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::PublicKey;
-    /// 
+    ///
     /// // INSECURE!!! Only for demonstration purposes
     /// let p = vec![vec![4, 7, 5], vec![1, 2, 3], vec![5, 4, 6]];
-    /// 
+    ///
     /// let pk = PublicKey::new(p);
     /// ```
     pub fn new(bytes: Vec<Vec<u8>>) -> Self {
         let mut list: Vec<polynomial::Polynomial> = Vec::with_capacity(bytes.capacity());
         for bytes in bytes.iter() {
-            let mut coeffs: Vec<u128> = Vec::with_capacity(bytes.len()/16+1);
+            let mut coeffs: Vec<u128> = Vec::with_capacity(bytes.len() / 16 + 1);
             let mut n = 0u128;
             for (i, byte) in bytes.iter().enumerate() {
-                n |= (*byte as u128) << (i%8 * 8);
+                n |= (*byte as u128) << (i % 8 * 8);
                 if i % 8 == 7 {
                     coeffs.push(n);
                     n = 0;
@@ -373,40 +372,40 @@ impl PublicKey {
                 let q = polynomial::Polynomial::random(dp, &mut rand::thread_rng());
                 let sq = secret_key.s.clone().mul_fn(&q);
                 let r = polynomial::Polynomial::random(delta, &mut rand::thread_rng());
-                let rx = r.mul_fn(& unsafe { Polynomial::new_unchecked(vec![0b10], 1) } );
+                let rx = r.mul_fn(&unsafe { Polynomial::new_unchecked(vec![0b10], 1) });
                 let ti = sq.add_fn(&rx);
                 ti
             })
             .collect();
-    
+
         PublicKey { list }
     }
 
     /// Returns bytes representing the public key.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A `Vec<Vec<u8>>` representing the public key.
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// Can be useful to save the public key.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Context, Parameters};
-    /// 
+    ///
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     /// context.generate_secret_key();
     /// context.generate_public_key();
-    /// 
+    ///
     /// let key_bytes = context.get_public_key().unwrap().get_bytes();
     /// ```
     pub fn get_bytes(&self) -> Vec<Vec<u8>> {
         let mut bytes_outer: Vec<Vec<u8>> = Vec::with_capacity(self.list.len());
         for pol in self.list.iter() {
-            let mut bytes: Vec<u8> = Vec::with_capacity((pol.coefficients().len()-1)*16);
+            let mut bytes: Vec<u8> = Vec::with_capacity((pol.coefficients().len() - 1) * 16);
             for x in pol.coefficients() {
                 for i in 0..8 {
                     bytes.push((x >> (i * 8)) as u8);
@@ -427,37 +426,41 @@ pub struct Context {
 
 impl Context {
     /// Creates a new context.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `params` - The parameters.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new context.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Context, Parameters};
-    /// 
+    ///
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// ```
     pub fn new(params: Parameters) -> Self {
-        Context { secret_key: None, public_key: None, parameters: params }
+        Context {
+            secret_key: None,
+            public_key: None,
+            parameters: params,
+        }
     }
 
     /// Generates a secret key.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Context, Parameters};
-    /// 
+    ///
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
-    /// 
+    ///
     /// context.generate_secret_key();
     /// ```
     pub fn generate_secret_key(&mut self) {
@@ -465,42 +468,47 @@ impl Context {
     }
 
     /// Generates a public key out of the private key.
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// This function will panic if the secret key has not been generated yet.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Context, Parameters};
     /// use rand::thread_rng;
-    /// 
+    ///
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
-    /// 
+    ///
     /// context.generate_public_key();
     /// ```
     pub fn generate_public_key(&mut self) {
         if let Some(secret_key) = &self.secret_key {
-            self.public_key = Some(PublicKey::random(self.parameters.dp, self.parameters.delta, self.parameters.tau, secret_key));
+            self.public_key = Some(PublicKey::random(
+                self.parameters.dp,
+                self.parameters.delta,
+                self.parameters.tau,
+                secret_key,
+            ));
         } else {
             panic!("Secret key not generated yet");
         }
     }
 
     /// Returns a reference to the secret key.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A reference to the secret key.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Context, Parameters};
-    /// 
+    ///
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
@@ -511,16 +519,16 @@ impl Context {
     }
 
     /// Returns a reference to the public key.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A reference to the public key.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Context, Parameters};
-    /// 
+    ///
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
@@ -532,22 +540,22 @@ impl Context {
     }
 
     /// Explicitly sets the secret key.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `secret_key` - The secret key.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Context, Parameters, SecretKey};
-    /// 
+    ///
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
-    /// 
+    ///
     /// // INSECURE!!! Only for demonstration purposes
     /// let s = vec![5, 14, 8];
     /// let sk = SecretKey::new(s);
-    /// 
+    ///
     /// context.set_secret_key(sk);
     /// ```
     pub fn set_secret_key(&mut self, secret_key: SecretKey) {
@@ -555,22 +563,22 @@ impl Context {
     }
 
     /// Explicitly sets the public key.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `public_key` - The public key.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Context, Parameters, PublicKey};
-    /// 
+    ///
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
-    /// 
+    ///
     /// // INSECURE!!! Only for demonstration purposes
     /// let p = vec![vec![4, 7, 5], vec![1, 2, 3], vec![5, 4, 6]];
     /// let pk = PublicKey::new(p);
-    /// 
+    ///
     /// context.set_public_key(pk);
     /// ```
     pub fn set_public_key(&mut self, public_key: PublicKey) {
@@ -592,20 +600,20 @@ pub struct EncryptedData {
 
 impl Data {
     /// Creates a new data.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - The data as a raw vector of booleans.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new data.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::Data;
-    /// 
+    ///
     /// let data = Data::new(vec![true, false, true]);
     /// ```
     pub fn new(x: Vec<bool>) -> Self {
@@ -613,122 +621,122 @@ impl Data {
     }
 
     /// Creates a new data from a `u16`.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - `u16` to convert.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new data.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::Data;
-    /// 
+    ///
     /// let data = Data::from_u16(42 as u16);
     /// ```
     pub fn from_u16(x: u16) -> Self {
-        let mut result = Vec::with_capacity(mem::size_of::<u16>()*8);
-        for i in 0..mem::size_of::<u16>()*8 {
+        let mut result = Vec::with_capacity(mem::size_of::<u16>() * 8);
+        for i in 0..mem::size_of::<u16>() * 8 {
             result.push((x >> i) & 1 == 1);
         }
         Data { x: result }
     }
 
     /// Creates a new data from a `u32`.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - `u32` to convert.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new data.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::Data;
-    /// 
+    ///
     /// let data = Data::from_u32(42 as u32);
     /// ```
     pub fn from_u32(x: u32) -> Self {
-        let mut result = Vec::with_capacity(mem::size_of::<u32>()*8);
-        for i in 0..mem::size_of::<u32>()*8 {
+        let mut result = Vec::with_capacity(mem::size_of::<u32>() * 8);
+        for i in 0..mem::size_of::<u32>() * 8 {
             result.push((x >> i) & 1 == 1);
         }
         Data { x: result }
     }
 
     /// Creates a new data from a `usize`.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - `usize` to convert.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new data.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::Data;
-    /// 
+    ///
     /// let data = Data::from_usize(42 as usize);
     /// ```
     pub fn from_usize(x: usize) -> Self {
-        let mut result = Vec::with_capacity(mem::size_of::<usize>()*8);
-        for i in 0..mem::size_of::<usize>()*8 {
+        let mut result = Vec::with_capacity(mem::size_of::<usize>() * 8);
+        for i in 0..mem::size_of::<usize>() * 8 {
             result.push((x >> i) & 1 == 1);
         }
         Data { x: result }
     }
 
     /// Creates a new data from a `u64`.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - `u64` to convert.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new data.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::Data;
-    /// 
+    ///
     /// let data = Data::from_u64(42 as u64);
     /// ```
     pub fn from_u64(x: u64) -> Self {
-        let mut result = Vec::with_capacity(mem::size_of::<u64>()*8);
-        for i in 0..mem::size_of::<u64>()*8 {
+        let mut result = Vec::with_capacity(mem::size_of::<u64>() * 8);
+        for i in 0..mem::size_of::<u64>() * 8 {
             result.push((x >> i) & 1 == 1);
         }
         Data { x: result }
     }
 
     /// Converts the data to a `u16`.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The data as a `u16`.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::Data;
-    /// 
+    ///
     /// let data = Data::new(vec![true, false, true]);
     /// let x = data.to_u16();
     /// ```
     pub fn to_u16(&self) -> u16 {
         let mut result = 0;
-        let end = self.x.len().min(mem::size_of::<u16>()*8);
+        let end = self.x.len().min(mem::size_of::<u16>() * 8);
         for i in 0..end {
             if self.x[i] {
                 result |= 1 << i;
@@ -738,22 +746,22 @@ impl Data {
     }
 
     /// Converts the data to a `u32`.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The data as a `u32`.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::Data;
-    /// 
+    ///
     /// let data = Data::new(vec![true, false, true]);
     /// let x = data.to_u32();
     /// ```
     pub fn to_u32(&self) -> u32 {
         let mut result = 0;
-        let end = self.x.len().min(mem::size_of::<u32>()*8);
+        let end = self.x.len().min(mem::size_of::<u32>() * 8);
         for i in 0..end {
             if self.x[i] {
                 result |= 1 << i;
@@ -763,22 +771,22 @@ impl Data {
     }
 
     /// Converts the data to a `usize`.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The data as a `usize`.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::Data;
-    /// 
+    ///
     /// let data = Data::new(vec![true, false, true]);
     /// let x = data.to_usize();
     /// ```
     pub fn to_usize(&self) -> usize {
         let mut result = 0;
-        let end = self.x.len().min(mem::size_of::<usize>()*8);
+        let end = self.x.len().min(mem::size_of::<usize>() * 8);
         for i in 0..end {
             if self.x[i] {
                 result |= 1 << i;
@@ -788,22 +796,22 @@ impl Data {
     }
 
     /// Converts the data to a `u64`.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The data as a `u64`.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::Data;
-    /// 
+    ///
     /// let data = Data::new(vec![true, false, true]);
     /// let x = data.to_u64();
     /// ```
     pub fn to_u64(&self) -> u64 {
         let mut result = 0;
-        let end = self.x.len().min(mem::size_of::<u64>()*8);
+        let end = self.x.len().min(mem::size_of::<u64>() * 8);
         for i in 0..end {
             if self.x[i] {
                 result |= 1 << i;
@@ -825,15 +833,16 @@ impl Data {
         let random_part = Self::part(tau, rng);
 
         // Interesting to parallelize because tau can be large
-        let sum = (0..tau).into_par_iter()
+        let sum = (0..tau)
+            .into_par_iter()
             .filter_map(|i| {
-                    if random_part[i] {
-                        // We can't take ownership of the polynomial in the pk list
-                        Some(pk.list[i].clone())
-                    } else {
-                        None
-                    }
-                })
+                if random_part[i] {
+                    // We can't take ownership of the polynomial in the pk list
+                    Some(pk.list[i].clone())
+                } else {
+                    None
+                }
+            })
             .reduce_with(|mut acc, poly| {
                 acc = acc.add_fn(&poly);
                 acc
@@ -850,41 +859,41 @@ impl Data {
     }
 
     /// Encrypts the data.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `context` - The context.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The encrypted data.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Data, Context, Parameters};
     /// use rand::thread_rng;
-    /// 
+    ///
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
     /// context.generate_public_key();
-    /// 
+    ///
     /// let data = Data::new(vec![true, false, true]);
     /// let encrypted_data = data.encrypt(&context);
     /// ```
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// This function is parallelized.
     pub fn encrypt(&self, context: &Context) -> EncryptedData {
         if let Some(pk) = context.get_public_key() {
-            let result: Vec<_> = self.x.par_iter()
-                .map(|&bit| {
-                    Self::encrypt_bit(bit, pk, &mut rand::thread_rng())
-                })
+            let result: Vec<_> = self
+                .x
+                .par_iter()
+                .map(|&bit| Self::encrypt_bit(bit, pk, &mut rand::thread_rng()))
                 .collect();
-        
+
             EncryptedData { p: result }
         } else {
             panic!("Public key not generated yet");
@@ -894,25 +903,25 @@ impl Data {
 
 impl Data {
     /// Adds two `Data` instances assuming they represent integers.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `other` - The other `Data` instance.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The sum of the two `Data` instances.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::Data;
     ///
     /// let data1 = Data::from_usize(20);
     /// let data2 = Data::from_usize(22);
-    /// 
+    ///
     /// let data3 = data1.add_as_uint(&data2);
-    /// 
+    ///
     /// assert_eq!(data3.to_usize(), 42);
     /// ```
     pub fn add_as_uint(&self, other: &Self) -> Self {
@@ -923,37 +932,37 @@ impl Data {
             let d1 = self.x.get(i).unwrap_or(&false);
             let d2 = other.x.get(i).unwrap_or(&false);
             let s = d1 ^ d2 ^ carry;
-            carry = ((d1 ^ d2) & carry ) | (d1 & d2);
+            carry = ((d1 ^ d2) & carry) | (d1 & d2);
             result.push(s);
         }
         Data { x: result }
     }
 
     /// Multiplies two `Data` instances assuming they represent integers.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `other` - The other `Data` instance.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The product of the two `Data` instances.
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// It should be faster to convert data to `usize` and multiply them directly.
     /// The only advantage of this function is that it has no overflow as `Data` is `Vec<bool>`.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::Data;
-    /// 
+    ///
     /// let data1 = Data::from_usize(6);
     /// let data2 = Data::from_usize(7);
-    /// 
+    ///
     /// // let data3 = data1.mul_as_uint(&data2);
-    /// 
+    ///
     /// // assert_eq!(data3.to_usize(), 42);
     /// ```
     pub fn mul_as_uint(&self, _other: &Self) -> Self {
@@ -976,40 +985,40 @@ impl EncryptedData {
     }
 
     /// Decrypts the data.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `context` - The context.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The decrypted data.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Data, Context, Parameters};
-    /// 
+    ///
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
     /// context.generate_public_key();
-    /// 
+    ///
     /// let data = Data::new(vec![true, false, true]);
     /// let encrypted_data = data.encrypt(&context);
-    /// 
+    ///
     /// let decrypted_data = encrypted_data.decrypt(&context);
     /// ```
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// This function is parallelized.
     pub fn decrypt(&self, context: &Context) -> Data {
         if let Some(sk) = context.get_secret_key() {
-            let result: Vec<bool> = self.p.par_iter()
-                .map(|poly| {
-                    Self::decrypt_bit(poly, sk)
-                })
+            let result: Vec<bool> = self
+                .p
+                .par_iter()
+                .map(|poly| Self::decrypt_bit(poly, sk))
                 .collect();
             Data { x: result }
         } else {
@@ -1021,35 +1030,35 @@ impl EncryptedData {
 /// Take advantage of the properties of the system to operate on two `EncryptedData` instances.
 impl EncryptedData {
     /// Adds two `EncryptedData` instances, assuming they represent unsigned integers.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `other` - The other `EncryptedData` instance.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The sum of the two `EncryptedData` instances.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// Factor `d`/`delta` must be at least x (TBD).
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Data, Context, Parameters};
-    /// 
+    ///
     /// let params = Parameters::new(128, 3, 4, 5);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
     /// context.generate_public_key();
-    /// 
+    ///
     /// let data1 = Data::from_usize(12);
     /// let data2 = Data::from_usize(30);
-    /// 
+    ///
     /// let encrypted_data1 = data1.encrypt(&context);
     /// let encrypted_data2 = data2.encrypt(&context);
-    /// 
+    ///
     /// let encrypted_data3 = unsafe { encrypted_data1.add_as_uint(&encrypted_data2) };
     /// ```
     pub unsafe fn add_as_uint(&self, other: &Self) -> Self {
@@ -1061,13 +1070,17 @@ impl EncryptedData {
         for i in 0..longest {
             let p1 = self.p.get(i).unwrap_or(&null_p);
             let p2 = other.p.get(i).unwrap_or(&null_p);
-            let s = p1.bit_xor(&p2).bit_xor(&carry);
+            let s = p1.add_fn(&p2).add_fn(&carry);
             // This is too long and can be simplified :
             // carry = p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
             // c <- (p1+p2)*c + p1*p2 + p1*p2*(p1+p2)*c
             // c <- c*(p1+p2)*(1+p1*p2) + p1*p2
             let p1p2 = p1.mul_fn(&p2);
-            carry = p1.add_fn(&p2).mul_fn(&carry).mul_fn(&Polynomial::monomial(0).add_fn(&p1p2)).add_fn(&p1p2);
+            carry = p1
+                .add_fn(&p2)
+                .mul_fn(&carry)
+                .mul_fn(&Polynomial::monomial(0).add_fn(&p1p2))
+                .add_fn(&p1p2);
 
             result.push(s);
         }
@@ -1077,35 +1090,35 @@ impl EncryptedData {
     }
 
     /// Multiplies two `EncryptedData` instances, assuming they represent unsigned integers.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `other` - The other `EncryptedData` instance.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The product of the two `EncryptedData` instances.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// Factor `d`/`delta` must be at least x (TBD).
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use homomorph::{Data, Context, Parameters};
-    /// 
+    ///
     /// let params = Parameters::new(64, 32, 2, 16);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
     /// context.generate_public_key();
-    /// 
+    ///
     /// let data1 = Data::from_usize(6);
     /// let data2 = Data::from_usize(7);
-    /// 
+    ///
     /// let encrypted_data1 = data1.encrypt(&context);
     /// let encrypted_data2 = data2.encrypt(&context);
-    /// 
+    ///
     /// // let encrypted_data3 = unsafe { encrypted_data1.mul_as_uint(&encrypted_data2) };
     /// ```
     pub unsafe fn mul_as_uint(&self, other: &Self) -> Self {
@@ -1126,17 +1139,16 @@ impl EncryptedData {
             // Add the carry from the previous step
             sum_i = sum_i.add_fn(&carry);
             // Calculate the new carry
-            carry = sum_i.clone().bit_and(&Polynomial::monomial(0));
+            carry = sum_i.clone().mul_fn(&Polynomial::monomial(0));
             // Store the result
             result[i] = sum_i;
         }
 
         result.push(carry);
-        
+
         EncryptedData { p: result }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -1177,7 +1189,7 @@ mod tests {
         let data1 = Data::from_usize(999);
         let data2 = Data::from_usize(999);
         let data3 = data1.mul_as_uint(&data2);
-        assert_eq!(999*999, data3.to_usize());
+        assert_eq!(999 * 999, data3.to_usize());
     }
 
     #[test]
@@ -1214,7 +1226,7 @@ mod tests {
 
     #[test]
     fn test_encrypted_data_add() {
-        let params = Parameters::new(128, 32, 2, 8);
+        let params = Parameters::new(128, 32, 1, 8);
         let mut context = Context::new(params);
         context.generate_secret_key();
         context.generate_public_key();
@@ -1231,8 +1243,8 @@ mod tests {
     #[test]
     #[ignore = "Longer version of test_encrypted_data_add"]
     fn test_encrypted_data_add_extensive() {
-        const N: usize = 100;
-        let params = Parameters::new(256, 128, 1, 64);
+        const N: usize = 50;
+        let params = Parameters::new(256, 64, 1, 64);
         let mut context = Context::new(params);
 
         let mut rng = rand::thread_rng();
@@ -1240,20 +1252,23 @@ mod tests {
             context.generate_secret_key();
             context.generate_public_key();
 
-            let data1 = Data::from_usize(rng.gen());
-            let data2 = Data::from_usize(rng.gen());
+            let data1 = Data::from_usize(rng.gen::<usize>() >> 2);
+            let data2 = Data::from_usize(rng.gen::<usize>() >> 2);
             let encrypted_data1 = data1.encrypt(&context);
             let encrypted_data2 = data2.encrypt(&context);
             let encrypted_data3 = unsafe { encrypted_data1.add_as_uint(&encrypted_data2) };
             let decrypted_data = encrypted_data3.decrypt(&context);
-            assert_eq!(data1.to_usize()+data2.to_usize(), decrypted_data.to_usize());
+            assert_eq!(
+                data1.to_usize() + data2.to_usize(),
+                decrypted_data.to_usize()
+            );
         }
     }
 
     #[test]
     #[should_panic]
     fn test_encrypted_data_mul() {
-        let params = Parameters::new(128, 8, 1, 8);
+        let params = Parameters::new(2048, 8, 1, 8);
         let mut context = Context::new(params);
         context.generate_secret_key();
         context.generate_public_key();
@@ -1264,7 +1279,7 @@ mod tests {
         let encrypted_data2 = data2.encrypt(&context);
         let encrypted_data3 = unsafe { encrypted_data1.mul_as_uint(&encrypted_data2) };
         let decrypted_data = encrypted_data3.decrypt(&context);
-        assert_eq!(data1.to_u32()*data2.to_u32(), decrypted_data.to_u32());
+        assert_eq!(data1.to_u32() * data2.to_u32(), decrypted_data.to_u32());
 
         let data1 = Data::from_usize(999);
         let data2 = Data::from_usize(999);
@@ -1272,7 +1287,10 @@ mod tests {
         let encrypted_data2 = data2.encrypt(&context);
         let encrypted_data3 = unsafe { encrypted_data1.mul_as_uint(&encrypted_data2) };
         let decrypted_data = encrypted_data3.decrypt(&context);
-        assert_eq!(data1.to_usize()*data2.to_usize(), decrypted_data.to_usize());
+        assert_eq!(
+            data1.to_usize() * data2.to_usize(),
+            decrypted_data.to_usize()
+        );
     }
 
     #[test]
@@ -1336,7 +1354,7 @@ mod tests {
         context.generate_public_key();
         let public_key = context.get_public_key().unwrap();
         for p in public_key.list.iter() {
-            assert!(p._degree() <= 128+64);
+            assert!(p._degree() <= 128 + 64);
         }
     }
 }

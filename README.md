@@ -125,7 +125,7 @@ Retrieving the private key with only the public key (or a set of them) is equiva
 
 #### Retrieving $x$ with only $T$
 
-Often, bruteforce or the use of order relations compatible with the encryption function can be used to break the encryption. In our case, the parameter $\mathcal{U}$ is used to confuse and increase the $2^\tau$ the number of possibilities.
+Often, bruteforce or the use of order relations compatible with the encryption function can be used to break the encryption. In our case, the parameter $\mathcal{U}$ is used to confuse and increase to $2^\tau$ the number of possibilities.
 
 #### $\tau$
 
