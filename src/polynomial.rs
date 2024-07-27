@@ -27,7 +27,7 @@ impl Polynomial {
         }
     }
 
-    /// ##Safety
+    /// ## Safety
     ///
     /// The user must provide the correct degree
     pub unsafe fn new_unchecked(coefficients: Vec<u128>, degree: usize) -> Self {
@@ -87,7 +87,7 @@ impl Polynomial {
 
     /// Evaluates the given polynomial at a given point
     pub fn evaluate(&self, x: bool) -> bool {
-        if x == false {
+        if !x {
             return (self.coefficients[0] & 1) == 1;
         }
 
@@ -138,8 +138,8 @@ impl Polynomial {
     pub fn mul(&self, other: &Self) -> Self {
         // We need to handle the special case of the null polynomial
         // because the degree of the null polynomial is not well defined.
-        if (self.degree == 0 && self.coefficients.get(0).copied().unwrap_or(0) == 0)
-            || (other.degree == 0 && other.coefficients.get(0).copied().unwrap_or(0) == 0)
+        if (self.degree == 0 && self.coefficients.first().copied().unwrap_or(0) == 0)
+            || (other.degree == 0 && other.coefficients.first().copied().unwrap_or(0) == 0)
         {
             return Self::null();
         }
@@ -214,7 +214,6 @@ impl Clone for Polynomial {
 #[cfg(test)]
 mod test {
     use super::Polynomial;
-    use rand;
 
     #[test]
     fn test_get_degree() {
@@ -276,7 +275,7 @@ mod test {
         // (vectors may not be equal because of trailing zeros)
         for i in 0..p1.coefficients.len() {
             if i < p2.coefficients.len() && p1.coefficients[i] != p2.coefficients[i] {
-                assert!(p1.coefficients[i..].into_iter().all(|&c| c == 0));
+                assert!(p1.coefficients[i..].iter().all(|&c| c == 0));
                 break;
             }
         }
@@ -285,12 +284,12 @@ mod test {
     #[test]
     fn test_evaluate() {
         let p = Polynomial::new(vec![0b1001]);
-        assert_eq!(p.evaluate(true), false);
-        assert_eq!(p.evaluate(false), true);
+        assert!(!p.evaluate(true));
+        assert!(p.evaluate(false));
 
         let p = Polynomial::new(vec![0b111100010, 0b1001]);
-        assert_eq!(p.evaluate(true), true);
-        assert_eq!(p.evaluate(false), false);
+        assert!(p.evaluate(true));
+        assert!(!p.evaluate(false));
     }
 
     #[test]

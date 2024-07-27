@@ -213,14 +213,12 @@ impl PublicKey {
 
     pub(self) fn random(dp: usize, delta: usize, tau: usize, secret_key: &SecretKey) -> Self {
         let list: Vec<_> = (0..tau)
-            .into_iter()
             .map(|_| {
                 let q = polynomial::Polynomial::random(dp, &mut rand::thread_rng());
                 let sq = secret_key.s.clone().mul(&q);
                 let r = polynomial::Polynomial::random(delta, &mut rand::thread_rng());
                 let rx = r.mul(&unsafe { polynomial::Polynomial::new_unchecked(vec![0b10], 1) });
-                let ti = sq.add(&rx);
-                ti
+                sq.add(&rx)
             })
             .collect();
 

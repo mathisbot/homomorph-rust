@@ -136,35 +136,40 @@
 //!
 //! #### Example
 //!
-//! We will be working with a sample data structure. As an example, let's look at how `usize` would be implemented.
+//! We will be working with a sample data structure.
 //!
-//! Please remember that `usize` is already implemented in the crate, and that a majority of the implementations here
-//! are already implemented for all types that implement basic traits such as `Copy`.
+//! Please remember that a majority of the implementations here are already done for all types
+//! that implement basic traits such as `Copy`.
 //!
-//! First, we need to implement the `ByteConvertible` trait for `usize`.
-//! It will make all ciphering operation available for `usize`.
+//! First, we need to implement the `ByteConvertible` trait for `MyStruct`.
+//! It will make all ciphering operation available for it.
 //!
-//! ```ignore
+//! ```rust
 //! use homomorph::{Ciphered, ByteConvertible};
 //! use core::ptr::copy_nonoverlapping as memcpy;
 //!
-//! unsafe impl ByteConvertible for usize {
+//! struct MyStruct {
+//!     a: usize,
+//!     b: usize,
+//! }
+//!
+//! unsafe impl ByteConvertible for MyStruct {
 //!     fn to_bytes(&self) -> &[u8] {
 //!         unsafe { core::slice::from_raw_parts(
-//!             self as *const usize as *const u8,
-//!             core::mem::size_of::<usize>(),
-//!             ) }
+//!             self as *const MyStruct as *const u8,
+//!             2*core::mem::size_of::<usize>(),
+//!         ) }
 //!     }
 //!
 //!     fn from_bytes(bytes: &[u8]) -> Self {
 //!         let mut data = unsafe { core::mem::MaybeUninit::uninit().assume_init() };
 //!         unsafe {
-//!             let data_ptr = &mut data as *mut usize;
+//!             let data_ptr = &mut data as *mut MyStruct;
 //!             let data_ptr_u8 = data_ptr as *mut u8;
 //!             memcpy(
 //!                 bytes.as_ptr(),
 //!                 data_ptr_u8,
-//!                 core::mem::size_of::<usize>(),
+//!                 2*core::mem::size_of::<usize>(),
 //!             );
 //!         }
 //!         data
@@ -183,10 +188,17 @@
 //! ```rust
 //! use homomorph::{Ciphered, HomomorphicOperation, Polynomial};
 //!
+//! // Here, we derive Copy so that the system can cipher the data
+//! #[derive(Copy, Clone)]
+//! struct MyStruct {
+//!     a: usize,
+//!     b: usize,
+//! }
+//!
 //! struct HomomorphicAddition;
 //!
-//! impl HomomorphicOperation<usize> for HomomorphicAddition {
-//!     unsafe fn apply(a: &Ciphered<usize>, b: &Ciphered<usize>) -> Ciphered<usize> {
+//! impl HomomorphicOperation<MyStruct> for HomomorphicAddition {
+//!     unsafe fn apply(a: &Ciphered<MyStruct>, b: &Ciphered<MyStruct>) -> Ciphered<MyStruct> {
 //!         let mut c_pol: Vec<Polynomial> = Vec::with_capacity(a.len().max(b.len()));
 //!
 //!         // Boring details here...

@@ -1,6 +1,6 @@
 use crate::{Ciphered, HomomorphicAddition, HomomorphicOperation, Polynomial};
 
-fn homomorph_add_internal(a: &Vec<Polynomial>, b: &Vec<Polynomial>) -> Vec<Polynomial> {
+fn homomorph_add_internal(a: &[Polynomial], b: &[Polynomial]) -> Vec<Polynomial> {
     let longest = a.len().max(b.len());
     let mut result = Vec::with_capacity(longest);
     let mut carry = Polynomial::null();
@@ -61,8 +61,8 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a = Ciphered::cipher(&22usize, &pk);
-        let b = Ciphered::cipher(&20usize, &pk);
+        let a = Ciphered::cipher(&22usize, pk);
+        let b = Ciphered::cipher(&20usize, pk);
         let c = unsafe { HomomorphicAddition::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(d, 42);
@@ -70,8 +70,8 @@ mod tests {
         let a_raw = thread_rng().gen::<usize>() / 2;
         let b_raw = thread_rng().gen::<usize>() / 2;
 
-        let a = Ciphered::cipher(&a_raw, &pk);
-        let b = Ciphered::cipher(&b_raw, &pk);
+        let a = Ciphered::cipher(&a_raw, pk);
+        let b = Ciphered::cipher(&b_raw, pk);
         let c = unsafe { HomomorphicAddition::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(d, a_raw + b_raw);

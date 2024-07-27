@@ -26,6 +26,7 @@ unsafe impl<T: Copy> ByteConvertible for T {
     }
 
     fn from_bytes(bytes: &[u8]) -> Self {
+        #[allow(clippy::uninit_assumed_init)]
         let mut data = unsafe { core::mem::MaybeUninit::uninit().assume_init() };
         unsafe {
             let data_ptr = &mut data as *mut T;
@@ -44,9 +45,15 @@ pub struct Ciphered<T: ByteConvertible> {
 }
 
 impl<T: ByteConvertible> Ciphered<T> {
+    /// This function is used to create a new `Ciphered` object
+    ///
     /// This function should only be used in unsafe contexts
     /// when it is really needed to operate on raw data,
     /// such as when defining homomorphic operations
+    ///
+    /// ## Safety
+    ///
+    /// The bits represented by the polynomials must be valid
     pub unsafe fn new_from_raw(c_data: Vec<Polynomial>) -> Self {
         Self {
             phantom: core::marker::PhantomData,
@@ -115,7 +122,7 @@ impl<T: ByteConvertible> Ciphered<T> {
     }
 
     fn decipher_bit(poly: &Polynomial, sk: &SecretKey) -> bool {
-        let remainder = poly.rem(&sk);
+        let remainder = poly.rem(sk);
         remainder.evaluate(false)
     }
 
@@ -140,6 +147,7 @@ impl<T: ByteConvertible> Ciphered<T> {
             })
             .collect();
 
+        #[allow(clippy::uninit_assumed_init)]
         let mut original_data = unsafe { core::mem::MaybeUninit::uninit().assume_init() };
         // If the ciphered data is longer than the size of the original data, the rest is ignored
         // It can occur as overflow when adding two numbers for example.
@@ -167,11 +175,11 @@ where
 }
 
 /// This trait is used to define homomorphic operations
-///
-/// ## Safety
-///
-/// The function `apply` is marked as unsafe as it handles raw bits of data
 pub trait HomomorphicOperation<T: ByteConvertible> {
+    /// ## Safety
+    ///
+    /// The function `apply` is marked as unsafe as it handles raw bits of data.
+    /// You must ensure this function will result in valid ciphered data.
     unsafe fn apply(a: &Ciphered<T>, b: &Ciphered<T>) -> Ciphered<T>;
 }
 
@@ -190,18 +198,18 @@ mod tests {
         let pk = context.get_public_key().unwrap();
 
         let data = 0b10001010u8;
-        let ciphered = Ciphered::cipher(&data, &pk);
-        let decrypted = ciphered.decipher(&sk);
+        let ciphered = Ciphered::cipher(&data, pk);
+        let decrypted = ciphered.decipher(sk);
         assert_eq!(data, decrypted);
 
         let data = usize::MAX;
-        let ciphered = Ciphered::cipher(&data, &pk);
-        let decrypted = ciphered.decipher(&sk);
+        let ciphered = Ciphered::cipher(&data, pk);
+        let decrypted = ciphered.decipher(sk);
         assert_eq!(data, decrypted);
 
         let data = "Hello, World!";
-        let ciphered = Ciphered::cipher(&data, &pk);
-        let decrypted = ciphered.decipher(&sk);
+        let ciphered = Ciphered::cipher(&data, pk);
+        let decrypted = ciphered.decipher(sk);
         assert_eq!(data, decrypted);
     }
 }
