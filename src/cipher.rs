@@ -2,6 +2,7 @@ use crate::polynomial::Polynomial;
 use crate::{PublicKey, SecretKey};
 
 use core::ptr::copy_nonoverlapping as memcpy;
+use rand::Rng;
 use std::ops::Deref;
 
 /// This trait is used to convert a type to a byte array and back
@@ -18,7 +19,7 @@ pub unsafe trait ByteConvertible {
     fn from_bytes(bytes: &[u8]) -> Self;
 }
 
-unsafe impl<T: Copy> ByteConvertible for T {
+unsafe impl<T: Copy+Sized> ByteConvertible for T {
     fn to_bytes(&self) -> &[u8] {
         unsafe {
             core::slice::from_raw_parts(self as *const T as *const u8, core::mem::size_of::<T>())
@@ -26,14 +27,19 @@ unsafe impl<T: Copy> ByteConvertible for T {
     }
 
     fn from_bytes(bytes: &[u8]) -> Self {
-        #[allow(clippy::uninit_assumed_init)]
-        let mut data = unsafe { core::mem::MaybeUninit::uninit().assume_init() };
-        unsafe {
-            let data_ptr = &mut data as *mut T;
-            let data_ptr_u8 = data_ptr as *mut u8;
-            memcpy(bytes.as_ptr(), data_ptr_u8, core::mem::size_of::<T>());
+        if bytes.len() != core::mem::size_of::<T>() {
+            panic!("Invalid size of bytes for conversion");
         }
-        data
+
+        let mut data = core::mem::MaybeUninit::uninit();
+        unsafe {
+            memcpy(
+                bytes.as_ptr(),
+                data.as_mut_ptr() as *mut u8,
+                core::mem::size_of::<T>(),
+            );
+        }
+        unsafe { data.assume_init() }
     }
 }
 
@@ -63,7 +69,8 @@ impl<T: ByteConvertible> Ciphered<T> {
 
     // u8 is used instead of bool because they are the same size
     // while u8 can store 8 times more information
-    fn part(tau: usize, rng: &mut impl rand::Rng) -> Vec<u8> {
+    fn part(tau: usize) -> Vec<u8> {
+        let mut rng = rand::thread_rng();
         let mut part: Vec<u8> = Vec::with_capacity((tau + 7) / 8);
 
         for _ in 0..(tau + 7) / 8 {
@@ -73,9 +80,9 @@ impl<T: ByteConvertible> Ciphered<T> {
         part
     }
 
-    fn encrypt_bit(x: bool, pk: &PublicKey, rng: &mut impl rand::Rng) -> Polynomial {
+    fn cipher_bit(x: bool, pk: &PublicKey) -> Polynomial {
         let tau = pk.len();
-        let random_part = Self::part(tau, rng);
+        let random_part = Self::part(tau);
 
         let mut sum = Polynomial::null();
         for i in 0..tau {
@@ -101,23 +108,15 @@ impl<T: ByteConvertible> Ciphered<T> {
     /// * `data` - The data to encrypt
     /// * `pk` - The public key to use for encryption
     pub fn cipher(data: &T, pk: &PublicKey) -> Self {
-        let mut rng = rand::thread_rng();
-
-        let bits =
-            // unsafe { core::slice::from_raw_parts(&data as *const T as *const u8, size_of::<T>()) }
-            data.to_bytes()
-                .iter()
-                .flat_map(|&byte| (0..8).map(move |i| (byte >> i) & 1 == 1))
-                .collect::<Vec<_>>();
-
-        let encrypted_bits: Vec<Polynomial> = bits
+        let c_data = data
+            .to_bytes()
             .iter()
-            .map(|&bit| Self::encrypt_bit(bit, pk, &mut rng))
-            .collect();
+            .flat_map(|&byte| (0..8).map(move |i| Self::cipher_bit((byte >> i) & 1 == 1, pk)))
+            .collect::<Vec<_>>();
 
         Self {
             phantom: core::marker::PhantomData,
-            c_data: encrypted_bits,
+            c_data,
         }
     }
 
@@ -133,33 +132,31 @@ impl<T: ByteConvertible> Ciphered<T> {
     /// * `sk` - The secret key to use for decryption
     pub fn decipher(&self, sk: &SecretKey) -> T {
         let deciphered_bits: Vec<bool> = self
-            .c_data
             .iter()
             .map(|poly| Self::decipher_bit(poly, sk))
             .collect();
-        let bytes: Vec<u8> = deciphered_bits
-            .chunks(8)
-            .map(|chunk| {
-                chunk
-                    .iter()
-                    .enumerate()
-                    .fold(0, |acc, (i, &bit)| acc | ((bit as u8) << i))
-            })
-            .collect();
 
-        #[allow(clippy::uninit_assumed_init)]
-        let mut original_data = unsafe { core::mem::MaybeUninit::uninit().assume_init() };
+        let mut bytes = vec![0u8; (deciphered_bits.len() + 7) / 8];
+        for (i, &bit) in deciphered_bits.iter().enumerate() {
+            let byte_index = i / 8;
+            let bit_index = i % 8;
+            if bit {
+                bytes[byte_index] |= 1 << bit_index;
+            }
+        }
+
+        let mut original_data = core::mem::MaybeUninit::uninit();
         // If the ciphered data is longer than the size of the original data, the rest is ignored
-        // It can occur as overflow when adding two numbers for example.
+        // e.g. overflow when adding two numbers
         unsafe {
             memcpy(
                 bytes.as_ptr(),
-                &mut original_data as *mut T as *mut u8,
+                original_data.as_mut_ptr() as *mut u8,
                 core::mem::size_of::<T>(),
             );
         }
 
-        original_data
+        unsafe { original_data.assume_init() }
     }
 }
 

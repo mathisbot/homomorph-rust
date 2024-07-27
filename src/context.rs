@@ -63,11 +63,15 @@ impl Parameters {
         if delta >= d {
             panic!("Delta must be strictly less than d");
         }
+        if d == 0 || dp == 0 || delta == 0 || tau == 0 {
+            panic!("Parameters must be strictly positive");
+        }
         Parameters { d, dp, delta, tau }
     }
 }
 
 /// The secret key.
+#[derive(Clone)]
 pub struct SecretKey {
     s: polynomial::Polynomial,
 }
@@ -160,6 +164,7 @@ impl Deref for SecretKey {
 }
 
 /// The public key.
+#[derive(Clone)]
 pub struct PublicKey {
     list: Vec<polynomial::Polynomial>,
 }
@@ -435,5 +440,61 @@ impl Context {
     /// ```
     pub fn set_public_key(&mut self, public_key: PublicKey) {
         self.public_key = Some(public_key);
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parameters() {
+        let params = Parameters::new(64, 32, 8, 32);
+        assert_eq!(params.d, 64);
+        assert_eq!(params.dp, 32);
+        assert_eq!(params.delta, 8);
+        assert_eq!(params.tau, 32);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_panic_parameters() {
+        let _ = Parameters::new(0, 0, 0, 0);
+    }
+
+    #[test]
+    fn test_secret_key() {
+        let s = vec![5, 14, 8];
+        let sk = SecretKey::new(s);
+
+        let bytes = sk.get_bytes();
+        let sk2 = SecretKey::new(bytes);
+
+        assert_eq!(sk.s, sk2.s);
+    }
+
+    #[test]
+    fn test_public_key() {
+        let p = vec![vec![4, 7, 5], vec![1, 2, 3], vec![5, 4, 6]];
+        let pk = PublicKey::new(p);
+
+        let bytes = pk.get_bytes();
+        let pk2 = PublicKey::new(bytes);
+
+        assert_eq!(pk.list, pk2.list);
+    }
+
+    #[test]
+    fn test_context() {
+        let params = Parameters::new(64, 32, 8, 32);
+        let mut context = Context::new(params);
+        context.generate_secret_key();
+        context.generate_public_key();
+        let sk = context.get_secret_key().unwrap();
+        context.set_secret_key(sk.clone());
+        let pk = context.get_public_key().unwrap();
+        context.set_public_key(pk.clone());
+
     }
 }

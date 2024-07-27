@@ -42,24 +42,26 @@ impl Polynomial {
 
     /// Compute the degree of a polynomial
     pub fn compute_degree(coefficients: &[u128]) -> usize {
-        for (i, &coeff) in coefficients.iter().enumerate().rev() {
-            if coeff != 0 {
-                return 127 - coeff.leading_zeros() as usize + 128 * i;
-            }
+        if let Some(i) = coefficients.iter().rposition(|&coeff| coeff != 0) {
+            127 - coefficients[i].leading_zeros() as usize + 128 * i
+        } else {
+            0
         }
-        0
     }
 
     /// Generate a random polynomial of a given degree
     pub fn random(degree: usize, rng: &mut impl rand::Rng) -> Self {
-        let num_elements = degree / 128 + 1;
+        let num_elements = (degree / 128) + 1;
 
         let mut coefficients = Vec::with_capacity(num_elements);
-        coefficients.extend((0..num_elements).map(|_| rng.gen::<u128>()));
+        coefficients.extend((0..num_elements - 1).map(|_| rng.gen::<u128>()));
 
+        let mut last_element = rng.gen::<u128>();
         let bit_pos = degree % 128;
-        coefficients[num_elements - 1] &= (1 << bit_pos) - 1;
-        coefficients[num_elements - 1] |= 1 << bit_pos;
+        last_element &= (1 << bit_pos) - 1;
+        last_element |= 1 << bit_pos;
+
+        coefficients.push(last_element);
 
         unsafe { Self::new_unchecked(coefficients, degree) }
     }
@@ -156,9 +158,7 @@ impl Polynomial {
                 let mut shifted_a = a;
                 for k in 0..128 {
                     if shifted_a & 1 != 0 {
-                        if k < 128 {
-                            result[i + j] ^= b << k;
-                        }
+                        result[i + j] ^= b << k;
                         if k > 0 && i + j + 1 < result_len {
                             result[i + j + 1] ^= b >> (128 - k);
                         }
@@ -179,14 +179,14 @@ impl Polynomial {
         let mut r = self.clone().coefficients;
         let mut r_degree = self.degree;
 
+        // At most self.degree - other.degree iterations
         while r_degree >= other.degree {
             let shift = r_degree - other.degree;
             let block_shift = shift / 128;
             let bit_shift = shift % 128;
 
             for i in 0..other.coefficients.len() {
-                let other_shifted = other.coefficients[i] << bit_shift;
-                r[block_shift + i] ^= other_shifted;
+                r[block_shift + i] ^= other.coefficients[i] << bit_shift;
                 if bit_shift != 0 && block_shift + i + 1 < r.len() {
                     r[block_shift + i + 1] ^= other.coefficients[i] >> (128 - bit_shift);
                 }

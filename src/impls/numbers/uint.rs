@@ -2,7 +2,7 @@ use crate::{Ciphered, HomomorphicAddition, HomomorphicOperation, Polynomial};
 
 fn homomorph_add_internal(a: &[Polynomial], b: &[Polynomial]) -> Vec<Polynomial> {
     let longest = a.len().max(b.len());
-    let mut result = Vec::with_capacity(longest);
+    let mut result = Vec::with_capacity(longest + 1);
     let mut carry = Polynomial::null();
 
     let null_pol = Polynomial::null();

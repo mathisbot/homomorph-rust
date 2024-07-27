@@ -96,10 +96,10 @@
 //!
 //! #### `ByteConvertible` trait
 //!
-//! Data is represented as `Vec<bool>`, to match binary representation.
-//! Thus, types need to implement a specific trait, `ByteConvertible`, to be used with the system.
+//! Data is handled as arrays of bits, to match binary representation.
+//! Thus, types need to implement a specific trait, `ByteConvertible`.
 //!
-//! The main idea of the `ByteConvertible` trait is to be able to convert the data to a byte array back and forth.
+//! The main idea of the `ByteConvertible` trait is to be able to convert the data to a byte array and back.
 //!
 //! This trait is already implemented for all types that implement `Copy`.
 //!
