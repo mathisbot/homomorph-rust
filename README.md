@@ -1,19 +1,11 @@
 # Homomorphic Encryption Scheme in Rust
 
-This repository contains a Rust implementation of an homomorphic encryption scheme targetting unsigned integers (other types of numbers are WIP).
+This repository contains a Rust implementation of an homomorphic encryption scheme.
 
 Homomorphic encryption allows computations to be performed on encrypted data without decrypting it, preserving the privacy of the data.
 Homomorphic encryption is still a subject of research today, and no system that is both secure and efficient has yet been found.
 
-I may also rewrite the crate to use traits to allow everyone to implement homomorphic operations for their structs.
-
-## Features
-
-- [X] Encryption/Decryption
-- [X] Homomorphic addition for `uint`
-- [ ] Homomorphic multiplication for `uint`
-- [ ] Other types of numbers
-- [ ] Other types of std data
+The crate provides a simple API to define a proper homomorphic implementation of any structure, but also provide an implementation for unsigned integers (other std types are a work in progress)
 
 ## Getting Started
 
@@ -37,7 +29,7 @@ I do not intend to publish the crate on `crates.io`.
     cargo build --lib --release
     ```
 
-3. Run the tests:
+3. (Optional) Run the tests:
 
     ```shell
     cargo test
@@ -56,17 +48,17 @@ I do not intend to publish the crate on `crates.io`.
 Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 1 000 tries on `usize` (`u64`) data.
 
 Parameters used for this benchmark were :
-- `d` = 512
-- `dp` = 128
-- `delta` = 1 (does not affect benchmark)
-- `tau` = 256.
+- `d` = 128
+- `dp` = 64
+- `delta` = 4 (does not affect benchmark)
+- `tau` = 128.
 
 | Operation         | Average time     |
 |:-----------------:|:----------------:|
-| Encryption        |      92.5 µs     |
-| Decryption        |      17.5 µs     |
-| Add as uint       |      99.8 ms     |
-| Dec. after add    |      31.6 ms     |
+| Encryption        |      76.2 µs     |
+| Decryption        |      11.9 µs     |
+| Add               |       9.1 ms     |
+| Dec. after add    |      23.2 ms     |
 | Mul               |   Unimplemented  |
 
 
@@ -146,13 +138,4 @@ Let's have a look at how to implement the system for integers.
 
 Proceeding in a similar way to a processor, we can reduce the addition of integer ciphers (i.e. lists of ciphered bits) to the application of serial logic gates to the bits. It's then easy to find the Boolean function relating to the application of these gates. One can notice that the AND gate corresponds to multiplying two ciphers, XOR to adding two ciphers, and OR to adding the sum and the product of two ciphers.
 
-By playing with the same adder patterns that are in our ALU, we can easily recreate a working addition for our ciphers.
-
-It SEEMS that addition has a "boolean degree" of around 2 times the size of the data, so you must have $\dfrac{d}{\delta}>=64$ in order to use homomorphic addition on `u32`.
-
-#### Multiplication
-
-Imitating a processor seems to be a winning strategy. 
-By repeating the above process with multiplication, it's fairly easy to implement.
-
-It SEEMS that multiplication also has a "boolean degree" of around 2 times the size of the data, so you must have $\dfrac{d}{\delta}>=64$ in order to use homomorphic multiplication on `u32`.
+By playing with the same adder patterns that are in CPU's ALUs, we can easily recreate a working addition for our ciphers.
