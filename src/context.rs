@@ -443,7 +443,6 @@ impl Context {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -495,6 +494,5 @@ mod tests {
         context.set_secret_key(sk.clone());
         let pk = context.get_public_key().unwrap();
         context.set_public_key(pk.clone());
-
     }
 }

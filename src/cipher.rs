@@ -19,7 +19,7 @@ pub unsafe trait ByteConvertible {
     fn from_bytes(bytes: &[u8]) -> Self;
 }
 
-unsafe impl<T: Copy+Sized> ByteConvertible for T {
+unsafe impl<T: Copy + Sized> ByteConvertible for T {
     fn to_bytes(&self) -> &[u8] {
         unsafe {
             core::slice::from_raw_parts(self as *const T as *const u8, core::mem::size_of::<T>())
