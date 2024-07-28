@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 /// A polynomial over Z/2Z.
 ///
 /// A polynomial is represented as a vector of coefficients.
@@ -214,6 +216,7 @@ impl Clone for Polynomial {
 #[cfg(test)]
 mod test {
     use super::Polynomial;
+    use alloc::vec::Vec;
 
     #[test]
     fn test_get_degree() {
@@ -223,14 +226,14 @@ mod test {
 
     #[test]
     fn test_new() {
-        let p = Polynomial::new(vec![0b10010]);
-        assert_eq!(p.degree, 4);
+        let p = Polynomial::new(vec![0b10010001]);
+        assert_eq!(p.degree, 7);
     }
 
     #[test]
     #[should_panic]
     fn test_new_panic() {
-        let _ = Polynomial::new(vec![]);
+        let _ = Polynomial::new(Vec::new());
     }
 
     #[test]
@@ -244,7 +247,7 @@ mod test {
     #[should_panic]
     fn test_new_unchecked_panic() {
         unsafe {
-            let _ = Polynomial::new_unchecked(vec![], 0);
+            let _ = Polynomial::new_unchecked(Vec::new(), 0);
         }
     }
 
@@ -268,6 +271,7 @@ mod test {
         let p2 = p1.clone();
         assert_eq!(p1.degree, p2.degree);
         assert_eq!(p1.coefficients, p2.coefficients);
+
         let p1 = Polynomial::new(vec![0b1001, 0b1000001101011010, 0b0, 0b1, 0b0]);
         let p2 = p1.clone();
         assert_eq!(p1.degree, p2.degree);

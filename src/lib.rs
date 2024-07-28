@@ -223,6 +223,11 @@
 //! The source code is available on [GitHub](<https://github.com/mathisbot/homomorph-rust>).
 //! You will also find very interesting details on the system and its security.
 
+#![no_std]
+
+#[macro_use]
+extern crate alloc;
+
 mod polynomial;
 pub use polynomial::Polynomial;
 

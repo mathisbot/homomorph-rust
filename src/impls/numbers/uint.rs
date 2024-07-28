@@ -1,5 +1,7 @@
 use crate::{Ciphered, HomomorphicAddition, HomomorphicOperation, Polynomial};
 
+use alloc::vec::Vec;
+
 fn homomorph_add_internal(a: &[Polynomial], b: &[Polynomial]) -> Vec<Polynomial> {
     let longest = a.len().max(b.len());
     let mut result = Vec::with_capacity(longest + 1);

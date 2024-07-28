@@ -45,7 +45,7 @@ I do not intend to publish the crate on `crates.io`.
 
 ## Benchmarks
 
-Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 1 000 tries on `u32`.
+Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 1 000 tries on `u32` using `mimalloc`.
 
 Parameters used for this benchmark were :
 - `d` = 128

@@ -1,6 +1,7 @@
 use crate::polynomial::Polynomial;
 use crate::{PublicKey, SecretKey};
 
+use alloc::vec::Vec;
 use core::ops::Deref;
 use core::ptr::copy_nonoverlapping as memcpy;
 use rand::Rng;
