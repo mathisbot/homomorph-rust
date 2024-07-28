@@ -45,22 +45,20 @@ I do not intend to publish the crate on `crates.io`.
 
 ## Benchmarks
 
-Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 1 000 tries on `usize` (`u64`) data.
+Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 1 000 tries on `u32`.
 
 Parameters used for this benchmark were :
 - `d` = 128
-- `dp` = 64
-- `delta` = 4 (does not affect benchmark)
+- `dp` = 128
+- `delta` = 1
 - `tau` = 128.
 
 | Operation         | Average time     |
 |:-----------------:|:----------------:|
-| Encryption        |      76.2 µs     |
-| Decryption        |      11.9 µs     |
-| Add               |       9.1 ms     |
-| Dec. after add    |      23.2 ms     |
-| Mul               |   Unimplemented  |
-
+| Encryption        |      73.1 µs     |
+| Decryption        |      11.6 µs     |
+| Add               |       3.8 ms     |
+| Dec. after add    |       5.3 ms     |
 
 It is still more efficient to decrypt, operate and then re-encrypt the data. This limits the use of the system to applications where security is paramount, and takes precedence over speed.
 
@@ -95,7 +93,9 @@ Encryption of bit $x$ is done as follows :
 - Generate $\mathcal{U} \in \mathcal{P}([1,\tau])$
 - Encrypted polynomial is $C = (\sum_{i\in\mathcal{U}} T_i) + x$
 
-$\mathcal{U}$ is used in order to protect against bruteforce. Indeed, if the sum was made over $[1,\tau]$, a malicious person could compute the cipher of $0$ and $1$ and easily compare them with the desired cipher. With $\mathcal{U}$ in the way, the number of possibilities is now $2^\tau$.
+$\mathcal{U}$ is used in order to protect against bruteforce.
+Indeed, if the sum was made over $[1,\tau]$, a malicious person could compute the cipher of $0$ and $1$
+and easily compare them with the desired cipher. With $\mathcal{U}$ in the way, the number of possibilities is now $2^\tau$.
 
 #### Decryption
 Decryption of a cipher $C$ is done as follows :
@@ -103,21 +103,29 @@ Decryption of a cipher $C$ is done as follows :
 - Compute $R$ the quotient of the euclidean division of $C$ by $S$
 - $x$ is $R$ evaluated at $0$
 
-This is why $\delta$ is under the condition $\delta < d$. Indeed, we recall that $C = \sum_{i\in\mathcal{U}} (SQ_i + XR_i) + x$, where $R_i$ has a degree of at most $\delta$, and $Q_i$ of at most $d'$. Thus, $R$ is exactly $(\sum_{i\in\mathcal{U}} XR_i) + x$, which gives $x$ when evaluated at $0$.
+This is why $\delta$ is under the condition $\delta < d$.
+Indeed, we recall that $C = \sum_{i\in\mathcal{U}} (SQ_i + XR_i) + x$, where $R_i$ has a degree of at most $\delta$,
+and $Q_i$ of at most $d'$. Thus, $R$ is exactly $(\sum_{i\in\mathcal{U}} XR_i) + x$, which gives $x$ when evaluated at $0$.
 
 ### Security
 
-Encryption schemes security is complex to quantify. However, we can be sure of a system's insecurity if, for example, it is possible to: retrieve the private key from one or more public keys; retrieve the plaintext of an encrypted message without having the private key, ...
+Encryption schemes security is complex to quantify.
+However, we can be sure of a system's insecurity if, for example, it is possible to:
+retrieve the private key from one or more public keys; retrieve the plaintext of an encrypted message without having the private key, ...
 
 In our case, let's look at the potential loopholes.
 
 #### Retrieving $S$ with $T$
 
-Retrieving the private key with only the public key (or a set of them) is equivalent to solving the problem [RLWE](https://en.wikipedia.org/wiki/Ring_learning_with_errors) (thus the shape of our public key). This problem has been proved as computationally infisible, which means that no current machine, and no machine that may soon be developed, can solve it in a time that is humanly conceivable. Great!
+Retrieving the private key with only the public key (or a set of them) is equivalent to solving the problem
+[RLWE](https://en.wikipedia.org/wiki/Ring_learning_with_errors) (thus the shape of our public key).
+This problem has been proved as computationally infisible, which means that no current machine, and no machine that may soon be developed,
+can solve it in a time that is humanly conceivable. Great!
 
 #### Retrieving $x$ with only $T$
 
-Often, bruteforce or the use of order relations compatible with the encryption function can be used to break the encryption. In our case, the parameter $\mathcal{U}$ is used to confuse and increase to $2^\tau$ the number of possibilities.
+Often, bruteforce or the use of order relations compatible with the encryption function can be used to break the encryption.
+In our case, the parameter $\mathcal{U}$ is used to confuse and increase to $2^\tau$ the number of possibilities.
 
 #### $\tau$
 
@@ -126,16 +134,23 @@ In view of the preceding discussions, it would seem advisable to choose a $\tau$
 ### Properties
 
 This system is partially homomorphic, which means that it is not homomorphic with every operations.
-However, one can prove that it is homomorphic with every [boolean function](https://en.wikipedia.org/wiki/Boolean_function#:~:text=In%20mathematics%2C%20a%20Boolean%20function,function\)%2C%20used%20in%20logic.) of degree less or equal than $\frac{d}{\delta}$.
+However, one can prove that it is homomorphic with every
+[boolean function](https://en.wikipedia.org/wiki/Boolean_function#:~:text=In%20mathematics%2C%20a%20Boolean%20function,function\)%2C%20used%20in%20logic.)
+of degree less or equal than $\frac{d}{\delta}$.
 
 ## Extension
 
-Our system targets bits. If we want to deal with integers, floats, strings, ... we need to extend the system. We can easily take advantage of the intuitive binary representation of objects in computers.
+Our system targets bits. If we want to deal with interesting data, such as integers, floats, strings, ... we need to extend the system.
+We can easily take advantage of the intuitive binary representation of objects in computers.
 
 Let's have a look at how to implement the system for integers.
 
 #### Addition
 
-Proceeding in a similar way to a processor, we can reduce the addition of integer ciphers (i.e. lists of ciphered bits) to the application of serial logic gates to the bits. It's then easy to find the Boolean function relating to the application of these gates. One can notice that the AND gate corresponds to multiplying two ciphers, XOR to adding two ciphers, and OR to adding the sum and the product of two ciphers.
+Proceeding in a similar way to a processor, we can reduce the addition of integer ciphers (i.e. lists of ciphered bits) to the
+application of serial logic gates to the bits. It's then easy to find the Boolean function relating to the application of these gates.
+
+One can notice that the AND gate corresponds to multiplying two ciphers,
+XOR to adding two ciphers, and OR to adding the sum and the product of two ciphers.
 
 By playing with the same adder patterns that are in CPU's ALUs, we can easily recreate a working addition for our ciphers.

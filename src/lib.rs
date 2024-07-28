@@ -195,9 +195,12 @@
 //!     b: usize,
 //! }
 //!
-//! struct HomomorphicAddition;
+//! struct MyOperation;
 //!
-//! impl HomomorphicOperation<MyStruct> for HomomorphicAddition {
+//! impl HomomorphicOperation<MyStruct> for MyOperation {
+//!     /// ## Safety
+//!     ///
+//!     /// `d/delta` on cipher must have been at least `2*sizeof::<T>()`.
 //!     unsafe fn apply(a: &Ciphered<MyStruct>, b: &Ciphered<MyStruct>) -> Ciphered<MyStruct> {
 //!         let mut c_pol: Vec<Polynomial> = Vec::with_capacity(a.len().max(b.len()));
 //!
@@ -207,6 +210,13 @@
 //!     }
 //! }
 //! ```
+//!
+//! Pay attention to the useful documentation on the `apply` function.
+//! It is very helpful to the user as they will know what parameters are required for the operation to be valid.
+//!
+//! In order to determine the minimum value, you can refer to
+//! <https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#properties>.
+//! You simply have to compute the boolean degree of the operation you want to implement.
 //!
 //! ## Source
 //!

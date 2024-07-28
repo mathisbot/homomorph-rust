@@ -5,7 +5,7 @@
 ///
 /// ## WARNING
 ///
-/// The first element of the vector are the terms with the least power of x.
+/// The first element of the vector are the terms with the least power of x
 /// BUT bits are reversed because of u128, so the last bit of the first u128 is the constant term.
 ///
 /// Thus, coefficient of x^i is stored in the (i/128)-th u128 at the (127-i%128)-th bit.

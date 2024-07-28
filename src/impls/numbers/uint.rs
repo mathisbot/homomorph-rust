@@ -33,6 +33,11 @@ macro_rules! impl_homomorphic_addition_uint {
     ($($t:ty),+) => {
         $(
             impl HomomorphicOperation<$t> for HomomorphicAddition {
+                /// Perform a homomorphic addition on two ciphered numbers.
+                ///
+                /// ## Safety
+                ///
+                /// `d/delta` on cipher must have been at least `21*sizeof::<T>()`.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
                     Ciphered::new_from_raw(homomorph_add_internal(a, b))
                 }
@@ -54,18 +59,38 @@ mod tests {
 
     #[test]
     fn test_homomorphic_addition() {
-        let parameters = Parameters::new(128, 32, 1, 32);
+        let parameters = Parameters::new(64, 16, 1, 16);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
         context.generate_public_key();
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a = Ciphered::cipher(&22usize, pk);
-        let b = Ciphered::cipher(&20usize, pk);
+        let a = Ciphered::cipher(&22u8, pk);
+        let b = Ciphered::cipher(&20u8, pk);
         let c = unsafe { HomomorphicAddition::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(d, 42);
+
+        let a_raw = thread_rng().gen::<u16>() / 2;
+        let b_raw = thread_rng().gen::<u16>() / 2;
+
+        let a = Ciphered::cipher(&a_raw, pk);
+        let b = Ciphered::cipher(&b_raw, pk);
+        let c = unsafe { HomomorphicAddition::apply(&a, &b) };
+        let d = c.decipher(sk);
+        assert_eq!(d, a_raw + b_raw);
+    }
+
+    #[test]
+    #[ignore = "Long test"]
+    fn test_homomorphic_addition_extensive() {
+        let parameters = Parameters::new(256, 128, 1, 128);
+        let mut context = Context::new(parameters);
+        context.generate_secret_key();
+        context.generate_public_key();
+        let pk = context.get_public_key().unwrap();
+        let sk = context.get_secret_key().unwrap();
 
         let a_raw = thread_rng().gen::<usize>() / 2;
         let b_raw = thread_rng().gen::<usize>() / 2;

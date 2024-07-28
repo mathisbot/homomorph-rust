@@ -12,7 +12,7 @@ fn main() {
     let mut rng = rand::thread_rng();
 
     // Create a new context
-    let params = Parameters::new(128, 64, 4, 128);
+    let params = Parameters::new(128, 128, 1, 128);
     let mut context = Context::new(params);
     context.generate_secret_key();
     context.generate_public_key();
@@ -20,16 +20,16 @@ fn main() {
     let pk = context.get_public_key().unwrap();
 
     // Generate random data
-    let data1: Vec<usize> = (0..NUMBER_OF_TESTS)
-        .map(|_| rng.gen::<usize>() / 2)
+    let data1: Vec<_> = (0..NUMBER_OF_TESTS)
+        .map(|_| rng.gen::<u32>() / 2)
         .collect();
-    let data2: Vec<usize> = (0..NUMBER_OF_TESTS)
-        .map(|_| rng.gen::<usize>() / 2)
+    let data2: Vec<_> = (0..NUMBER_OF_TESTS)
+        .map(|_| rng.gen::<u32>() / 2)
         .collect();
 
     // Encrypt the data
     let start = Instant::now();
-    let encrypted_data1: Vec<Ciphered<usize>> = data1
+    let encrypted_data1: Vec<Ciphered<_>> = data1
         .iter()
         .map(|&data| Ciphered::cipher(&data, pk))
         .collect();
@@ -42,14 +42,14 @@ fn main() {
         "Time needed to encrypt 1 data: {:?}",
         elapsed / NUMBER_OF_TESTS as u32
     );
-    let encrypted_data2: Vec<Ciphered<usize>> = data2
+    let encrypted_data2: Vec<Ciphered<_>> = data2
         .iter()
         .map(|&data| Ciphered::cipher(&data, pk))
         .collect();
 
     // Decrypt the data
     let start = Instant::now();
-    let decrypted_data: Vec<usize> = encrypted_data1
+    let decrypted_data: Vec<_> = encrypted_data1
         .iter()
         .map(|data| Ciphered::decipher(data, sk))
         .collect();
@@ -67,7 +67,7 @@ fn main() {
     }
 
     // Perform the homomorphic operation
-    let mut encrypted_data3: Vec<Ciphered<usize>> = Vec::with_capacity(NUMBER_OF_TESTS);
+    let mut encrypted_data3: Vec<Ciphered<_>> = Vec::with_capacity(NUMBER_OF_TESTS);
     let start = Instant::now();
     for i in 0..NUMBER_OF_TESTS {
         encrypted_data3
@@ -85,7 +85,7 @@ fn main() {
 
     // Decrypt the result
     let start = Instant::now();
-    let decrypted_data_add: Vec<usize> = encrypted_data3
+    let decrypted_data_add: Vec<_> = encrypted_data3
         .iter()
         .map(|data| Ciphered::decipher(data, sk))
         .collect();
@@ -100,7 +100,7 @@ fn main() {
     );
 
     // Check if the results are correct
-    let data3: Vec<usize> = data1
+    let data3: Vec<_> = data1
         .iter()
         .zip(data2.iter())
         .map(|(&data1, &data2)| data1 + data2)
