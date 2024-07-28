@@ -52,18 +52,21 @@ impl Polynomial {
     }
 
     /// Generate a random polynomial of a given degree
-    pub fn random(degree: usize, rng: &mut impl rand::Rng) -> Self {
+    pub fn random(degree: usize) -> Self {
         let num_elements = (degree / 128) + 1;
 
-        let mut coefficients = Vec::with_capacity(num_elements);
-        coefficients.extend((0..num_elements - 1).map(|_| rng.gen::<u128>()));
+        let mut coefficients: Vec<u128> = Vec::with_capacity(num_elements);
+        unsafe {
+            let byte_slice: &mut [u8] = core::slice::from_raw_parts_mut(
+                coefficients.as_mut_ptr() as *mut u8,
+                coefficients.len() * core::mem::size_of::<u128>(),
+            );
+            getrandom::getrandom(byte_slice).expect("Failed to generate random bytes");
+            coefficients.set_len(num_elements);
+        }
 
-        let mut last_element = rng.gen::<u128>();
-        let bit_pos = degree % 128;
-        last_element &= (1 << bit_pos) - 1;
-        last_element |= 1 << bit_pos;
-
-        coefficients.push(last_element);
+        coefficients[num_elements - 1] &= (1 << (degree % 128)) - 1;
+        coefficients[num_elements - 1] |= 1 << (degree % 128);
 
         unsafe { Self::new_unchecked(coefficients, degree) }
     }
@@ -253,8 +256,7 @@ mod test {
 
     #[test]
     fn test_random() {
-        let mut rng = rand::thread_rng();
-        let p = Polynomial::random(5, &mut rng);
+        let p = Polynomial::random(5);
         assert_eq!(Polynomial::compute_degree(&p.coefficients), 5);
     }
 

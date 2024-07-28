@@ -29,6 +29,7 @@ dependencies = [
 name = "homomorph"
 version = "1.0.0"
 dependencies = [
+ "getrandom",
  "mimalloc",
  "rand",
 ]

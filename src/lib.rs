@@ -231,11 +231,11 @@ extern crate alloc;
 mod polynomial;
 pub use polynomial::Polynomial;
 
+mod context;
+pub use context::*;
+
 mod cipher;
 pub use cipher::*;
 
 mod impls;
 pub use impls::*;
-
-mod context;
-pub use context::*;
