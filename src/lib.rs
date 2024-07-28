@@ -121,7 +121,7 @@
 //! The trait only bounds one function to implement, `apply`.
 //! The operation is performed on raw data, which means it takes `Ciphered<T>` as arguments.
 //!
-//! Inside of the function, you will have to work with `Cipehered<T>` as if it were a ``Vec<Polynomial>`
+//! Inside of the function, you will have to work with `Cipehered<T>` as if it were a `Vec<Polynomial>`
 //! (because this is actually what it is).
 //! From that point, all operations are highly unsafe as you are working with raw bits, represented as polynomials.
 //!
