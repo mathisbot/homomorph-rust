@@ -225,6 +225,7 @@
 
 #![no_std]
 
+// TODO: Make this a feature?
 #[macro_use]
 extern crate alloc;
 
