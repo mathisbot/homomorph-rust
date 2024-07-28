@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 /// A polynomial over Z/2Z.
 ///
 /// A polynomial is represented as a vector of coefficients.
@@ -50,18 +52,21 @@ impl Polynomial {
     }
 
     /// Generate a random polynomial of a given degree
-    pub fn random(degree: usize, rng: &mut impl rand::Rng) -> Self {
+    pub fn random(degree: usize) -> Self {
         let num_elements = (degree / 128) + 1;
 
-        let mut coefficients = Vec::with_capacity(num_elements);
-        coefficients.extend((0..num_elements - 1).map(|_| rng.gen::<u128>()));
+        let mut coefficients: Vec<u128> = Vec::with_capacity(num_elements);
+        unsafe {
+            let byte_slice: &mut [u8] = core::slice::from_raw_parts_mut(
+                coefficients.as_mut_ptr() as *mut u8,
+                coefficients.len() * core::mem::size_of::<u128>(),
+            );
+            getrandom::getrandom(byte_slice).expect("Failed to generate random bytes");
+            coefficients.set_len(num_elements);
+        }
 
-        let mut last_element = rng.gen::<u128>();
-        let bit_pos = degree % 128;
-        last_element &= (1 << bit_pos) - 1;
-        last_element |= 1 << bit_pos;
-
-        coefficients.push(last_element);
+        coefficients[num_elements - 1] &= (1 << (degree % 128)) - 1;
+        coefficients[num_elements - 1] |= 1 << (degree % 128);
 
         unsafe { Self::new_unchecked(coefficients, degree) }
     }
@@ -214,6 +219,7 @@ impl Clone for Polynomial {
 #[cfg(test)]
 mod test {
     use super::Polynomial;
+    use alloc::vec::Vec;
 
     #[test]
     fn test_get_degree() {
@@ -223,14 +229,14 @@ mod test {
 
     #[test]
     fn test_new() {
-        let p = Polynomial::new(vec![0b10010]);
-        assert_eq!(p.degree, 4);
+        let p = Polynomial::new(vec![0b10010001]);
+        assert_eq!(p.degree, 7);
     }
 
     #[test]
     #[should_panic]
     fn test_new_panic() {
-        let _ = Polynomial::new(vec![]);
+        let _ = Polynomial::new(Vec::new());
     }
 
     #[test]
@@ -244,14 +250,13 @@ mod test {
     #[should_panic]
     fn test_new_unchecked_panic() {
         unsafe {
-            let _ = Polynomial::new_unchecked(vec![], 0);
+            let _ = Polynomial::new_unchecked(Vec::new(), 0);
         }
     }
 
     #[test]
     fn test_random() {
-        let mut rng = rand::thread_rng();
-        let p = Polynomial::random(5, &mut rng);
+        let p = Polynomial::random(5);
         assert_eq!(Polynomial::compute_degree(&p.coefficients), 5);
     }
 
@@ -268,6 +273,7 @@ mod test {
         let p2 = p1.clone();
         assert_eq!(p1.degree, p2.degree);
         assert_eq!(p1.coefficients, p2.coefficients);
+
         let p1 = Polynomial::new(vec![0b1001, 0b1000001101011010, 0b0, 0b1, 0b0]);
         let p2 = p1.clone();
         assert_eq!(p1.degree, p2.degree);

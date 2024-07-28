@@ -1,5 +1,7 @@
 use crate::{Ciphered, HomomorphicAddition, HomomorphicOperation, Polynomial};
 
+use alloc::vec::Vec;
+
 fn homomorph_add_internal(a: &[Polynomial], b: &[Polynomial]) -> Vec<Polynomial> {
     let longest = a.len().max(b.len());
     let mut result = Vec::with_capacity(longest + 1);
@@ -50,8 +52,6 @@ impl_homomorphic_addition_uint!(u8, u16, u32, usize, u64, u128);
 
 #[cfg(test)]
 mod tests {
-    use rand::{thread_rng, Rng};
-
     use crate::cipher::HomomorphicOperation;
     use crate::Ciphered;
     use crate::HomomorphicAddition;
@@ -72,8 +72,16 @@ mod tests {
         let d = c.decipher(sk);
         assert_eq!(d, 42);
 
-        let a_raw = thread_rng().gen::<u16>() / 2;
-        let b_raw = thread_rng().gen::<u16>() / 2;
+        let a_raw = {
+            let mut buffer = [0u8; 2];
+            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
+            u16::from_le_bytes(buffer)
+        } / 2;
+        let b_raw = {
+            let mut buffer = [0u8; 2];
+            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
+            u16::from_le_bytes(buffer)
+        } / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);
@@ -92,8 +100,16 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a_raw = thread_rng().gen::<usize>() / 2;
-        let b_raw = thread_rng().gen::<usize>() / 2;
+        let a_raw = {
+            let mut buffer = [0u8; 8];
+            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
+            u64::from_le_bytes(buffer)
+        } / 2;
+        let b_raw = {
+            let mut buffer = [0u8; 8];
+            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
+            u64::from_le_bytes(buffer)
+        } / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);

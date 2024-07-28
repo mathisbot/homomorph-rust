@@ -20,12 +20,8 @@ fn main() {
     let pk = context.get_public_key().unwrap();
 
     // Generate random data
-    let data1: Vec<_> = (0..NUMBER_OF_TESTS)
-        .map(|_| rng.gen::<u32>() / 2)
-        .collect();
-    let data2: Vec<_> = (0..NUMBER_OF_TESTS)
-        .map(|_| rng.gen::<u32>() / 2)
-        .collect();
+    let data1: Vec<_> = (0..NUMBER_OF_TESTS).map(|_| rng.gen::<u32>() / 2).collect();
+    let data2: Vec<_> = (0..NUMBER_OF_TESTS).map(|_| rng.gen::<u32>() / 2).collect();
 
     // Encrypt the data
     let start = Instant::now();

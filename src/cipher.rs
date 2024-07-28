@@ -1,9 +1,9 @@
 use crate::polynomial::Polynomial;
 use crate::{PublicKey, SecretKey};
 
+use alloc::vec::Vec;
 use core::ops::Deref;
 use core::ptr::copy_nonoverlapping as memcpy;
-use rand::Rng;
 
 /// This trait is used to convert a type to a byte array and back
 ///
@@ -88,11 +88,12 @@ impl<T: ByteConvertible> Ciphered<T> {
     // u8 is used instead of bool because they are the same size
     // while u8 can store 8 times more information
     fn part(tau: usize) -> Vec<u8> {
-        let mut rng = rand::thread_rng();
-        let mut part: Vec<u8> = Vec::with_capacity((tau + 7) / 8);
+        let num_elements = (tau + 7) / 8;
+        let mut part: Vec<u8> = Vec::with_capacity(num_elements);
 
-        for _ in 0..(tau + 7) / 8 {
-            part.push(rng.gen());
+        unsafe {
+            getrandom::getrandom(&mut part).unwrap();
+            part.set_len(num_elements);
         }
 
         part

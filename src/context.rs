@@ -1,6 +1,7 @@
 use crate::polynomial;
 
-use std::ops::Deref;
+use alloc::vec::Vec;
+use core::ops::Deref;
 
 /// Parameters for the algorithm.
 ///
@@ -120,7 +121,7 @@ impl SecretKey {
     }
 
     pub(self) fn random(d: usize) -> Self {
-        let s = polynomial::Polynomial::random(d, &mut rand::thread_rng());
+        let s = polynomial::Polynomial::random(d);
         SecretKey { s }
     }
 
@@ -219,10 +220,11 @@ impl PublicKey {
     pub(self) fn random(dp: usize, delta: usize, tau: usize, secret_key: &SecretKey) -> Self {
         let list: Vec<_> = (0..tau)
             .map(|_| {
-                let q = polynomial::Polynomial::random(dp, &mut rand::thread_rng());
+                let q = polynomial::Polynomial::random(dp);
                 let sq = secret_key.s.clone().mul(&q);
-                let r = polynomial::Polynomial::random(delta, &mut rand::thread_rng());
-                let rx = r.mul(&unsafe { polynomial::Polynomial::new_unchecked(vec![0b10], 1) });
+                let r = polynomial::Polynomial::random(delta);
+                // TODO: Simplify multiplication by X (shift)
+                let rx = r.mul(&polynomial::Polynomial::monomial(1));
                 sq.add(&rx)
             })
             .collect();
