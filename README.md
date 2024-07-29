@@ -62,14 +62,13 @@ Parameters used for this benchmark were :
 
 It is still more efficient to decrypt, operate and then re-encrypt the data. This limits the use of the system to applications where security is paramount, and takes precedence over speed.
 
-It's worth remembering that the system is inherently slow, as each bit is ciphered as a polynomial whose degree is $d+d'$, and that no system that is both secure and fast has yet been found.
-Hence, it takes more than 160 bytes for $d+d'=640$. This makes operations computationally heavy.
+It's worth remembering that the system is inherently slow, as each bit is ciphered as a polynomial whose degree is at least $d+d'$ (the degree skyrockets with each homomorphic operation), and that no system that is both secure and fast has yet been found.
 
 ## Bare metal
 
-The crates partially supports `no_std` environments: it currently uses `Vec` a lot, so it relies on an external `alloc` crate.
+The crates partially supports `no_std` environments: it uses `Vec` a lot, so it relies on an external `alloc` crate.
 
-In the future, I plan to make this a separate feature and provide a fully `no_std` environment.
+As each bit ciphered takes up a lot of space, storing ciphered objects on the stack wouldn't be possible (at least on low end machines). This is why the heap is needed here.
 
 ## System
 

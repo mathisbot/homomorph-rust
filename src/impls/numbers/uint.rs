@@ -55,7 +55,7 @@ mod tests {
     use crate::{Ciphered, HomomorphicAddition, HomomorphicOperation};
     use crate::{Context, Parameters};
 
-    use rand::{Rng, thread_rng};
+    use rand::{thread_rng, Rng};
 
     #[test]
     fn test_homomorphic_addition() {

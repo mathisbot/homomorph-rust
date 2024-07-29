@@ -154,25 +154,25 @@
 //! }
 //!
 //! unsafe impl ByteConvertible for MyStruct {
-//!     fn to_bytes(&self) -> &[u8] {
-//!         unsafe { core::slice::from_raw_parts(
-//!             self as *const MyStruct as *const u8,
-//!             2*core::mem::size_of::<usize>(),
-//!         ) }
+//!     fn to_bytes(&self) -> Vec<u8> {
+//!         let mut bytes = Vec::with_capacity(core::mem::size_of::<MyStruct>());
+//!         unsafe {
+//!             memcpy(self as *const MyStruct as *const u8, bytes.as_mut_ptr(), core::mem::size_of::<MyStruct>());
+//!             bytes.set_len(core::mem::size_of::<MyStruct>());
+//!         }
+//!         bytes
 //!     }
 //!
 //!     fn from_bytes(bytes: &[u8]) -> Self {
-//!         let mut data = unsafe { core::mem::MaybeUninit::uninit().assume_init() };
+//!         let mut data = core::mem::MaybeUninit::uninit();
 //!         unsafe {
-//!             let data_ptr = &mut data as *mut MyStruct;
-//!             let data_ptr_u8 = data_ptr as *mut u8;
 //!             memcpy(
 //!                 bytes.as_ptr(),
-//!                 data_ptr_u8,
-//!                 2*core::mem::size_of::<usize>(),
+//!                 data.as_mut_ptr() as *mut u8,
+//!                 core::mem::size_of::<MyStruct>(),
 //!             );
+//!             data.assume_init()
 //!         }
-//!         data
 //!     }
 //! }
 //! ```

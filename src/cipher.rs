@@ -15,17 +15,24 @@ use core::ptr::copy_nonoverlapping as memcpy;
 /// For example, when converting a `Vec` to a byte array, heap data also needs to be
 /// converted to a byte array.
 pub unsafe trait ByteConvertible {
-    fn to_bytes(&self) -> &[u8];
+    fn to_bytes(&self) -> Vec<u8>;
     fn from_bytes(bytes: &[u8]) -> Self;
 }
 
 // All types that implement Copy and Sized can be converted to bytes
 // by simply reading stack data as bytes
 unsafe impl<T: Copy + Sized> ByteConvertible for T {
-    fn to_bytes(&self) -> &[u8] {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(core::mem::size_of::<T>());
         unsafe {
-            core::slice::from_raw_parts(self as *const T as *const u8, core::mem::size_of::<T>())
+            memcpy(
+                self as *const T as *const u8,
+                bytes.as_mut_ptr(),
+                core::mem::size_of::<T>(),
+            );
+            bytes.set_len(core::mem::size_of::<T>());
         }
+        bytes
     }
 
     /// This function is used to convert a byte array to a type
@@ -54,8 +61,8 @@ unsafe impl<T: Copy + Sized> ByteConvertible for T {
                 data.as_mut_ptr() as *mut u8,
                 core::mem::size_of::<T>(),
             );
+            data.assume_init()
         }
-        unsafe { data.assume_init() }
     }
 }
 
