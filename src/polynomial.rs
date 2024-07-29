@@ -57,11 +57,11 @@ impl Polynomial {
 
         let mut coefficients: Vec<u128> = Vec::with_capacity(num_elements);
         unsafe {
-            let byte_slice: &mut [u8] = core::slice::from_raw_parts_mut(
+            let bytes: &mut [u8] = core::slice::from_raw_parts_mut(
                 coefficients.as_mut_ptr() as *mut u8,
-                coefficients.len() * core::mem::size_of::<u128>(),
+                num_elements * core::mem::size_of::<u128>(),
             );
-            getrandom::getrandom(byte_slice).expect("Failed to generate random bytes");
+            getrandom::getrandom(bytes).expect("Failed to generate random bytes");
             coefficients.set_len(num_elements);
         }
 

@@ -24,10 +24,10 @@ use core::ops::Deref;
 ///
 /// `delta` must be strictly less than `d`.
 pub struct Parameters {
-    d: usize,
-    dp: usize,
-    delta: usize,
-    tau: usize,
+    d: u16,
+    dp: u16,
+    delta: u16,
+    tau: u16,
 }
 
 impl Parameters {
@@ -60,7 +60,7 @@ impl Parameters {
     ///
     /// let parameters = Parameters::new(6, 3, 2, 5);
     /// ```
-    pub fn new(d: usize, dp: usize, delta: usize, tau: usize) -> Self {
+    pub fn new(d: u16, dp: u16, delta: u16, tau: u16) -> Self {
         if delta >= d {
             panic!("Delta must be strictly less than d");
         }
@@ -120,8 +120,8 @@ impl SecretKey {
         SecretKey { s }
     }
 
-    pub(self) fn random(d: usize) -> Self {
-        let s = polynomial::Polynomial::random(d);
+    pub(self) fn random(d: u16) -> Self {
+        let s = polynomial::Polynomial::random(d as usize);
         SecretKey { s }
     }
 
@@ -217,13 +217,12 @@ impl PublicKey {
         PublicKey { list }
     }
 
-    pub(self) fn random(dp: usize, delta: usize, tau: usize, secret_key: &SecretKey) -> Self {
+    pub(self) fn random(dp: u16, delta: u16, tau: u16, secret_key: &SecretKey) -> Self {
         let list: Vec<_> = (0..tau)
             .map(|_| {
-                let q = polynomial::Polynomial::random(dp);
+                let q = polynomial::Polynomial::random(dp as usize);
                 let sq = secret_key.s.clone().mul(&q);
-                let r = polynomial::Polynomial::random(delta);
-                // TODO: Simplify multiplication by X (shift)
+                let r = polynomial::Polynomial::random(delta as usize);
                 let rx = r.mul(&polynomial::Polynomial::monomial(1));
                 sq.add(&rx)
             })

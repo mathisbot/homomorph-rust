@@ -92,7 +92,8 @@ impl<T: ByteConvertible> Ciphered<T> {
         let mut part: Vec<u8> = Vec::with_capacity(num_elements);
 
         unsafe {
-            getrandom::getrandom(&mut part).unwrap();
+            let bytes = core::slice::from_raw_parts_mut(part.as_mut_ptr(), num_elements);
+            getrandom::getrandom(bytes).unwrap();
             part.set_len(num_elements);
         }
 

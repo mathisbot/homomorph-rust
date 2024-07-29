@@ -52,10 +52,10 @@ impl_homomorphic_addition_uint!(u8, u16, u32, usize, u64, u128);
 
 #[cfg(test)]
 mod tests {
-    use crate::cipher::HomomorphicOperation;
-    use crate::Ciphered;
-    use crate::HomomorphicAddition;
+    use crate::{Ciphered, HomomorphicAddition, HomomorphicOperation};
     use crate::{Context, Parameters};
+
+    use rand::{Rng, thread_rng};
 
     #[test]
     fn test_homomorphic_addition() {
@@ -72,16 +72,8 @@ mod tests {
         let d = c.decipher(sk);
         assert_eq!(d, 42);
 
-        let a_raw = {
-            let mut buffer = [0u8; 2];
-            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            u16::from_le_bytes(buffer)
-        } / 2;
-        let b_raw = {
-            let mut buffer = [0u8; 2];
-            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            u16::from_le_bytes(buffer)
-        } / 2;
+        let a_raw = thread_rng().gen::<u16>() / 2;
+        let b_raw = thread_rng().gen::<u16>() / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);
