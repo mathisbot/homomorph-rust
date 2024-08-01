@@ -18,6 +18,13 @@ pub struct Polynomial {
 }
 
 impl Polynomial {
+    /// Create a new polynomial from a vector of coefficients
+    ///
+    /// The degree of the polynomial is computed from the vector of coefficients.
+    ///
+    /// ## Panics
+    ///
+    /// If the vector of coefficients is empty.
     pub fn new(coefficients: Vec<u128>) -> Self {
         if coefficients.is_empty() {
             panic!("The vector of coefficients must not be empty.");
@@ -29,9 +36,15 @@ impl Polynomial {
         }
     }
 
+    /// Create a new polynomial from a vector of coefficients and a degree
+    ///
     /// ## Safety
     ///
     /// The user must provide the correct degree
+    ///
+    /// ## Panics
+    ///
+    /// If the vector of coefficients is empty.
     pub unsafe fn new_unchecked(coefficients: Vec<u128>, degree: usize) -> Self {
         if coefficients.is_empty() {
             panic!("The vector of coefficients must not be empty.");
@@ -43,7 +56,10 @@ impl Polynomial {
     }
 
     /// Compute the degree of a polynomial
-    pub fn compute_degree(coefficients: &[u128]) -> usize {
+    ///
+    /// This function shouldn't be used outside of the crate as it is
+    /// easier to get a polynomial's degree using the `degree` field.
+    pub(crate) fn compute_degree(coefficients: &[u128]) -> usize {
         if let Some(i) = coefficients.iter().rposition(|&coeff| coeff != 0) {
             127 - coefficients[i].leading_zeros() as usize + 128 * i
         } else {
@@ -52,6 +68,12 @@ impl Polynomial {
     }
 
     /// Generate a random polynomial of a given degree
+    ///
+    /// ## Note
+    ///
+    /// Randomness is generated using the `getrandom` crate.
+    /// This means that randomness is cryptographically secure, and works on a vast majority
+    /// of platforms, including baremetal (x86).
     pub fn random(degree: usize) -> Self {
         let num_elements = (degree / 128) + 1;
 
@@ -76,7 +98,7 @@ impl Polynomial {
     /// ## Warning
     ///
     /// Although it is not mathematically correct, the null polynomial
-    /// i considered to be of degree 0 in this implementation.
+    /// is considered to be of degree 0 in this implementation.
     pub fn null() -> Self {
         Self {
             coefficients: vec![0],
@@ -106,18 +128,22 @@ impl Polynomial {
         (result % 2) == 1
     }
 
+    /// Returns the degree of the polynomial
     pub fn degree(&self) -> usize {
         self.degree
     }
 
+    /// Returns the coefficients of the polynomial
     pub fn coefficients(&self) -> &Vec<u128> {
         &self.coefficients
     }
 
-    /// Add to polynomial together
+    /// Add two polynomials together
     ///
-    /// The reason this exists outside of the `std::ops::Add` trait is because
+    /// The reason this function exists outside of the `std::ops::Add` trait is because
     /// it is interesting to add two polynomials without losing ownership of them.
+    ///
+    /// However, this function allocates a new polynomial.
     pub fn add(&self, other: &Self) -> Self {
         // We know that degree of the sum is at most max(deg(p1), deg(p2)).
         let max_deg = self.degree.max(other.degree);
@@ -138,10 +164,12 @@ impl Polynomial {
         }
     }
 
-    /// Multiply to polynomial together
+    /// Multiply two polynomials together
     ///
-    /// The reason this exists outside of the `std::ops::Mul` trait is because
+    /// The reason this function exists outside of the `std::ops::Mul` trait is because
     /// it is interesting to add two polynomials without losing ownership of them.
+    ///
+    /// However, this function allocates a new polynomial.
     pub fn mul(&self, other: &Self) -> Self {
         // We need to handle the special case of the null polynomial
         // because the degree of the null polynomial is not well defined.
@@ -180,6 +208,8 @@ impl Polynomial {
     }
 
     /// Compute the remainder of the division of two polynomials
+    ///
+    /// This function allocates a new polynomial.
     pub fn rem(&self, other: &Self) -> Self {
         let mut r = self.clone().coefficients;
         let mut r_degree = self.degree;
@@ -242,7 +272,9 @@ mod test {
     #[test]
     fn test_new_unchecked() {
         unsafe {
-            let _ = Polynomial::new_unchecked(vec![0b10010], 4);
+            let p = Polynomial::new_unchecked(vec![0b10010], 4);
+            assert_eq!(p.degree, 4);
+            assert_eq!(p.coefficients, vec![0b10010]);
         }
     }
 
@@ -343,7 +375,7 @@ mod test {
         let p2 = Polynomial::new(vec![0b10]);
         let p3 = p1.rem(&p2);
         assert!(p3.degree < p2.degree);
-        assert_eq!(p3.coefficients, vec![0b1]);
+        assert_eq!(p3.coefficients, vec![1]);
 
         let p1 = Polynomial::new(vec![0b1010101101]);
         let p2 = Polynomial::new(vec![0b11011]);

@@ -266,5 +266,15 @@ mod tests {
         let ciphered = Ciphered::cipher(&data, pk);
         let decrypted = ciphered.decipher(sk);
         assert_eq!(data, decrypted);
+
+        #[derive(Copy, Clone, Debug, PartialEq)]
+        struct MyStruct {
+            a: usize,
+            b: usize,
+        }
+        let data = MyStruct { a: 42, b: 69 };
+        let ciphered = Ciphered::cipher(&data, pk);
+        let decrypted = ciphered.decipher(sk);
+        assert_eq!(data, decrypted);
     }
 }

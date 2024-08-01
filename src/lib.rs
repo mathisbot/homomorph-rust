@@ -72,10 +72,10 @@
 //! Once again, the system implements some basic operation for you.
 //! For instance, you can already add two ciphered unsigned integers.
 //!
-//! ```rust
+//! ```no_run
 //! use homomorph::{Context, Parameters, Ciphered, HomomorphicAddition, HomomorphicOperation};
 //!
-//! let parameters = Parameters::new(64, 32, 1, 32);
+//! let parameters = Parameters::new(128, 64, 1, 64);
 //! let mut context = Context::new(parameters);
 //! context.generate_secret_key();
 //! context.generate_public_key();

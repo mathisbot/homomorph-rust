@@ -5,14 +5,14 @@ use core::ops::Deref;
 
 /// Parameters for the algorithm.
 ///
-/// # Fields
+/// ## Fields
 ///
 /// * `d` - The degree of the secret key.
-/// * `dp` - The degree of the public key.
+/// * `dp` - Such that `d+dp` is the degree of the public key.
 /// * `delta` - The noise parameter.
 /// * `tau` - The size of public key.
 ///
-/// # Examples
+/// ## Examples
 ///
 /// ```
 /// use homomorph::Parameters;
@@ -20,9 +20,11 @@ use core::ops::Deref;
 /// let parameters = Parameters::new(6, 3, 2, 5);
 /// ```
 ///
-/// # Note
+/// ## Note
 ///
-/// `delta` must be strictly less than `d`.
+/// `delta` is strictly less than `d`.
+///
+/// For more information, visit <https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system>.
 pub struct Parameters {
     d: u16,
     dp: u16,
@@ -33,27 +35,28 @@ pub struct Parameters {
 impl Parameters {
     /// Creates a new set of parameters.
     ///
-    /// # Arguments
+    /// ## Arguments
     ///
     /// * `d` - The degree of the secret key.
-    /// * `dp` - The degree of the public key.
+    /// * `dp` - Such that `d+dp` is the degree of the public key.
     /// * `delta` - The noise parameter.
     /// * `tau` - The size of the public key.
     ///
-    /// # Returns
+    /// ## Returns
     ///
     /// A new set of parameters.
     ///
-    /// # Note
+    /// ## Note
     ///
     /// As the system properties highly depends on the quantity `d`/`delta`, it is advised
-    /// to take a look at recommandations in the documentation.
+    /// to take a look at recommandations in the documentation of the functions you are
+    /// planning to use.
     ///
-    /// # Panics
+    /// ## Panics
     ///
     /// This function will panic if `delta` is greater than or equal to `d`.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// use homomorph::Parameters;
@@ -72,7 +75,7 @@ impl Parameters {
 }
 
 /// The secret key.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SecretKey {
     s: polynomial::Polynomial,
 }
@@ -80,20 +83,20 @@ pub struct SecretKey {
 impl SecretKey {
     /// Creates a new secret key.
     ///
-    /// # Arguments
+    /// ## Arguments
     ///
     /// * `bytes` - The bytes representing the secret key.
     ///
-    /// # Returns
+    /// ## Returns
     ///
     /// A new secret key.
     ///
-    /// # Note
+    /// ## Note
     ///
     /// For security reasons, the polynomial should only be retrieved from a previous generated secret key.
     /// For a first time generation, use `Context::generate_secret_key`.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// use homomorph::SecretKey;
@@ -127,15 +130,15 @@ impl SecretKey {
 
     /// Returns bytes representing the secret key.
     ///
-    /// # Returns
+    /// ## Returns
     ///
     /// A `Vec<u8>` representing the secret key.
     ///
-    /// # Note
+    /// ## Note
     ///
     /// Can be useful to save the secret key.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// use homomorph::{Context, Parameters};
@@ -165,7 +168,7 @@ impl Deref for SecretKey {
 }
 
 /// The public key.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PublicKey {
     list: Vec<polynomial::Polynomial>,
 }
@@ -173,20 +176,20 @@ pub struct PublicKey {
 impl PublicKey {
     /// Creates a new public key.
     ///
-    /// # Arguments
+    /// ## Arguments
     ///
     /// * `bytes` - The bytes representing the public key.
     ///
-    /// # Returns
+    /// ## Returns
     ///
     /// A new public key.
     ///
-    /// # Note
+    /// ## Note
     ///
     /// For security reseasons, the list of polynomials should only be retrieved from a previous generated public key.
     /// For a first time generation, use `Context::generate_public_key`.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// use homomorph::PublicKey;
@@ -233,15 +236,15 @@ impl PublicKey {
 
     /// Returns bytes representing the public key.
     ///
-    /// # Returns
+    /// ## Returns
     ///
     /// A `Vec<Vec<u8>>` representing the public key.
     ///
-    /// # Note
+    /// ## Note
     ///
     /// Can be useful to save the public key.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// use homomorph::{Context, Parameters};
@@ -285,15 +288,15 @@ pub struct Context {
 impl Context {
     /// Creates a new context.
     ///
-    /// # Arguments
+    /// ## Arguments
     ///
     /// * `params` - The parameters.
     ///
-    /// # Returns
+    /// ## Returns
     ///
     /// A new context.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// use homomorph::{Context, Parameters};
@@ -311,7 +314,7 @@ impl Context {
 
     /// Generates a secret key.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// use homomorph::{Context, Parameters};
@@ -327,11 +330,11 @@ impl Context {
 
     /// Generates a public key out of the private key.
     ///
-    /// # Panics
+    /// ## Panics
     ///
     /// This function will panic if the secret key has not been generated yet.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// use homomorph::{Context, Parameters};
@@ -358,11 +361,11 @@ impl Context {
 
     /// Returns a reference to the secret key.
     ///
-    /// # Returns
+    /// ## Returns
     ///
     /// A reference to the secret key.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// use homomorph::{Context, Parameters};
@@ -378,11 +381,11 @@ impl Context {
 
     /// Returns a reference to the public key.
     ///
-    /// # Returns
+    /// ## Returns
     ///
     /// A reference to the public key.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// use homomorph::{Context, Parameters};
@@ -399,11 +402,11 @@ impl Context {
 
     /// Explicitly sets the secret key.
     ///
-    /// # Arguments
+    /// ## Arguments
     ///
     /// * `secret_key` - The secret key.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// use homomorph::{Context, Parameters, SecretKey};
@@ -422,11 +425,11 @@ impl Context {
 
     /// Explicitly sets the public key.
     ///
-    /// # Arguments
+    /// ## Arguments
     ///
     /// * `public_key` - The public key.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// use homomorph::{Context, Parameters, PublicKey};
@@ -491,9 +494,15 @@ mod tests {
         let mut context = Context::new(params);
         context.generate_secret_key();
         context.generate_public_key();
-        let sk = context.get_secret_key().unwrap();
+        let sk = context.get_secret_key().unwrap().clone();
         context.set_secret_key(sk.clone());
-        let pk = context.get_public_key().unwrap();
+        let pk = context.get_public_key().unwrap().clone();
         context.set_public_key(pk.clone());
+
+        let sk2 = context.get_secret_key().unwrap().clone();
+        let pk2 = context.get_public_key().unwrap().clone();
+
+        assert_eq!(sk, sk2);
+        assert_eq!(pk, pk2);
     }
 }
