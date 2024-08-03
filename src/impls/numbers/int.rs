@@ -1,41 +1,6 @@
-use crate::{
-    Ciphered, HomomorphicAddition, HomomorphicMultiplication, HomomorphicOperation2, Polynomial,
-};
+use crate::{Ciphered, HomomorphicAddition, HomomorphicMultiplication, HomomorphicOperation2};
 
-use alloc::vec::Vec;
-
-fn homomorph_add_internal(a: &[Polynomial], b: &[Polynomial]) -> Vec<Polynomial> {
-    let longest = a.len().max(b.len());
-    let mut result = Vec::with_capacity(longest + 1);
-    let mut carry = Polynomial::null();
-
-    // Avoid borrowing issues
-    let null_pol = Polynomial::null();
-
-    for i in 0..longest {
-        let p1 = a.get(i).unwrap_or(&null_pol);
-        let p2 = b.get(i).unwrap_or(&null_pol);
-        let s = p1.add(p2).add(&carry);
-
-        // This is too long and can be simplified :
-        // carry = p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
-        // c <- (p1+p2)*c + p1*p2 + p1*p2*(p1+p2)*c
-        // c <- c*(p1+p2)*(1+p1*p2) + p1*p2
-        let p1_p2 = p1.mul(p2);
-        carry = p1
-            .add(p2)
-            .mul(&carry)
-            .mul(&Polynomial::monomial(0).add(&p1_p2))
-            .add(&p1_p2);
-
-        result.push(s);
-    }
-    result.push(carry);
-
-    result
-}
-
-macro_rules! impl_homomorphic_addition_uint {
+macro_rules! impl_homomorphic_addition_int {
     ($($t:ty),+) => {
         $(
             impl HomomorphicOperation2<$t> for HomomorphicAddition {
@@ -44,63 +9,35 @@ macro_rules! impl_homomorphic_addition_uint {
                 /// ## Safety
                 ///
                 /// `d/delta` on cipher must have been at least `21*sizeof::<T>()`.
-                unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    Ciphered::new_from_raw(homomorph_add_internal(a, b))
+                unsafe fn apply(_a: &Ciphered<$t>, _b: &Ciphered<$t>) -> Ciphered<$t> {
+                    todo!("Homormophic addition for int");
                 }
             }
         )+
     }
 }
 
-impl_homomorphic_addition_uint!(u8, u16, u32, usize, u64, u128);
+impl_homomorphic_addition_int!(i8, i16, i32, isize, i64, i128);
 
-// https://en.m.wikipedia.org/wiki/Binary_multiplier#Unsigned_integers
-fn homomorph_mul_internal(a: &[Polynomial], b: &[Polynomial]) -> Vec<Polynomial> {
-    // We stop before overflow as overflowed bits will be thrown away on decryption
-    let max_len = a.len().max(b.len());
-
-    // TODO: Remove this line when the algorithm is implemented
-    #[allow(unused_mut, unused_variables)]
-    let mut result: Vec<Polynomial> = vec![Polynomial::null(); max_len];
-
-    // Avoid borrowing issues
-    let null_pol = Polynomial::null();
-
-    let mut partial_products = Vec::with_capacity(max_len);
-    for i in 0..max_len {
-        let mut pi = Vec::with_capacity(max_len);
-        let ai = a.get(i).unwrap_or(&null_pol);
-        for j in 0..max_len {
-            pi.push(ai.mul(b.get(j).unwrap_or(&Polynomial::null())));
-        }
-        partial_products.push(pi);
-    }
-
-    // TODO: Implement the rest of the algorithm
-
-    todo!("Homormophic multiplication for uint");
-    #[allow(unreachable_code)]
-    result
-}
-
-macro_rules! impl_homomorphic_multiplication_uint {
+macro_rules! impl_homomorphic_multiplication_int {
     ($($t:ty),+) => {
         $(
+            // https://en.m.wikipedia.org/wiki/Binary_multiplier#Signed_integers
             impl HomomorphicOperation2<$t> for HomomorphicMultiplication {
                 /// Perform a homomorphic multiplication on two ciphered numbers.
                 ///
                 /// ## Safety
                 ///
                 /// `d/delta` on cipher must have been at least TBD.
-                unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    Ciphered::new_from_raw(homomorph_mul_internal(a, b))
+                unsafe fn apply(_a: &Ciphered<$t>, _b: &Ciphered<$t>) -> Ciphered<$t> {
+                    todo!("Homormophic multiplication for int");
                 }
             }
         )+
     }
 }
 
-impl_homomorphic_multiplication_uint!(u8, u16, u32, usize, u64, u128);
+impl_homomorphic_multiplication_int!(i8, i16, i32, isize, i64, i128);
 
 #[cfg(test)]
 mod tests {
@@ -110,6 +47,7 @@ mod tests {
     use rand::{thread_rng, Rng};
 
     #[test]
+    #[should_panic = "not yet implemented: Homormophic addition for int"]
     fn test_homomorphic_addition() {
         let parameters = Parameters::new(64, 16, 1, 16);
         let mut context = Context::new(parameters);
@@ -118,14 +56,14 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a = Ciphered::cipher(&22u8, pk);
-        let b = Ciphered::cipher(&20u8, pk);
+        let a = Ciphered::cipher(&22i8, pk);
+        let b = Ciphered::cipher(&-20i8, pk);
         let c = unsafe { HomomorphicAddition::apply(&a, &b) };
         let d = c.decipher(sk);
-        assert_eq!(d, 42);
+        assert_eq!(d, 2);
 
-        let a_raw = thread_rng().gen::<u16>() / 2;
-        let b_raw = thread_rng().gen::<u16>() / 2;
+        let a_raw = thread_rng().gen::<i16>() / 2;
+        let b_raw = thread_rng().gen::<i16>() / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);
@@ -136,6 +74,7 @@ mod tests {
 
     #[test]
     #[ignore = "Long test"]
+    #[should_panic = "not yet implemented: Homormophic addition for int"]
     fn test_homomorphic_addition_extensive() {
         let parameters = Parameters::new(256, 128, 1, 128);
         let mut context = Context::new(parameters);
@@ -147,12 +86,12 @@ mod tests {
         let a_raw = {
             let mut buffer = [0u8; 8];
             getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            u64::from_le_bytes(buffer)
+            i64::from_le_bytes(buffer)
         } / 2;
         let b_raw = {
             let mut buffer = [0u8; 8];
             getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            u64::from_le_bytes(buffer)
+            i64::from_le_bytes(buffer)
         } / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
@@ -164,6 +103,7 @@ mod tests {
 
     #[test]
     #[ignore = "Long test"]
+    #[should_panic = "not yet implemented: Homormophic addition for int"]
     fn test_successive_homomorphic_addition() {
         let parameters = Parameters::new(256, 128, 1, 128);
         let mut context = Context::new(parameters);
@@ -175,17 +115,17 @@ mod tests {
         let a_raw = {
             let mut buffer = [0u8; 1];
             getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            u8::from_le_bytes(buffer)
+            i8::from_le_bytes(buffer)
         } / 2;
         let b_raw = {
             let mut buffer = [0u8; 1];
             getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            u8::from_le_bytes(buffer)
+            i8::from_le_bytes(buffer)
         } / 2;
         let c_raw = {
             let mut buffer = [0u8; 1];
             getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            u8::from_le_bytes(buffer)
+            i8::from_le_bytes(buffer)
         } / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
@@ -198,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic = "not yet implemented: Homormophic multiplication for uint"]
+    #[should_panic = "not yet implemented: Homormophic multiplication for int"]
     fn test_homomorphic_multiplication() {
         let parameters = Parameters::new(512, 64, 1, 64);
         let mut context = Context::new(parameters);
@@ -207,14 +147,14 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a = Ciphered::cipher(&6u8, pk);
-        let b = Ciphered::cipher(&7u8, pk);
+        let a = Ciphered::cipher(&6i8, pk);
+        let b = Ciphered::cipher(&-7i8, pk);
         let c = unsafe { HomomorphicMultiplication::apply(&a, &b) };
         let d = c.decipher(sk);
-        assert_eq!(d, 42);
+        assert_eq!(d, -42);
 
-        let a_raw = thread_rng().gen::<u16>() / 2;
-        let b_raw = thread_rng().gen::<u16>() / 2;
+        let a_raw = thread_rng().gen::<i16>() / 2;
+        let b_raw = thread_rng().gen::<i16>() / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);

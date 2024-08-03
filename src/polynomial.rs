@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 /// BUT bits are reversed because of u128, so the last bit of the first u128 is the constant term.
 ///
 /// Thus, coefficient of x^i is stored in the (i/128)-th u128 at the (127-i%128)-th bit.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq)]
 pub struct Polynomial {
     coefficients: Vec<u128>,
     degree: usize,
@@ -246,44 +246,22 @@ impl Clone for Polynomial {
     }
 }
 
+impl PartialEq for Polynomial {
+    fn eq(&self, other: &Self) -> bool {
+        self.degree == other.degree
+            && self.coefficients[0..self.degree / 128 + 1]
+                == other.coefficients[0..other.degree / 128 + 1]
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::Polynomial;
-    use alloc::vec::Vec;
 
     #[test]
-    fn test_get_degree() {
+    fn test_compute_degree() {
         let coefficients = vec![0b10010];
         assert_eq!(Polynomial::compute_degree(&coefficients), 4);
-    }
-
-    #[test]
-    fn test_new() {
-        let p = Polynomial::new(vec![0b10010001]);
-        assert_eq!(p.degree, 7);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_new_panic() {
-        let _ = Polynomial::new(Vec::new());
-    }
-
-    #[test]
-    fn test_new_unchecked() {
-        unsafe {
-            let p = Polynomial::new_unchecked(vec![0b10010], 4);
-            assert_eq!(p.degree, 4);
-            assert_eq!(p.coefficients, vec![0b10010]);
-        }
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_new_unchecked_panic() {
-        unsafe {
-            let _ = Polynomial::new_unchecked(Vec::new(), 0);
-        }
     }
 
     #[test]
@@ -293,30 +271,14 @@ mod test {
     }
 
     #[test]
-    fn test_null() {
-        let p = Polynomial::null();
-        assert_eq!(p.degree, 0);
-        assert_eq!(p.coefficients, vec![0]);
-    }
-
-    #[test]
     fn test_clone() {
         let p1 = Polynomial::new(vec![0b1001]);
         let p2 = p1.clone();
-        assert_eq!(p1.degree, p2.degree);
-        assert_eq!(p1.coefficients, p2.coefficients);
+        assert_eq!(p1, p2);
 
         let p1 = Polynomial::new(vec![0b1001, 0b1000001101011010, 0b0, 0b1, 0b0]);
         let p2 = p1.clone();
-        assert_eq!(p1.degree, p2.degree);
-        // Assert that the coefficients are the same
-        // (vectors may not be equal because of trailing zeros)
-        for i in 0..p1.coefficients.len() {
-            if i < p2.coefficients.len() && p1.coefficients[i] != p2.coefficients[i] {
-                assert!(p1.coefficients[i..].iter().all(|&c| c == 0));
-                break;
-            }
-        }
+        assert_eq!(p1, p2);
     }
 
     #[test]

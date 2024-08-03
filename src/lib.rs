@@ -73,7 +73,7 @@
 //! For instance, you can already add two ciphered unsigned integers.
 //!
 //! ```no_run
-//! use homomorph::{Context, Parameters, Ciphered, HomomorphicAddition, HomomorphicOperation};
+//! use homomorph::{Context, Parameters, Ciphered, HomomorphicAddition, HomomorphicOperation2};
 //!
 //! let parameters = Parameters::new(128, 64, 1, 64);
 //! let mut context = Context::new(parameters);
@@ -114,9 +114,13 @@
 //! In concrete terms, every single bit of your data is ciphered as one polynomial.
 //! If you want to learn more about the system used here, visit <https://github.com/mathisbot/homomorph-rust>
 //!
-//! #### `HomomorphicOperation<T>` trait
+//! #### `HomomorphicOperationX<T>` trait
 //!
-//! The system provides a trait allowing you to define homomorphic operations.
+//! The system provides traits allowing you to define homomorphic operations.
+//!
+//! Replace X with a certain number of arguments. Supported values are 1 and 2.
+//! If you need more, feel free to implement your own `HomomorphicOperationN`
+//! based on examples found in `operations.rs`.
 //!
 //! The trait only bounds one function to implement, `apply`.
 //! The operation is performed on raw data, which means it takes `Ciphered<T>` as arguments.
@@ -127,10 +131,10 @@
 //!
 //! #### Homomorphic operations
 //!
-//! To implement an homomorphic operation, define a struct that implements `HomomorphicOperation<T>`.
+//! To implement an homomorphic operation, define a struct that implements `HomomorphicOperationX<T>`.
 //!
 //! For example, to implement addition, you will have to define a struct `HomomorphicAddition`,
-//! and implement the unsafe trait `HomomorphicOperation<usize>` for it.
+//! and implement the unsafe trait `HomomorphicOperation2<usize>` for it.
 //!
 //! Fortunately, the crate already implements all of these basic operations for you.
 //!
@@ -178,7 +182,7 @@
 //! ```
 //!
 //! If we then want to implement an homomorphic addition for `usize`, we will have to define a struct `HomomorphicAddition`
-//! that implements the trait `HomomorphicOperation<usize>`.
+//! that implements the trait `HomomorphicOperation2<usize>`.
 //!
 //! The key to implement such operations is to mimic the behavior of the operation on unciphered bits, but the bits are just polynomials.
 //! The only little trick is that we can't take decisions based on the value of the bits, as they're ciphered.
@@ -186,7 +190,7 @@
 //! Here, we just mimic how a processor would implement addition on uint.
 //!
 //! ```rust
-//! use homomorph::{Ciphered, HomomorphicOperation, Polynomial};
+//! use homomorph::{Ciphered, HomomorphicOperation2, Polynomial};
 //!
 //! // Here, we derive Copy so that the system can cipher the data
 //! #[derive(Copy, Clone)]
@@ -197,7 +201,7 @@
 //!
 //! struct MyOperation;
 //!
-//! impl HomomorphicOperation<MyStruct> for MyOperation {
+//! impl HomomorphicOperation2<MyStruct> for MyOperation {
 //!     /// ## Safety
 //!     ///
 //!     /// `d/delta` on cipher must have been at least `2*sizeof::<T>()`.
@@ -225,7 +229,6 @@
 
 #![no_std]
 
-// TODO: Make this a feature?
 #[macro_use]
 extern crate alloc;
 
@@ -237,6 +240,9 @@ pub use context::*;
 
 mod cipher;
 pub use cipher::*;
+
+mod operations;
+pub use operations::*;
 
 mod impls;
 pub use impls::*;

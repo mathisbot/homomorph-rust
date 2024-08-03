@@ -165,12 +165,15 @@ impl<T: ByteConvertible> Ciphered<T> {
             .map(|poly| Self::decipher_bit(poly, sk))
             .collect();
 
-        let mut bytes = vec![0u8; (deciphered_bits.len() + 7) / 8];
-        for (i, &bit) in deciphered_bits.iter().enumerate() {
-            if bit {
-                bytes[i / 8] |= 1 << (i % 8);
-            }
-        }
+        let bytes = deciphered_bits
+            .chunks(8)
+            .map(|chunk| {
+                chunk
+                    .iter()
+                    .enumerate()
+                    .fold(0u8, |byte, (i, &bit)| byte | ((bit as u8) << i))
+            })
+            .collect::<Vec<_>>();
 
         ByteConvertible::from_bytes(&bytes)
     }
@@ -185,57 +188,6 @@ where
     fn deref(&self) -> &Self::Target {
         &self.c_data
     }
-}
-
-/// This trait is used to define homomorphic operations
-///
-/// ## Safety
-///
-/// As described here <https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#properties>,
-/// the properties of the system highly depends on the system's parameters.
-///
-/// Thus, the operation defined is unsafe so that the user ensures the parameters are valid.
-/// The developer needs to clearly specify the required minimum value of `d/delta`.
-///
-/// In order to determine the minimum value, you can refer to
-/// <https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#properties>.
-/// You simply have to compute the boolean degree of the operation you want to implement.
-///
-/// ## Example
-///
-/// ```rust
-/// use homomorph::{Ciphered, HomomorphicOperation, Polynomial};
-///
-/// #[derive(Copy, Clone)]
-/// struct MyStruct {
-///     a: usize,
-///     b: usize,
-/// }
-///
-/// struct MyOperation;
-///
-/// impl HomomorphicOperation<MyStruct> for MyOperation {
-///     /// ## Safety
-///     ///
-///     /// `d/delta` on cipher must have been at least `2*sizeof::<T>()`.
-///     unsafe fn apply(a: &Ciphered<MyStruct>, b: &Ciphered<MyStruct>) -> Ciphered<MyStruct> {
-///         let mut c_pol: Vec<Polynomial> = Vec::with_capacity(a.len().max(b.len()));
-///
-///         // Boring details here...
-///
-///         unsafe { Ciphered::new_from_raw(c_pol) }
-///     }
-/// }
-/// ```
-pub trait HomomorphicOperation<T: ByteConvertible> {
-    /// ## Safety
-    ///
-    /// The function `apply` is marked as unsafe as it handles raw bits of data.
-    /// You must ensure this function will result in valid ciphered data.
-    ///
-    /// In particular, you need to pay attention to the value of `d/delta`
-    /// used on cipher.
-    unsafe fn apply(a: &Ciphered<T>, b: &Ciphered<T>) -> Ciphered<T>;
 }
 
 #[cfg(test)]

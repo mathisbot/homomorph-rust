@@ -1,3 +1,4 @@
+mod int;
 mod uint;
 
 /// Represents homomorphic additive operation over numbers
