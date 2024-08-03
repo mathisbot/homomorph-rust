@@ -5,30 +5,45 @@ use alloc::vec::Vec;
 use core::ops::Deref;
 use core::ptr::copy_nonoverlapping as memcpy;
 
+/// Represents a single bit that is encrypted
+///
+/// You can use this struct to perform operations on encrypted data
 #[derive(Debug, Clone)]
 pub struct CipheredBit(Polynomial);
 
 impl CipheredBit {
+    /// Returns the null bit
+    ///
+    /// Properties of the system allow you to blindly
+    /// use it as if it were a ciphered bit
     pub fn zero() -> Self {
         CipheredBit(Polynomial::null())
     }
 
+    /// Returns the bit 1
+    ///
+    /// Properties of the system allow you to blindly
+    /// use it as if it were a ciphered bit
     pub fn one() -> Self {
         CipheredBit(Polynomial::monomial(0))
     }
 
+    /// Apply the AND gate to two ciphered bits
     pub fn and(&self, other: &Self) -> Self {
         CipheredBit(self.0.mul(&other.0))
     }
 
+    /// Apply the OR gate to two ciphered bits
     pub fn or(&self, other: &Self) -> Self {
         CipheredBit(self.0.add(&other.0).add(&self.0.mul(&other.0)))
     }
 
+    /// Apply the XOR gate to two ciphered bits
     pub fn xor(&self, other: &Self) -> Self {
         CipheredBit(self.0.add(&other.0))
     }
 
+    /// Apply the NOT gate to a ciphered bit
     pub fn not(&self) -> Self {
         CipheredBit(self.0.add(&Polynomial::monomial(0)))
     }
