@@ -1,7 +1,6 @@
-use crate::polynomial;
+use crate::polynomial::Polynomial;
 
 use alloc::vec::Vec;
-use core::ops::Deref;
 
 /// Parameters for the algorithm.
 ///
@@ -77,7 +76,7 @@ impl Parameters {
 /// The secret key.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SecretKey {
-    s: polynomial::Polynomial,
+    s: Polynomial,
 }
 
 impl SecretKey {
@@ -119,13 +118,15 @@ impl SecretKey {
         if n != 0 {
             coeffs.push(n);
         }
-        let s = polynomial::Polynomial::new(coeffs);
-        SecretKey { s }
+        SecretKey {
+            s: Polynomial::new(coeffs),
+        }
     }
 
     pub(self) fn random(d: u16) -> Self {
-        let s = polynomial::Polynomial::random(d as usize);
-        SecretKey { s }
+        SecretKey {
+            s: Polynomial::random(d as usize),
+        }
     }
 
     /// Returns bytes representing the secret key.
@@ -157,12 +158,8 @@ impl SecretKey {
         }
         bytes
     }
-}
 
-impl Deref for SecretKey {
-    type Target = polynomial::Polynomial;
-
-    fn deref(&self) -> &Self::Target {
+    pub(crate) fn get_polynomial(&self) -> &Polynomial {
         &self.s
     }
 }
@@ -170,7 +167,7 @@ impl Deref for SecretKey {
 /// The public key.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PublicKey {
-    list: Vec<polynomial::Polynomial>,
+    list: Vec<Polynomial>,
 }
 
 impl PublicKey {
@@ -200,7 +197,7 @@ impl PublicKey {
     /// let pk = PublicKey::new(p);
     /// ```
     pub fn new(bytes: Vec<Vec<u8>>) -> Self {
-        let mut list: Vec<polynomial::Polynomial> = Vec::with_capacity(bytes.capacity());
+        let mut list: Vec<Polynomial> = Vec::with_capacity(bytes.capacity());
         for bytes in bytes.iter() {
             let mut coeffs: Vec<u128> = Vec::with_capacity(bytes.len() / 16 + 1);
             let mut n = 0u128;
@@ -214,7 +211,7 @@ impl PublicKey {
             if n != 0 {
                 coeffs.push(n);
             }
-            let p = polynomial::Polynomial::new(coeffs);
+            let p = Polynomial::new(coeffs);
             list.push(p);
         }
         PublicKey { list }
@@ -223,10 +220,10 @@ impl PublicKey {
     pub(self) fn random(dp: u16, delta: u16, tau: u16, secret_key: &SecretKey) -> Self {
         let list: Vec<_> = (0..tau)
             .map(|_| {
-                let q = polynomial::Polynomial::random(dp as usize);
+                let q = Polynomial::random(dp as usize);
                 let sq = secret_key.s.clone().mul(&q);
-                let r = polynomial::Polynomial::random(delta as usize);
-                let rx = r.mul(&polynomial::Polynomial::monomial(1));
+                let r = Polynomial::random(delta as usize);
+                let rx = r.mul(&Polynomial::monomial(1));
                 sq.add(&rx)
             })
             .collect();
@@ -268,12 +265,8 @@ impl PublicKey {
         }
         bytes_outer
     }
-}
 
-impl Deref for PublicKey {
-    type Target = Vec<polynomial::Polynomial>;
-
-    fn deref(&self) -> &Self::Target {
+    pub(crate) fn get_polynomials(&self) -> &Vec<Polynomial> {
         &self.list
     }
 }

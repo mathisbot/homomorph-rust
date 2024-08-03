@@ -17,7 +17,7 @@ use crate::{ByteConvertible, Ciphered};
 /// ## Example
 ///
 /// ```rust
-/// use homomorph::{Ciphered, HomomorphicOperation1, Polynomial};
+/// use homomorph::{Ciphered, HomomorphicOperation1};
 ///
 /// #[derive(Copy, Clone)]
 /// struct MyStruct {
@@ -65,7 +65,7 @@ pub trait HomomorphicOperation1<T: ByteConvertible> {
 /// ## Example
 ///
 /// ```rust
-/// use homomorph::{Ciphered, HomomorphicOperation2, Polynomial};
+/// use homomorph::{Ciphered, CipheredBit, HomomorphicOperation2};
 ///
 /// #[derive(Copy, Clone)]
 /// struct MyStruct {
@@ -80,7 +80,7 @@ pub trait HomomorphicOperation1<T: ByteConvertible> {
 ///     ///
 ///     /// `d/delta` on cipher must have been at least `2*sizeof::<T>()`.
 ///     unsafe fn apply(a: &Ciphered<MyStruct>, b: &Ciphered<MyStruct>) -> Ciphered<MyStruct> {
-///         let mut c_pol: Vec<Polynomial> = Vec::with_capacity(a.len().max(b.len()));
+///         let mut c_pol: Vec<CipheredBit> = Vec::with_capacity(a.len().max(b.len()));
 ///
 ///         // Boring details here...
 ///

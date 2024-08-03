@@ -1,32 +1,32 @@
 use crate::{
-    Ciphered, HomomorphicAddition, HomomorphicMultiplication, HomomorphicOperation2, Polynomial,
+    Ciphered, CipheredBit, HomomorphicAddition, HomomorphicMultiplication, HomomorphicOperation2,
 };
 
 use alloc::vec::Vec;
 
-fn homomorph_add_internal(a: &[Polynomial], b: &[Polynomial]) -> Vec<Polynomial> {
+fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredBit> {
     let longest = a.len().max(b.len());
     let mut result = Vec::with_capacity(longest + 1);
-    let mut carry = Polynomial::null();
+    let mut carry = CipheredBit::zero();
 
     // Avoid borrowing issues
-    let null_pol = Polynomial::null();
+    let null_bit = CipheredBit::zero();
 
     for i in 0..longest {
-        let p1 = a.get(i).unwrap_or(&null_pol);
-        let p2 = b.get(i).unwrap_or(&null_pol);
-        let s = p1.add(p2).add(&carry);
+        let p1 = a.get(i).unwrap_or(&null_bit);
+        let p2 = b.get(i).unwrap_or(&null_bit);
+        let s = p1.xor(p2).xor(&carry);
 
         // This is too long and can be simplified :
         // carry = p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
         // c <- (p1+p2)*c + p1*p2 + p1*p2*(p1+p2)*c
         // c <- c*(p1+p2)*(1+p1*p2) + p1*p2
-        let p1_p2 = p1.mul(p2);
+        let p1_p2 = p1.and(p2);
         carry = p1
-            .add(p2)
-            .mul(&carry)
-            .mul(&Polynomial::monomial(0).add(&p1_p2))
-            .add(&p1_p2);
+            .xor(p2)
+            .and(&carry)
+            .and(&CipheredBit::one().xor(&p1_p2))
+            .xor(&p1_p2);
 
         result.push(s);
     }
@@ -55,23 +55,23 @@ macro_rules! impl_homomorphic_addition_uint {
 impl_homomorphic_addition_uint!(u8, u16, u32, usize, u64, u128);
 
 // https://en.m.wikipedia.org/wiki/Binary_multiplier#Unsigned_integers
-fn homomorph_mul_internal(a: &[Polynomial], b: &[Polynomial]) -> Vec<Polynomial> {
+fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredBit> {
     // We stop before overflow as overflowed bits will be thrown away on decryption
     let max_len = a.len().max(b.len());
 
     // TODO: Remove this line when the algorithm is implemented
     #[allow(unused_mut, unused_variables)]
-    let mut result: Vec<Polynomial> = vec![Polynomial::null(); max_len];
+    let mut result: Vec<CipheredBit> = vec![CipheredBit::zero(); max_len];
 
     // Avoid borrowing issues
-    let null_pol = Polynomial::null();
+    let null_bit = CipheredBit::zero();
 
     let mut partial_products = Vec::with_capacity(max_len);
     for i in 0..max_len {
         let mut pi = Vec::with_capacity(max_len);
-        let ai = a.get(i).unwrap_or(&null_pol);
+        let ai = a.get(i).unwrap_or(&null_bit);
         for j in 0..max_len {
-            pi.push(ai.mul(b.get(j).unwrap_or(&Polynomial::null())));
+            pi.push(ai.and(b.get(j).unwrap_or(&null_bit)));
         }
         partial_products.push(pi);
     }

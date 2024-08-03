@@ -91,7 +91,7 @@ fn main() {
         NUMBER_OF_TESTS, elapsed
     );
     println!(
-        "Time needed to decrypt 1 data: {:?}",
+        "Time needed to decrypt 1 processed data: {:?}",
         elapsed / NUMBER_OF_TESTS as u32
     );
 

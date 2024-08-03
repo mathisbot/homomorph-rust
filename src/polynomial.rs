@@ -1,3 +1,5 @@
+//! Polynomial backend for fast operations
+
 use alloc::vec::Vec;
 
 /// A polynomial over Z/2Z.

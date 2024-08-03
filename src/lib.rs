@@ -111,7 +111,7 @@
 //! To decipher it, call `Ciphered::decipher` on the ciphered data.
 //!
 //! The system is in fact very simple, as it needs to be very general.
-//! In concrete terms, every single bit of your data is ciphered as one polynomial.
+//! Every bit is ciphered as a `CipheredBit`, which is a polynomial in the backend.
 //! If you want to learn more about the system used here, visit <https://github.com/mathisbot/homomorph-rust>
 //!
 //! #### `HomomorphicOperationX<T>` trait
@@ -125,9 +125,11 @@
 //! The trait only bounds one function to implement, `apply`.
 //! The operation is performed on raw data, which means it takes `Ciphered<T>` as arguments.
 //!
-//! Inside of the function, you will have to work with `Cipehered<T>` as if it were a `Vec<Polynomial>`
+//! Inside of the function, you can work with `Cipehered<T>` as if it were a `Vec<CipheredBit>`
 //! (because this is actually what it is).
-//! From that point, all operations are highly unsafe as you are working with raw bits, represented as polynomials.
+//! From that point, all operations are highly unsafe as you are working with raw bits.
+//!
+//! You will be able to apply logic gates to the `CipheredBit`s.
 //!
 //! #### Homomorphic operations
 //!
@@ -184,19 +186,15 @@
 //! If we then want to implement an homomorphic addition for `usize`, we will have to define a struct `HomomorphicAddition`
 //! that implements the trait `HomomorphicOperation2<usize>`.
 //!
-//! The key to implement such operations is to mimic the behavior of the operation on unciphered bits, but the bits are just polynomials.
+//! The key to implement such operations is to mimic the behavior of the operation on unciphered bits, but the bits are unknown.
 //! The only little trick is that we can't take decisions based on the value of the bits, as they're ciphered.
 //!
-//! Keep in mind that you can apply logical gates to the "bits" by operating on Polynomials:
-//! - AND: `mul`
-//! - XOR: `add`
-//! - NOT: Apply NOT to the last bit of the first coefficient
-//! - OR: Add sum and product of the two polynomials
+//! Keep in mind that you can apply logical gates to the ciphered bits.
 //!
 //! Here, we just mimic how a processor would implement addition on uint.
 //!
 //! ```rust
-//! use homomorph::{Ciphered, HomomorphicOperation2, Polynomial};
+//! use homomorph::{Ciphered, CipheredBit, HomomorphicOperation2};
 //!
 //! // Here, we derive Copy so that the system can cipher the data
 //! #[derive(Copy, Clone)]
@@ -212,7 +210,7 @@
 //!     ///
 //!     /// `d/delta` on cipher must have been at least `2*sizeof::<T>()`.
 //!     unsafe fn apply(a: &Ciphered<MyStruct>, b: &Ciphered<MyStruct>) -> Ciphered<MyStruct> {
-//!         let mut c_pol: Vec<Polynomial> = Vec::with_capacity(a.len().max(b.len()));
+//!         let mut c_pol: Vec<CipheredBit> = Vec::with_capacity(a.len().max(b.len()));
 //!
 //!         // Boring details here...
 //!
@@ -242,7 +240,6 @@ extern crate alloc;
 pub use getrandom::register_custom_getrandom as provide_getrandom;
 
 mod polynomial;
-pub use polynomial::Polynomial;
 
 mod context;
 pub use context::*;
