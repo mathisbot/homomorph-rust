@@ -96,12 +96,7 @@ fn main() {
     );
 
     // Check if the results are correct
-    let data3: Vec<_> = data1
-        .iter()
-        .zip(data2.iter())
-        .map(|(&data1, &data2)| data1 + data2)
-        .collect();
     for i in 0..NUMBER_OF_TESTS {
-        assert_eq!(decrypted_data_add[i], data3[i]);
+        assert_eq!(data1[i] + data2[i], decrypted_data_add[i]);
     }
 }

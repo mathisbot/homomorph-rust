@@ -77,7 +77,6 @@ fn homomorph_mul_internal(a: &[Polynomial], b: &[Polynomial]) -> Vec<Polynomial>
     }
 
     // TODO: Implement the rest of the algorithm
-
     todo!("Homormophic multiplication for uint");
     #[allow(unreachable_code)]
     result
@@ -122,7 +121,7 @@ mod tests {
         let b = Ciphered::cipher(&20u8, pk);
         let c = unsafe { HomomorphicAddition::apply(&a, &b) };
         let d = c.decipher(sk);
-        assert_eq!(d, 42);
+        assert_eq!(42, d);
 
         let a_raw = thread_rng().gen::<u16>() / 2;
         let b_raw = thread_rng().gen::<u16>() / 2;
@@ -131,7 +130,7 @@ mod tests {
         let b = Ciphered::cipher(&b_raw, pk);
         let c = unsafe { HomomorphicAddition::apply(&a, &b) };
         let d = c.decipher(sk);
-        assert_eq!(d, a_raw + b_raw);
+        assert_eq!(a_raw + b_raw, d);
     }
 
     #[test]
@@ -159,7 +158,7 @@ mod tests {
         let b = Ciphered::cipher(&b_raw, pk);
         let c = unsafe { HomomorphicAddition::apply(&a, &b) };
         let d = c.decipher(sk);
-        assert_eq!(d, a_raw + b_raw);
+        assert_eq!(a_raw + b_raw, d);
     }
 
     #[test]
@@ -194,7 +193,7 @@ mod tests {
         let d = unsafe { HomomorphicAddition::apply(&a, &b) };
         let e = unsafe { HomomorphicAddition::apply(&d, &c) };
         let f = e.decipher(sk);
-        assert_eq!(f, a_raw + b_raw + c_raw);
+        assert_eq!(a_raw + b_raw + c_raw, f);
     }
 
     #[test]
@@ -211,7 +210,7 @@ mod tests {
         let b = Ciphered::cipher(&7u8, pk);
         let c = unsafe { HomomorphicMultiplication::apply(&a, &b) };
         let d = c.decipher(sk);
-        assert_eq!(d, 42);
+        assert_eq!(42, d);
 
         let a_raw = thread_rng().gen::<u16>() / 2;
         let b_raw = thread_rng().gen::<u16>() / 2;
@@ -220,6 +219,6 @@ mod tests {
         let b = Ciphered::cipher(&b_raw, pk);
         let c = unsafe { HomomorphicMultiplication::apply(&a, &b) };
         let d = c.decipher(sk);
-        assert_eq!(d, a_raw * b_raw);
+        assert_eq!(a_raw * b_raw, d);
     }
 }

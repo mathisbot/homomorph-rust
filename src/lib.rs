@@ -159,10 +159,10 @@
 //!
 //! unsafe impl ByteConvertible for MyStruct {
 //!     fn to_bytes(&self) -> Vec<u8> {
-//!         let mut bytes = Vec::with_capacity(core::mem::size_of::<MyStruct>());
+//!         let mut bytes = Vec::with_capacity(size_of::<MyStruct>());
 //!         unsafe {
-//!             memcpy(self as *const MyStruct as *const u8, bytes.as_mut_ptr(), core::mem::size_of::<MyStruct>());
-//!             bytes.set_len(core::mem::size_of::<MyStruct>());
+//!             memcpy(self as *const MyStruct as *const u8, bytes.as_mut_ptr(), size_of::<MyStruct>());
+//!             bytes.set_len(size_of::<MyStruct>());
 //!         }
 //!         bytes
 //!     }
@@ -173,7 +173,7 @@
 //!             memcpy(
 //!                 bytes.as_ptr(),
 //!                 data.as_mut_ptr() as *mut u8,
-//!                 core::mem::size_of::<MyStruct>(),
+//!                 size_of::<MyStruct>(),
 //!             );
 //!             data.assume_init()
 //!         }
@@ -186,6 +186,12 @@
 //!
 //! The key to implement such operations is to mimic the behavior of the operation on unciphered bits, but the bits are just polynomials.
 //! The only little trick is that we can't take decisions based on the value of the bits, as they're ciphered.
+//!
+//! Keep in mind that you can apply logical gates to the "bits" by operating on Polynomials:
+//! - AND: `mul`
+//! - XOR: `add`
+//! - NOT: Apply NOT to the last bit of the first coefficient
+//! - OR: Add sum and product of the two polynomials
 //!
 //! Here, we just mimic how a processor would implement addition on uint.
 //!
@@ -231,6 +237,9 @@
 
 #[macro_use]
 extern crate alloc;
+
+#[cfg(feature = "no_rand")]
+pub use getrandom::register_custom_getrandom as provide_getrandom;
 
 mod polynomial;
 pub use polynomial::Polynomial;

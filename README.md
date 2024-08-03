@@ -43,9 +43,15 @@ I do not intend to publish the crate on `crates.io`.
     cargo doc
     ```
 
+## Bare metal
+
+The crates partially supports `no_std` environments: it uses `Vec` a lot, so it relies on an external `alloc` crate. As each bit ciphered takes up a lot of space, storing ciphered objects on the stack wouldn't be possible (at least on low end machines). This is why the heap is needed here.
+
+You may also need a source of randomness. On bare x86, RDRAND is already implemented. On other architectures, you will have to implement `provide_getrandom`, which is a re-export of `getrandom::register_custom_getrandom`, gated behind the `no_rand` feature.
+
 ## Benchmarks
 
-Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 1 000 tries on `u32` using `mimalloc`.
+Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 10 000 `u32`s using `mimalloc`.
 
 Parameters used for this benchmark were :
 - `d` = 128
@@ -55,20 +61,14 @@ Parameters used for this benchmark were :
 
 | Operation         | Average time     |
 |:-----------------:|:----------------:|
-| Encryption        |      73.1 µs     |
-| Decryption        |      11.6 µs     |
-| Add               |       3.8 ms     |
-| Dec. after add    |       5.3 ms     |
+| Encryption        |      43.4 µs     |
+| Decryption        |      13.8 µs     |
+| Add               |       3.7 ms     |
+| Dec. after add    |       5.2 ms     |
 
 It is still more efficient to decrypt, operate and then re-encrypt the data. This limits the use of the system to applications where security is paramount, and takes precedence over speed.
 
 It's worth remembering that the system is inherently slow, as each bit is ciphered as a polynomial whose degree is at least $d+d'$ (the degree skyrockets with each homomorphic operation), and that no system that is both secure and fast has yet been found.
-
-## Bare metal
-
-The crates partially supports `no_std` environments: it uses `Vec` a lot, so it relies on an external `alloc` crate.
-
-As each bit ciphered takes up a lot of space, storing ciphered objects on the stack wouldn't be possible (at least on low end machines). This is why the heap is needed here.
 
 ## System
 

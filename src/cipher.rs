@@ -23,14 +23,14 @@ pub unsafe trait ByteConvertible {
 // by simply reading stack data as bytes
 unsafe impl<T: Copy + Sized> ByteConvertible for T {
     fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(core::mem::size_of::<T>());
+        let mut bytes = Vec::with_capacity(size_of::<T>());
         unsafe {
             memcpy(
                 self as *const T as *const u8,
                 bytes.as_mut_ptr(),
-                core::mem::size_of::<T>(),
+                size_of::<T>(),
             );
-            bytes.set_len(core::mem::size_of::<T>());
+            bytes.set_len(size_of::<T>());
         }
         bytes
     }
@@ -46,21 +46,17 @@ unsafe impl<T: Copy + Sized> ByteConvertible for T {
     /// If the byte array is too big, data will be truncated.
     /// This can happen with overflows when adding two unsigned integers for example.
     fn from_bytes(bytes: &[u8]) -> Self {
-        if bytes.len() < core::mem::size_of::<T>() {
+        if bytes.len() < size_of::<T>() {
             panic!(
                 "Invalid size of bytes for conversion: {} instead of {}",
                 bytes.len(),
-                core::mem::size_of::<T>()
+                size_of::<T>()
             );
         }
 
         let mut data = core::mem::MaybeUninit::uninit();
         unsafe {
-            memcpy(
-                bytes.as_ptr(),
-                data.as_mut_ptr() as *mut u8,
-                core::mem::size_of::<T>(),
-            );
+            memcpy(bytes.as_ptr(), data.as_mut_ptr() as *mut u8, size_of::<T>());
             data.assume_init()
         }
     }
@@ -98,11 +94,9 @@ impl<T: ByteConvertible> Ciphered<T> {
         let num_elements = (tau + 7) / 8;
         let mut part: Vec<u8> = Vec::with_capacity(num_elements);
 
-        unsafe {
-            let bytes = core::slice::from_raw_parts_mut(part.as_mut_ptr(), num_elements);
-            getrandom::getrandom(bytes).unwrap();
-            part.set_len(num_elements);
-        }
+        let bytes = unsafe { core::slice::from_raw_parts_mut(part.as_mut_ptr(), num_elements) };
+        getrandom::getrandom(bytes).unwrap();
+        unsafe { part.set_len(num_elements) };
 
         part
     }
