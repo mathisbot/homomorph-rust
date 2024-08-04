@@ -245,15 +245,15 @@ mod tests {
         context.generate_public_key();
         let pk = context.get_public_key().unwrap();
 
-        let mut a = Ciphered::cipher(&0b00001010u8, pk);
+        let mut a = Ciphered::cipher(&0b0000_1010_u8, pk);
         unsafe { HomomorphicNotGate::apply(&mut a) };
         let d = a.decipher(context.get_secret_key().unwrap());
-        assert_eq!(0b11110101, d);
+        assert_eq!(0b1111_0101, d);
 
-        let mut a = Ciphered::cipher(&0b00001100u8, pk);
+        let mut a = Ciphered::cipher(&0b0000_1100_u8, pk);
         unsafe { HomomorphicNotGate::apply(&mut a) };
         let d = a.decipher(context.get_secret_key().unwrap());
-        assert_eq!(0b11110011, d);
+        assert_eq!(0b1111_0011, d);
     }
 
     #[test]
@@ -311,6 +311,7 @@ mod tests {
 
     #[test]
     #[ignore = "long test"]
+    #[allow(clippy::many_single_char_names)]
     fn test_successive_homomorphic_addition() {
         let parameters = Parameters::new(256, 128, 1, 128);
         let mut context = Context::new(parameters);

@@ -3,7 +3,7 @@
 use alloc::vec::Vec;
 
 /// Represents a coefficient of a `Polynomial`.
-pub(crate) type Coefficient = u128;
+pub type Coefficient = u128;
 
 /// A polynomial over Z/2Z.
 ///
@@ -15,7 +15,7 @@ pub(crate) type Coefficient = u128;
 /// The first element of the vector are the terms with the least power of X
 /// BUT bits are reversed because of binary representation, so the last bit of the first element is the constant term.
 ///
-/// Thus, if x is Coefficient::BITS, coefficient of x^i is stored in the (i/x)-th usize at the (x-1-i%x)-th bit.
+/// Thus, if x is `Coefficient::BITS`, coefficient of x^i is stored in the (i/x)-th usize at the (x-1-i%x)-th bit.
 #[derive(Debug, Eq, zeroize::Zeroize)]
 pub struct Polynomial {
     coefficients: Vec<Coefficient>,
@@ -31,9 +31,10 @@ impl Polynomial {
     ///
     /// If the vector of coefficients is empty.
     pub fn new(coefficients: Vec<Coefficient>) -> Self {
-        if coefficients.is_empty() {
-            panic!("The vector of coefficients must not be empty.");
-        }
+        assert!(
+            !coefficients.is_empty(),
+            "The vector of coefficients must not be empty."
+        );
         let degree = Self::compute_degree(&coefficients);
         Self {
             coefficients,
@@ -51,9 +52,10 @@ impl Polynomial {
     ///
     /// If the vector of coefficients is empty.
     pub unsafe fn new_unchecked(coefficients: Vec<Coefficient>, degree: usize) -> Self {
-        if coefficients.is_empty() {
-            panic!("The vector of coefficients must not be empty.");
-        }
+        assert!(
+            !coefficients.is_empty(),
+            "The vector of coefficients must not be empty."
+        );
         Self {
             coefficients,
             degree,
@@ -65,12 +67,13 @@ impl Polynomial {
     /// This function shouldn't be used outside of the crate as it is
     /// easier to get a polynomial's degree using the `degree` field.
     pub(crate) fn compute_degree(coefficients: &[Coefficient]) -> usize {
-        if let Some(i) = coefficients.iter().rposition(|&coeff| coeff != 0) {
-            Coefficient::BITS as usize - 1 - coefficients[i].leading_zeros() as usize
-                + Coefficient::BITS as usize * i
-        } else {
-            0
-        }
+        coefficients
+            .iter()
+            .rposition(|&coeff| coeff != 0)
+            .map_or(0, |i| {
+                Coefficient::BITS as usize - 1 - coefficients[i].leading_zeros() as usize
+                    + Coefficient::BITS as usize * i
+            })
     }
 
     /// Generate a random polynomial of a given degree
@@ -87,7 +90,7 @@ impl Polynomial {
 
         let bytes = unsafe {
             core::slice::from_raw_parts_mut(
-                coefficients.as_mut_ptr() as *mut u8,
+                coefficients.as_mut_ptr().cast::<u8>(),
                 num_elements * size_of::<Coefficient>(),
             )
         };
@@ -137,12 +140,12 @@ impl Polynomial {
     }
 
     /// Returns the degree of the polynomial
-    pub fn degree(&self) -> usize {
+    pub const fn degree(&self) -> usize {
         self.degree
     }
 
     /// Returns the coefficients of the polynomial
-    pub fn coefficients(&self) -> &Vec<Coefficient> {
+    pub const fn coefficients(&self) -> &Vec<Coefficient> {
         &self.coefficients
     }
 
@@ -165,11 +168,11 @@ impl Polynomial {
             );
         }
 
-        if self.degree() != other.degree() {
+        if self.degree() == other.degree() {
             // We know that the degree of the sum is exactly max(deg(p1), deg(p2)).
-            unsafe { Self::new_unchecked(result, max_deg) }
-        } else {
             Self::new(result)
+        } else {
+            unsafe { Self::new_unchecked(result, max_deg) }
         }
     }
 
@@ -256,27 +259,27 @@ impl Polynomial {
             r_degree = Self::compute_degree(&r);
         }
 
-        unsafe { Polynomial::new_unchecked(r, r_degree) }
+        unsafe { Self::new_unchecked(r, r_degree) }
     }
 }
 
 impl Clone for Polynomial {
-    fn clone(&self) -> Polynomial {
+    fn clone(&self) -> Self {
         let mut cloned_coefficients = Vec::with_capacity(
             (self.degree() + Coefficient::BITS as usize - 1) / Coefficient::BITS as usize,
         );
         for i in 0..=(self.degree() / Coefficient::BITS as usize) {
             cloned_coefficients.push(self.coefficients()[i]);
         }
-        unsafe { Polynomial::new_unchecked(cloned_coefficients, self.degree()) }
+        unsafe { Self::new_unchecked(cloned_coefficients, self.degree()) }
     }
 }
 
 impl PartialEq for Polynomial {
     fn eq(&self, other: &Self) -> bool {
         self.degree() == other.degree()
-            && self.coefficients()[0..self.degree() / Coefficient::BITS as usize + 1]
-                == other.coefficients()[0..other.degree() / Coefficient::BITS as usize + 1]
+            && self.coefficients()[0..=self.degree() / Coefficient::BITS as usize]
+                == other.coefficients()[0..=self.degree() / Coefficient::BITS as usize]
     }
 }
 
@@ -314,10 +317,12 @@ mod test {
     #[test]
     fn test_clone() {
         let p1 = Polynomial::new(vec![0b1001]);
+        #[allow(clippy::redundant_clone)]
         let p2 = p1.clone();
         assert_eq!(p1, p2);
 
-        let p1 = Polynomial::new(vec![0b1001, 0b1000001101011010, 0b0, 0b1, 0b0]);
+        let p1 = Polynomial::new(vec![0b1001, 0b1000_0011_0101_1010, 0b0, 0b1, 0b0]);
+        #[allow(clippy::redundant_clone)]
         let p2 = p1.clone();
         assert_eq!(p1, p2);
     }
@@ -328,7 +333,7 @@ mod test {
         assert!(!p.evaluate(true));
         assert!(p.evaluate(false));
 
-        let p = Polynomial::new(vec![0b111100010, 0b1001]);
+        let p = Polynomial::new(vec![0b1111_00010, 0b1001]);
         assert!(p.evaluate(true));
         assert!(!p.evaluate(false));
     }
@@ -380,7 +385,7 @@ mod test {
         assert!(p3.degree() < p2.degree());
         assert_eq!(*p3.coefficients(), vec![1]);
 
-        let p1 = Polynomial::new(vec![0b1010101101]);
+        let p1 = Polynomial::new(vec![0b10_1010_1101]);
         let p2 = Polynomial::new(vec![0b11011]);
         let p3 = p1.rem(&p2);
         assert!(p3.degree() < p2.degree());

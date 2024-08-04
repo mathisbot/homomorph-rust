@@ -2,6 +2,7 @@ use crate::polynomial::Polynomial;
 use crate::{PublicKey, SecretKey};
 
 use alloc::vec::Vec;
+use core::mem::MaybeUninit;
 use core::ops::Deref;
 use core::ptr::copy_nonoverlapping as memcpy;
 
@@ -12,36 +13,41 @@ use core::ptr::copy_nonoverlapping as memcpy;
 pub struct CipheredBit(Polynomial);
 
 impl CipheredBit {
+    #[must_use]
     /// Returns the null bit
     ///
     /// Properties of the system allow you to blindly
     /// use it as if it were a ciphered bit
     pub fn zero() -> Self {
-        CipheredBit(Polynomial::null())
+        Self(Polynomial::null())
     }
 
+    #[must_use]
     /// Returns the bit 1
     ///
     /// Properties of the system allow you to blindly
     /// use it as if it were a ciphered bit
     pub fn one() -> Self {
-        CipheredBit(Polynomial::monomial(0))
+        Self(Polynomial::monomial(0))
     }
 
+    #[must_use]
     /// Apply the AND gate to two ciphered bits
     ///
     /// In the backend, this is done by multiplying the two polynomials
     pub fn and(&self, other: &Self) -> Self {
-        CipheredBit(self.0.mul(&other.0))
+        Self(self.0.mul(&other.0))
     }
 
+    #[must_use]
     /// Apply the XOR gate to two ciphered bits
     ///
     /// In the backend, this is done by adding the two polynomials
     pub fn xor(&self, other: &Self) -> Self {
-        CipheredBit(self.0.add(&other.0))
+        Self(self.0.add(&other.0))
     }
 
+    #[must_use]
     /// Apply the OR gate to two ciphered bits
     ///
     /// In the backend, this is done by adding the two polynomials and their product
@@ -49,9 +55,10 @@ impl CipheredBit {
     /// Keep in mind that it may be faster to simplify the overall expression of your operation
     /// instead of using the OR gate
     pub fn or(&self, other: &Self) -> Self {
-        CipheredBit(self.0.add(&other.0).add(&self.0.mul(&other.0)))
+        Self(self.0.add(&other.0).add(&self.0.mul(&other.0)))
     }
 
+    #[must_use]
     /// Apply the NOT gate to a ciphered bit
     ///
     /// In the backend, this is done by adding the polynomial to the unit polynomial
@@ -81,7 +88,7 @@ unsafe impl<T: Copy + Sized> ByteConvertible for T {
         let mut bytes = Vec::with_capacity(size_of::<T>());
         unsafe {
             memcpy(
-                self as *const T as *const u8,
+                core::ptr::from_ref(self).cast::<u8>(),
                 bytes.as_mut_ptr(),
                 size_of::<T>(),
             );
@@ -101,17 +108,20 @@ unsafe impl<T: Copy + Sized> ByteConvertible for T {
     /// If the byte array is too big, data will be truncated.
     /// This can happen with overflows when adding two unsigned integers for example.
     fn from_bytes(bytes: &[u8]) -> Self {
-        if bytes.len() < size_of::<T>() {
-            panic!(
-                "Invalid size of bytes for conversion: {} instead of {}",
-                bytes.len(),
-                size_of::<T>()
-            );
-        }
+        assert!(
+            bytes.len() >= size_of::<T>(),
+            "Invalid size of bytes for conversion: {} instead of {}",
+            bytes.len(),
+            size_of::<T>()
+        );
 
-        let mut data = core::mem::MaybeUninit::uninit();
+        let mut data: MaybeUninit<T> = core::mem::MaybeUninit::uninit();
         unsafe {
-            memcpy(bytes.as_ptr(), data.as_mut_ptr() as *mut u8, size_of::<T>());
+            memcpy(
+                bytes.as_ptr(),
+                data.as_mut_ptr().cast::<u8>(),
+                size_of::<T>(),
+            );
             data.assume_init()
         }
     }
@@ -125,6 +135,7 @@ pub struct Ciphered<T: ByteConvertible> {
 }
 
 impl<T: ByteConvertible> Ciphered<T> {
+    #[must_use]
     /// This function is used to create a new `Ciphered` object
     ///
     /// This function should only be used in unsafe contexts
@@ -143,6 +154,7 @@ impl<T: ByteConvertible> Ciphered<T> {
         }
     }
 
+    #[must_use]
     // u8 is used instead of bool because they are the same size
     // while u8 can store 8 times more information
     fn part(tau: usize) -> Vec<u8> {
@@ -156,13 +168,15 @@ impl<T: ByteConvertible> Ciphered<T> {
         part
     }
 
+    #[must_use]
     // See https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system
     fn cipher_bit(x: bool, pk: &PublicKey) -> CipheredBit {
         let pk = pk.get_polynomials();
         let tau = pk.len();
         let random_part = Self::part(tau);
 
-        let mut sum = unsafe { Polynomial::new_unchecked(vec![if x { 1 } else { 0 }], 0) };
+        let mut sum =
+            unsafe { Polynomial::new_unchecked(vec![crate::polynomial::Coefficient::from(x)], 0) };
         for i in 0..tau {
             let random = random_part[i / 8] & (1 << (i % 8));
             if random != 0 {
@@ -173,6 +187,7 @@ impl<T: ByteConvertible> Ciphered<T> {
         CipheredBit(sum)
     }
 
+    #[must_use]
     /// Ciphers data
     ///
     /// ## Arguments
@@ -192,6 +207,7 @@ impl<T: ByteConvertible> Ciphered<T> {
         }
     }
 
+    #[must_use]
     // See https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system
     fn decipher_bit(c_bit: &CipheredBit, sk: &SecretKey) -> bool {
         let sk = sk.get_polynomial();
@@ -199,6 +215,7 @@ impl<T: ByteConvertible> Ciphered<T> {
         remainder.evaluate(false)
     }
 
+    #[must_use]
     /// Deciphers data
     ///
     /// ## Arguments
@@ -217,7 +234,7 @@ impl<T: ByteConvertible> Ciphered<T> {
                 chunk
                     .iter()
                     .enumerate()
-                    .fold(0u8, |byte, (i, &bit)| byte | ((bit as u8) << i))
+                    .fold(0u8, |byte, (i, &bit)| byte | ((u8::from(bit)) << i))
             })
             .collect::<Vec<_>>();
 
@@ -241,6 +258,13 @@ mod tests {
     use super::*;
     use crate::{Context, Parameters};
 
+    #[derive(Copy, Clone, Debug, PartialEq)]
+    #[repr(C)]
+    struct MyStruct {
+        a: usize,
+        b: usize,
+    }
+
     #[test]
     fn test_cipher() {
         let parameters = Parameters::new(64, 32, 8, 32);
@@ -250,7 +274,7 @@ mod tests {
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
-        let data = 0b10001010u8;
+        let data = 0b1000_1010_u8;
         let ciphered = Ciphered::cipher(&data, pk);
         let decrypted = ciphered.decipher(sk);
         assert_eq!(data, decrypted);
@@ -265,12 +289,6 @@ mod tests {
         let decrypted = ciphered.decipher(sk);
         assert_eq!(data, decrypted);
 
-        #[derive(Copy, Clone, Debug, PartialEq)]
-        #[repr(C)]
-        struct MyStruct {
-            a: usize,
-            b: usize,
-        }
         let data = MyStruct { a: 42, b: 69 };
         let ciphered = Ciphered::cipher(&data, pk);
         let decrypted = ciphered.decipher(sk);

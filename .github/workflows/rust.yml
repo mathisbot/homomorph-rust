@@ -38,7 +38,7 @@ jobs:
       run: cargo run --release --example new_struct
 
     - name: Run Clippy
-      run: cargo clippy --all-targets --all-features --no-deps -- -D warnings
+      run: cargo clippy --all-targets --all-features -- -D warnings --no-deps
 
     - name: Check formatting
       run: cargo fmt -- --check

@@ -107,6 +107,7 @@ mod tests {
     #[test]
     #[ignore = "long test"]
     #[should_panic = "not yet implemented: Homormophic addition for int"]
+    #[allow(clippy::many_single_char_names)]
     fn test_successive_homomorphic_addition() {
         let parameters = Parameters::new(256, 128, 1, 128);
         let mut context = Context::new(parameters);

@@ -49,8 +49,8 @@
 //! let sk_bytes = context.get_secret_key().unwrap().get_bytes();
 //! let pk_bytes = context.get_public_key().unwrap().get_bytes();
 //!
-//! context.set_secret_key(SecretKey::new(sk_bytes));
-//! context.set_public_key(PublicKey::new(pk_bytes));
+//! context.set_secret_key(SecretKey::new(&sk_bytes));
+//! context.set_public_key(PublicKey::new(&pk_bytes));
 //! ```
 //!
 //! #### Cipher
@@ -267,13 +267,14 @@
 //!
 //! The source code is available on [GitHub](<https://github.com/mathisbot/homomorph-rust>).
 //! You will also find very interesting details on the system and its security.
-
 #![no_std]
+#![deny(clippy::all)]
+#![warn(clippy::nursery, clippy::pedantic)]
 
 #[macro_use]
 extern crate alloc;
 
-#[cfg(feature = "no_rand")]
+#[cfg(feature = "custom_rand")]
 pub use getrandom::register_custom_getrandom as provide_getrandom;
 
 mod polynomial;
