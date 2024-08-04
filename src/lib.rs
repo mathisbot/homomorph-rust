@@ -73,7 +73,9 @@
 //! For instance, you can already add two ciphered unsigned integers.
 //!
 //! ```no_run
-//! use homomorph::{Context, Parameters, Ciphered, HomomorphicAddition, HomomorphicOperation2};
+//! use homomorph::{Ciphered, Context, Parameters};
+//! use homomorph::operations::HomomorphicOperation2;
+//! use homomorph::impls::numbers::HomomorphicAddition;
 //!
 //! let parameters = Parameters::new(128, 64, 1, 64);
 //! let mut context = Context::new(parameters);
@@ -194,7 +196,8 @@
 //! Here, we just mimic how a processor would implement addition on uint.
 //!
 //! ```rust
-//! use homomorph::{Ciphered, CipheredBit, HomomorphicOperation2};
+//! use homomorph::{Ciphered, CipheredBit};
+//! use homomorph::operations::HomomorphicOperation2;
 //!
 //! // Here, we derive Copy so that the system can cipher the data
 //! #[derive(Copy, Clone)]
@@ -242,13 +245,13 @@ pub use getrandom::register_custom_getrandom as provide_getrandom;
 mod polynomial;
 
 mod context;
-pub use context::*;
+pub use context::{Context, Parameters, PublicKey, SecretKey};
 
 mod cipher;
-pub use cipher::*;
+pub use cipher::{ByteConvertible, Ciphered, CipheredBit};
 
-mod operations;
-pub use operations::*;
+pub mod operations;
 
-mod impls;
-pub use impls::*;
+pub mod impls;
+
+pub mod prelude;

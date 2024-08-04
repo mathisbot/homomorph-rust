@@ -1,7 +1,9 @@
 use rand::{self, Rng};
 use std::time::Instant;
 
-use homomorph::{Ciphered, Context, HomomorphicAddition, HomomorphicOperation2, Parameters};
+use homomorph::impls::numbers::HomomorphicAddition;
+use homomorph::operations::HomomorphicOperation2;
+use homomorph::{Ciphered, Context, Parameters};
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;

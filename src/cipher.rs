@@ -29,23 +29,34 @@ impl CipheredBit {
     }
 
     /// Apply the AND gate to two ciphered bits
+    ///
+    /// In the backend, this is done by multiplying the two polynomials
     pub fn and(&self, other: &Self) -> Self {
         CipheredBit(self.0.mul(&other.0))
     }
 
-    /// Apply the OR gate to two ciphered bits
-    pub fn or(&self, other: &Self) -> Self {
-        CipheredBit(self.0.add(&other.0).add(&self.0.mul(&other.0)))
-    }
-
     /// Apply the XOR gate to two ciphered bits
+    ///
+    /// In the backend, this is done by adding the two polynomials
     pub fn xor(&self, other: &Self) -> Self {
         CipheredBit(self.0.add(&other.0))
     }
 
+    /// Apply the OR gate to two ciphered bits
+    ///
+    /// In the backend, this is done by adding the two polynomials and their product
+    ///
+    /// Keep in mind that it may be faster to simplify the overall expression of your operation
+    /// instead of using the OR gate
+    pub fn or(&self, other: &Self) -> Self {
+        CipheredBit(self.0.add(&other.0).add(&self.0.mul(&other.0)))
+    }
+
     /// Apply the NOT gate to a ciphered bit
+    ///
+    /// In the backend, this is done by adding the polynomial to the unit polynomial
     pub fn not(&self) -> Self {
-        CipheredBit(self.0.add(&Polynomial::monomial(0)))
+        self.xor(&Self::one())
     }
 }
 

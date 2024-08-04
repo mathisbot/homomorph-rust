@@ -1,8 +1,64 @@
-use crate::{
-    Ciphered, CipheredBit, HomomorphicAddition, HomomorphicMultiplication, HomomorphicOperation2,
+use crate::impls::numbers::{
+    HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
+    HomomorphicOrGate, HomomorphicXorGate,
 };
+use crate::operations::{HomomorphicOperation1, HomomorphicOperation2};
+use crate::{Ciphered, CipheredBit};
 
 use alloc::vec::Vec;
+
+macro_rules! impl_homomorphic_gates_uint {
+    ($($t:ty),+) => {
+        $(
+            impl HomomorphicOperation2<$t> for HomomorphicAndGate {
+                /// Perform a homomorphic AND gate on two ciphered numbers.
+                ///
+                /// ## Safety
+                ///
+                /// `d/delta` on cipher must have been at least 2.
+                unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
+                    Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.and(b)).collect())
+                }
+            }
+
+            impl HomomorphicOperation2<$t> for HomomorphicOrGate {
+                /// Perform a homomorphic OR gate on two ciphered numbers.
+                ///
+                /// ## Safety
+                ///
+                /// `d/delta` on cipher must have been at least 2.
+                unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
+                    Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.or(b)).collect())
+                }
+            }
+
+            impl HomomorphicOperation2<$t> for HomomorphicXorGate {
+                /// Perform a homomorphic XOR gate on two ciphered numbers.
+                ///
+                /// ## Safety
+                ///
+                /// `d/delta` on cipher must have been at least 1.
+                unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
+                    Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.xor(b)).collect())
+                }
+            }
+
+            impl HomomorphicOperation1<$t> for HomomorphicNotGate {
+                /// Perform a homomorphic NOT gate on a ciphered number.
+                ///
+                /// ## Safety
+                ///
+                /// `d/delta` on cipher must have been at least 1.
+                unsafe fn apply(a: &mut Ciphered<$t>) -> &mut Ciphered<$t> {
+                    *a = Ciphered::new_from_raw(a.iter().map(|a| a.not()).collect());
+                    a
+                }
+            }
+        )+
+    }
+}
+
+impl_homomorphic_gates_uint!(u8, u16, u32, usize, u64, u128);
 
 fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredBit> {
     let longest = a.len().max(b.len());
@@ -17,8 +73,8 @@ fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
         let p2 = b.get(i).unwrap_or(&null_bit);
         let s = p1.xor(p2).xor(&carry);
 
-        // This is too long and can be simplified :
         // carry = p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
+        // This is too long and can be simplified :
         // c <- (p1+p2)*c + p1*p2 + p1*p2*(p1+p2)*c
         // c <- c*(p1+p2)*(1+p1*p2) + p1*p2
         let p1_p2 = p1.and(p2);
@@ -54,13 +110,16 @@ macro_rules! impl_homomorphic_addition_uint {
 
 impl_homomorphic_addition_uint!(u8, u16, u32, usize, u64, u128);
 
+// TODO: Remove these two lines
+#[allow(unreachable_code)]
+#[allow(unused_variables)]
 // https://en.m.wikipedia.org/wiki/Binary_multiplier#Unsigned_integers
-fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredBit> {
-    // We stop before overflow as overflowed bits will be thrown away on decryption
-    let max_len = a.len().max(b.len());
+fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit], size: usize) -> Vec<CipheredBit> {
+    todo!("Homormophic multiplication for uint");
 
-    // TODO: Remove this line when the algorithm is implemented
-    #[allow(unused_mut, unused_variables)]
+    // We stop before overflow as overflowed bits will be thrown away on decryption
+    let max_len = size;
+
     let mut result: Vec<CipheredBit> = vec![CipheredBit::zero(); max_len];
 
     // Avoid borrowing issues
@@ -76,9 +135,31 @@ fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
         partial_products.push(pi);
     }
 
-    // TODO: Implement the rest of the algorithm
-    todo!("Homormophic multiplication for uint");
-    #[allow(unreachable_code)]
+    // TODO: Fix this broken carry
+    let mut carry: Vec<Vec<CipheredBit>> = Vec::with_capacity(max_len);
+    carry.push(Vec::with_capacity(0));
+    for i in 0..max_len {
+        if i + 1 < max_len {
+            carry.push(Vec::with_capacity(i + carry[i].len()));
+        }
+        // Apply partial products
+        for j in 0..i {
+            if i + 1 < max_len {
+                carry[i + 1].push(partial_products[i][i - j].and(&result[i]));
+            }
+            result[i] = result[i].xor(&partial_products[i][i - j]);
+        }
+        // Propagate carry
+        for j in 0..carry[i].len() {
+            if i + 1 < max_len {
+                let t = result[i].and(&carry[i][j]);
+                carry[i + 1].push(t);
+            }
+            result[i] = result[i].xor(&carry[i][j]);
+        }
+    }
+    // All subsequent carries are thrown away
+
     result
 }
 
@@ -92,7 +173,7 @@ macro_rules! impl_homomorphic_multiplication_uint {
                 ///
                 /// `d/delta` on cipher must have been at least TBD.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    Ciphered::new_from_raw(homomorph_mul_internal(a, b))
+                    Ciphered::new_from_raw(homomorph_mul_internal(a, b, <$t>::BITS as usize))
                 }
             }
         )+
@@ -103,10 +184,78 @@ impl_homomorphic_multiplication_uint!(u8, u16, u32, usize, u64, u128);
 
 #[cfg(test)]
 mod tests {
-    use crate::{Ciphered, HomomorphicAddition, HomomorphicMultiplication, HomomorphicOperation2};
-    use crate::{Context, Parameters};
+    use crate::impls::numbers::{
+        HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
+        HomomorphicOrGate, HomomorphicXorGate,
+    };
+    use crate::operations::{HomomorphicOperation1, HomomorphicOperation2};
+    use crate::{Ciphered, Context, Parameters};
 
     use rand::{thread_rng, Rng};
+
+    #[test]
+    fn test_homomorphic_and_gate() {
+        let parameters = Parameters::new(32, 8, 8, 8);
+        let mut context = Context::new(parameters);
+        context.generate_secret_key();
+        context.generate_public_key();
+        let pk = context.get_public_key().unwrap();
+
+        let a = Ciphered::cipher(&0b1010u8, pk);
+        let b = Ciphered::cipher(&0b1100u8, pk);
+        let c = unsafe { HomomorphicAndGate::apply(&a, &b) };
+        let d = c.decipher(context.get_secret_key().unwrap());
+        assert_eq!(0b1000, d);
+    }
+
+    #[test]
+    fn test_homomorphic_or_gate() {
+        let parameters = Parameters::new(32, 8, 8, 8);
+        let mut context = Context::new(parameters);
+        context.generate_secret_key();
+        context.generate_public_key();
+        let pk = context.get_public_key().unwrap();
+
+        let a = Ciphered::cipher(&0b1010u8, pk);
+        let b = Ciphered::cipher(&0b1100u8, pk);
+        let c = unsafe { HomomorphicOrGate::apply(&a, &b) };
+        let d = c.decipher(context.get_secret_key().unwrap());
+        assert_eq!(0b1110, d);
+    }
+
+    #[test]
+    fn test_homomorphic_xor_gate() {
+        let parameters = Parameters::new(32, 16, 16, 16);
+        let mut context = Context::new(parameters);
+        context.generate_secret_key();
+        context.generate_public_key();
+        let pk = context.get_public_key().unwrap();
+
+        let a = Ciphered::cipher(&0b1010u8, pk);
+        let b = Ciphered::cipher(&0b1100u8, pk);
+        let c = unsafe { HomomorphicXorGate::apply(&a, &b) };
+        let d = c.decipher(context.get_secret_key().unwrap());
+        assert_eq!(0b0110, d);
+    }
+
+    #[test]
+    fn test_homomorphic_not_gate() {
+        let parameters = Parameters::new(32, 16, 16, 16);
+        let mut context = Context::new(parameters);
+        context.generate_secret_key();
+        context.generate_public_key();
+        let pk = context.get_public_key().unwrap();
+
+        let mut a = Ciphered::cipher(&0b00001010u8, pk);
+        unsafe { HomomorphicNotGate::apply(&mut a) };
+        let d = a.decipher(context.get_secret_key().unwrap());
+        assert_eq!(0b11110101, d);
+
+        let mut a = Ciphered::cipher(&0b00001100u8, pk);
+        unsafe { HomomorphicNotGate::apply(&mut a) };
+        let d = a.decipher(context.get_secret_key().unwrap());
+        assert_eq!(0b11110011, d);
+    }
 
     #[test]
     fn test_homomorphic_addition() {
@@ -134,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Long test"]
+    #[ignore = "long test"]
     fn test_homomorphic_addition_extensive() {
         let parameters = Parameters::new(256, 128, 1, 128);
         let mut context = Context::new(parameters);
@@ -162,7 +311,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Long test"]
+    #[ignore = "long test"]
     fn test_successive_homomorphic_addition() {
         let parameters = Parameters::new(256, 128, 1, 128);
         let mut context = Context::new(parameters);
@@ -199,7 +348,7 @@ mod tests {
     #[test]
     #[should_panic = "not yet implemented: Homormophic multiplication for uint"]
     fn test_homomorphic_multiplication() {
-        let parameters = Parameters::new(512, 64, 1, 64);
+        let parameters = Parameters::new(4096, 8, 1, 4);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
         context.generate_public_key();

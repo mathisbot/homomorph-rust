@@ -1,4 +1,6 @@
-use crate::{Ciphered, HomomorphicAddition, HomomorphicMultiplication, HomomorphicOperation2};
+use crate::impls::numbers::{HomomorphicAddition, HomomorphicMultiplication};
+use crate::operations::HomomorphicOperation2;
+use crate::Ciphered;
 
 macro_rules! impl_homomorphic_addition_int {
     ($($t:ty),+) => {
@@ -41,8 +43,9 @@ impl_homomorphic_multiplication_int!(i8, i16, i32, isize, i64, i128);
 
 #[cfg(test)]
 mod tests {
-    use crate::{Ciphered, HomomorphicAddition, HomomorphicMultiplication, HomomorphicOperation2};
-    use crate::{Context, Parameters};
+    use crate::impls::numbers::{HomomorphicAddition, HomomorphicMultiplication};
+    use crate::operations::HomomorphicOperation2;
+    use crate::{Ciphered, Context, Parameters};
 
     use rand::{thread_rng, Rng};
 
@@ -73,7 +76,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Long test"]
+    #[ignore = "long test"]
     #[should_panic = "not yet implemented: Homormophic addition for int"]
     fn test_homomorphic_addition_extensive() {
         let parameters = Parameters::new(256, 128, 1, 128);
@@ -102,7 +105,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Long test"]
+    #[ignore = "long test"]
     #[should_panic = "not yet implemented: Homormophic addition for int"]
     fn test_successive_homomorphic_addition() {
         let parameters = Parameters::new(256, 128, 1, 128);

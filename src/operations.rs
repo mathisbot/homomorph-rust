@@ -17,7 +17,8 @@ use crate::{ByteConvertible, Ciphered};
 /// ## Example
 ///
 /// ```rust
-/// use homomorph::{Ciphered, HomomorphicOperation1};
+/// use homomorph::Ciphered;
+/// use homomorph::operations::HomomorphicOperation1;
 ///
 /// #[derive(Copy, Clone)]
 /// struct MyStruct {
@@ -65,7 +66,8 @@ pub trait HomomorphicOperation1<T: ByteConvertible> {
 /// ## Example
 ///
 /// ```rust
-/// use homomorph::{Ciphered, CipheredBit, HomomorphicOperation2};
+/// use homomorph::{Ciphered, CipheredBit};
+/// use homomorph::operations::HomomorphicOperation2;
 ///
 /// #[derive(Copy, Clone)]
 /// struct MyStruct {
