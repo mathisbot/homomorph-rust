@@ -5,7 +5,8 @@ This repository contains a Rust implementation of an homomorphic encryption sche
 Homomorphic encryption allows computations to be performed on encrypted data without decrypting it, preserving the privacy of the data.
 Homomorphic encryption is still a subject of research today, and no system that is both secure and efficient has yet been found.
 
-The crate provides a simple API to define a proper homomorphic implementation of any structure, but also provide an implementation for unsigned integers (other std types are a work in progress)
+The crate provides a simple API to define a proper homomorphic implementation of any structure,
+but also provide an implementation for unsigned integers (other std types are a work in progress)
 
 ## Getting Started
 
@@ -45,13 +46,13 @@ I do not intend to publish the crate on `crates.io`.
 
 ## Features
 
-- `no_rand`: Allow user to implement a fallback to getrandom on unsupported targets
+- `no_rand`: Allows to implement a fallback method to `getrandom` on unsupported targets
 
 ## Bare metal
 
 The crates partially supports `no_std` environments: it uses `Vec` a lot, so it relies on an external `alloc` crate. As each bit ciphered takes up a lot of space, storing ciphered objects on the stack wouldn't be possible (at least on low end machines). This is why the heap is needed here.
 
-You may also need a source of randomness. On bare x86, RDRAND is already implemented. On other architectures, you will have to implement `provide_getrandom`, which is a re-export of `getrandom::register_custom_getrandom`, gated behind the `no_rand` feature.
+You may also need a source of randomness. On bare x86, randomness can still be retrieved using `RDRAND`. On other architectures, such as `aarch64-unknown-none`, you will have to implement `provide_getrandom`, which is a re-export of `getrandom::register_custom_getrandom`, gated behind the `no_rand` feature.
 
 ## Benchmarks
 
@@ -72,16 +73,16 @@ Parameters used for this benchmark were :
 
 It is still more efficient to decrypt, operate and then re-encrypt the data. This limits the use of the system to applications where security is paramount, and takes precedence over speed.
 
-It's worth remembering that the system is inherently slow, as each bit is ciphered as a polynomial whose degree is at least $d+d'$ (the degree skyrockets with each homomorphic operation), and that no system that is both secure and fast has yet been found.
+It's worth remembering that the system is inherently slow, as each bit is ciphered as a polynomial whose degree is at least $d+d'$ (the degree skyrockets with each homomorphic operation), and that, as of today, no system that is both secure and fast has yet been found.
 
 ## Good practices
 
 The properties of homomorphic encryption make it a great candidate for calculations in unsafe environments.
 
-In general, it's best to encrypt/decrypt locally, and only perform homomorphic operations on the external environment.
+It's best to encrypt/decrypt locally, and only perform homomorphic operations on the external environment.
 
 If this is not possible, it may be worth taking certain precautions:
-- Zeroize memory using `zeroize` (it is done for `SecretKey`)
+- Zeroize unciphered data using `zeroize` (it is done for `SecretKey`)
 - Protect memory by using `mimalloc` with its `secure` feature enabled (`mimalloc` will generally improve performance).
 
 ## System

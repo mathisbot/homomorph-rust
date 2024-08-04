@@ -2,8 +2,7 @@ use crate::impls::numbers::{
     HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
     HomomorphicOrGate, HomomorphicXorGate,
 };
-use crate::operations::{HomomorphicOperation1, HomomorphicOperation2};
-use crate::{Ciphered, CipheredBit};
+use crate::prelude::*;
 
 use alloc::vec::Vec;
 

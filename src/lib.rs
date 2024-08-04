@@ -3,11 +3,13 @@
 //! A library for homomorphic encryption using a polynomial-based system.
 //!
 //! Homomorphic encryption allows you to perform operations on encrypted data without decrypting it.
-//! If you want to learn more about the what homomorphic encryption is, visit <https://github.com/mathisbot/homomorph-rust>
+//! If you want to learn more about the system used here,
+//! visit <https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system>.
 //!
 //! ## Usage
 //!
-//! The crate can be used to perform basic operations on encrypted data, or to define your own operations.
+//! The crate can be used to perform already-implemented operations on ciphered data,
+//! or to define your own operations on your own structs.
 //!
 //! ### Basic usage
 //!
@@ -17,11 +19,16 @@
 //!
 //! The first step is to create a context.
 //! The system uses 4 parameters: `d`, `dp`, `delta` and `tau`.
-//! If you want to learn more about how to choose your parameters, visit <https://github.com/mathisbot/homomorph-rust>
-//! Otherwise, (d, dp, delta, tau) = (128, 64, 16, 128) is a good starting point.
+//!
+//! Usually, you want `dp` and `tau` to be 128, or 256 for the most sensitive applications.
+//! As for `d` and `delta`, you will have to choose them accordingly to the operations you want to perform.
+//! This is because the system's properties rely on the value of the ratio `d/delta`.
+//!
+//! If you want to learn more about how to choose your parameters,
+//! visit <https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system>
 //!
 //! ```rust
-//! use homomorph::{Context, Parameters};
+//! use homomorph::prelude::*;
 //!
 //! let parameters = Parameters::new(64, 32, 8, 32);
 //! let mut context = Context::new(parameters);
@@ -29,10 +36,10 @@
 //! context.generate_public_key();
 //! ```
 //!
-//! If you need to save the keys for later use, you can do so by saving the bytes.
+//! If you need to save the keys for later use, you can do so by saving the raw bytes.
 //!
 //! ```rust
-//! use homomorph::{Context, Parameters, PublicKey, SecretKey};
+//! use homomorph::prelude::*;
 //!
 //! let parameters = Parameters::new(64, 32, 8, 32);
 //! let mut context = Context::new(parameters);
@@ -48,11 +55,11 @@
 //!
 //! #### Cipher
 //!
-//! The crates implements the basic traits for a vast majority of std types.
-//! This way, you easily cipher your data.
+//! The crates features a generic type `Ciphered<T>` that allows you to cipher almost any type
+//! (see next section for more information about which types can be ciphered).
 //!
 //! ```rust
-//! use homomorph::{Context, Parameters, Ciphered};
+//! use homomorph::prelude::*;
 //!
 //! let parameters = Parameters::new(64, 32, 8, 32);
 //! let mut context = Context::new(parameters);
@@ -70,11 +77,10 @@
 //! #### Operations
 //!
 //! Once again, the system implements some basic operation for you.
-//! For instance, you can already add two ciphered unsigned integers.
+//! For instance, you can add two ciphered unsigned integers together.
 //!
 //! ```no_run
-//! use homomorph::{Ciphered, Context, Parameters};
-//! use homomorph::operations::HomomorphicOperation2;
+//! use homomorph::prelude::*;
 //! use homomorph::impls::numbers::HomomorphicAddition;
 //!
 //! let parameters = Parameters::new(128, 64, 1, 64);
@@ -91,9 +97,14 @@
 //! assert_eq!(d, 3 + 5);
 //! ```
 //!
+//! As you can see, applying homomorphic operations is marked as unsafe.
+//! This is because you must make sure that your data has been ciphered using
+//! a sufficiently high `d/delta` value, according to the documentation
+//! of the operation's `apply` function.
+//!
 //! ### Advanced usage
 //!
-//! The crate's API also allows you to define your own operations.
+//! The crate's API also allows you to define your own operations on any ciphered data.
 //! Let's take a look at how you can do so.
 //!
 //! #### `ByteConvertible` trait
@@ -105,55 +116,71 @@
 //!
 //! This trait is already implemented for all types that implement `Copy`.
 //!
+//! As some specific logic can be necessary to convert your own structs,
+//! the implementation is left to you.
+//! For instance, you can't just blindly convert a `Vec` to bytes, as the
+//! majority of its data lives on the heap.
+//!
 //! #### Cipher
 //!
 //! The system uses a `Ciphered<T>` type to store encrypted data.
-//! All you have to do is call `Ciphered::cipher` on any data that implements `ByteConvertible`.
-//!
-//! To decipher it, call `Ciphered::decipher` on the ciphered data.
+//! It is implemented for any type that implements `ByteConvertible`.
 //!
 //! The system is in fact very simple, as it needs to be very general.
-//! Every bit is ciphered as a `CipheredBit`, which is a polynomial in the backend.
-//! If you want to learn more about the system used here, visit <https://github.com/mathisbot/homomorph-rust>
+//! Every bit is ciphered as a `CipheredBit` (which is a polynomial in the backend).
+//! You can operate on `CipheredBit`s using logic gates.
 //!
-//! #### `HomomorphicOperationX<T>` trait
+//! If you want to learn more about the way bits can be used,
+//! visit <https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#extension>.
+//!
+//! #### `HomomorphicOperation` traits
 //!
 //! The system provides traits allowing you to define homomorphic operations.
 //!
-//! Replace X with a certain number of arguments. Supported values are 1 and 2.
-//! If you need more, feel free to implement your own `HomomorphicOperationN`
-//! based on examples found in `operations.rs`.
+//! Currently, there are 3 traits that you can use :
 //!
-//! The trait only bounds one function to implement, `apply`.
+//! - `HomomorphicOperation1<T: ByteConvertible>`
+//! - `HomomorphicOperation2<T: ByteConvertible>`
+//! - `HomomorphicOperation<const N: usize, T: ByteConvertible>`
+//!
+//! The traits only bounds one function to implement, `apply`.
 //! The operation is performed on raw data, which means it takes `Ciphered<T>` as arguments.
 //!
-//! Inside of the function, you can work with `Cipehered<T>` as if it were a `Vec<CipheredBit>`
-//! (because this is actually what it is).
-//! From that point, all operations are highly unsafe as you are working with raw bits.
+//! The first two traits takes respectively 1 and 2 refs on `Ciphered<T>`,
+//! while the last one takes a compile-time-known number of arguments as a slice of refs.
+//! The main idea behind the last trait is to allow the user to define operations on an arbitrary number of ciphered data
+//! while still benefiting from Rust's type system.
+//! The const `N` is statically asserted to be greater than 0, so that it is impossible to define an operation with 0 arguments.
 //!
-//! You will be able to apply logic gates to the `CipheredBit`s.
+//! Inside of the function, you can work with `Cipehered<T>` as if it were a `&Vec<CipheredBit>`
+//! (because `Cipehered<T>` implements `Deref<Vec<CipheredBit>`).
+//!
+//! From that point, all operations are highly unsafe as you are working with raw bits.
+//! For instance, can apply logic gates to the `CipheredBit`s.
+//!
+//! If you need more information on this traits, visit [their documentation](operations).
 //!
 //! #### Homomorphic operations
 //!
-//! To implement an homomorphic operation, define a struct that implements `HomomorphicOperationX<T>`.
+//! To implement an homomorphic operation, define a struct that implements an `HomomorphicOperation` trait.
 //!
-//! For example, to implement addition, you will have to define a struct `HomomorphicAddition`,
+//! For example, to implement addition for `Ciphered<usize>`, you will have to define a struct `HomomorphicAddition`,
 //! and implement the unsafe trait `HomomorphicOperation2<usize>` for it.
 //!
-//! Fortunately, the crate already implements all of these basic operations for you.
+//! Fortunately, the crate already implement some of the basic operations.
 //!
 //! #### Example
 //!
 //! We will be working with a sample data structure.
 //!
-//! Please remember that a majority of the implementations here are already done for all types
-//! that implement basic traits such as `Copy`.
+//! First, we need to implement the `ByteConvertible` trait for `MyStruct`,
+//! because we didn't derive `Copy` for `MyStruct`.
+//! In a real-world application, you would derive `Copy` for your struct.
 //!
-//! First, we need to implement the `ByteConvertible` trait for `MyStruct`.
-//! It will make all ciphering operation available for it.
+//! Doing so will make all ciphering operation available for this struct.
 //!
 //! ```rust
-//! use homomorph::{Ciphered, ByteConvertible};
+//! use homomorph::prelude::*;
 //! use core::ptr::copy_nonoverlapping as memcpy;
 //!
 //! struct MyStruct {
@@ -161,17 +188,30 @@
 //!     b: usize,
 //! }
 //!
+//! // Fortunately, `MyStruct` is `Sized`!
 //! unsafe impl ByteConvertible for MyStruct {
 //!     fn to_bytes(&self) -> Vec<u8> {
 //!         let mut bytes = Vec::with_capacity(size_of::<MyStruct>());
 //!         unsafe {
-//!             memcpy(self as *const MyStruct as *const u8, bytes.as_mut_ptr(), size_of::<MyStruct>());
+//!             memcpy(
+//!                 self as *const MyStruct as *const u8,
+//!                 bytes.as_mut_ptr(),
+//!                 size_of::<MyStruct>(),
+//!             );
 //!             bytes.set_len(size_of::<MyStruct>());
 //!         }
 //!         bytes
 //!     }
 //!
 //!     fn from_bytes(bytes: &[u8]) -> Self {
+//!         if bytes.len() < size_of::<MyStruct>() {
+//!             panic!(
+//!                 "Invalid size of bytes for conversion: {} instead of {}",
+//!                 bytes.len(),
+//!                 size_of::<MyStruct>()
+//!             );
+//!         }
+//!
 //!         let mut data = core::mem::MaybeUninit::uninit();
 //!         unsafe {
 //!             memcpy(
@@ -188,18 +228,17 @@
 //! If we then want to implement an homomorphic addition for `usize`, we will have to define a struct `HomomorphicAddition`
 //! that implements the trait `HomomorphicOperation2<usize>`.
 //!
-//! The key to implement such operations is to mimic the behavior of the operation on unciphered bits, but the bits are unknown.
+//! The key to implement such operations is to mimic the behavior of the operation on unciphered bits.
 //! The only little trick is that we can't take decisions based on the value of the bits, as they're ciphered.
 //!
 //! Keep in mind that you can apply logical gates to the ciphered bits.
 //!
-//! Here, we just mimic how a processor would implement addition on uint.
+//! Here, we would just mimic how a processor would implement addition on uint.
 //!
 //! ```rust
-//! use homomorph::{Ciphered, CipheredBit};
-//! use homomorph::operations::HomomorphicOperation2;
+//! use homomorph::prelude::*;
 //!
-//! // Here, we derive Copy so that the system can cipher the data
+//! // Here, we derive Copy so that the system can cipher the struct
 //! #[derive(Copy, Clone)]
 //! struct MyStruct {
 //!     a: usize,
@@ -228,6 +267,7 @@
 //! In order to determine the minimum value, you can refer to
 //! <https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#properties>.
 //! You simply have to compute the boolean degree of the operation you want to implement.
+//! This can also be done by trial and error.
 //!
 //! ## Source
 //!
