@@ -25,9 +25,6 @@ jobs:
         components: rustfmt, clippy
         override: true
 
-    - name: Run Clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings
-
     - name: Build
       run: cargo build --lib --verbose
 
@@ -36,6 +33,12 @@ jobs:
 
     - name: Run extensive tests
       run: cargo test --release --verbose -- --ignored
+
+    - name: Run a basic example
+      run: cargo run --release --example new_struct
+
+    - name: Run Clippy
+      run: cargo clippy --all-targets --all-features --no-deps -- -D warnings
 
     - name: Check formatting
       run: cargo fmt -- --check

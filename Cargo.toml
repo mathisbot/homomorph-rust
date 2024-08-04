@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 getrandom = { version = "0.2.15", default-features = false, features = ["rdrand"] }
-zeroize = { version = "1.8.1", features = ["zeroize_derive"] }
+zeroize = { version = "1.8.1", default-features = false, features = ["alloc","zeroize_derive"] }
 
 [dev-dependencies]
 mimalloc = { version = "0.1.43", features = ["secure"] }

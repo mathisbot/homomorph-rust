@@ -184,27 +184,21 @@
 //! use core::ptr::copy_nonoverlapping as memcpy;
 //!
 //! struct MyStruct {
-//!     a: usize,
-//!     b: usize,
+//!     a: u32,
+//!     b: u32,
 //! }
 //!
 //! // Fortunately, `MyStruct` is `Sized`!
 //! unsafe impl ByteConvertible for MyStruct {
 //!     fn to_bytes(&self) -> Vec<u8> {
 //!         let mut bytes = Vec::with_capacity(size_of::<MyStruct>());
-//!         unsafe {
-//!             memcpy(
-//!                 self as *const MyStruct as *const u8,
-//!                 bytes.as_mut_ptr(),
-//!                 size_of::<MyStruct>(),
-//!             );
-//!             bytes.set_len(size_of::<MyStruct>());
-//!         }
+//!         bytes.extend_from_slice(&self.a.to_le_bytes());
+//!         bytes.extend_from_slice(&self.b.to_le_bytes());
 //!         bytes
 //!     }
 //!
 //!     fn from_bytes(bytes: &[u8]) -> Self {
-//!         if bytes.len() < size_of::<MyStruct>() {
+//!         if bytes.len() != size_of::<MyStruct>() {
 //!             panic!(
 //!                 "Invalid size of bytes for conversion: {} instead of {}",
 //!                 bytes.len(),
@@ -212,20 +206,17 @@
 //!             );
 //!         }
 //!
-//!         let mut data = core::mem::MaybeUninit::uninit();
-//!         unsafe {
-//!             memcpy(
-//!                 bytes.as_ptr(),
-//!                 data.as_mut_ptr() as *mut u8,
-//!                 size_of::<MyStruct>(),
-//!             );
-//!             data.assume_init()
-//!         }
+//!         let (a_bytes, b_bytes) = bytes.split_at(size_of::<u32>());
+//!
+//!         let a = u32::from_le_bytes([a_bytes[0], a_bytes[1], a_bytes[2], a_bytes[3]]);
+//!         let b = u32::from_le_bytes([b_bytes[0], b_bytes[1], b_bytes[2], b_bytes[3]]);
+//!         MyStruct { a, b }
 //!     }
 //! }
 //! ```
 //!
-//! If we then want to implement an homomorphic addition for `usize`, we will have to define a struct `HomomorphicAddition`
+//! If we then want to implement an homomorphic addition for our struct,
+//! we will have to define a struct `HomomorphicAddition`
 //! that implements the trait `HomomorphicOperation2<usize>`.
 //!
 //! The key to implement such operations is to mimic the behavior of the operation on unciphered bits.
@@ -238,7 +229,8 @@
 //! ```rust
 //! use homomorph::prelude::*;
 //!
-//! // Here, we derive Copy so that the system can cipher the struct
+//! // Here, we derive Copy so that `ByteConvertible` is automatically implemented
+//! #[repr(C)]
 //! #[derive(Copy, Clone)]
 //! struct MyStruct {
 //!     a: usize,
@@ -268,6 +260,8 @@
 //! <https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#properties>.
 //! You simply have to compute the boolean degree of the operation you want to implement.
 //! This can also be done by trial and error.
+//!
+//! For a more precise example, you can take a look at the examples in `./examples/`.
 //!
 //! ## Source
 //!

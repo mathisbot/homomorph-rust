@@ -266,6 +266,7 @@ mod tests {
         assert_eq!(data, decrypted);
 
         #[derive(Copy, Clone, Debug, PartialEq)]
+        #[repr(C)]
         struct MyStruct {
             a: usize,
             b: usize,

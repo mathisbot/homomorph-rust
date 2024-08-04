@@ -42,6 +42,7 @@ use crate::{ByteConvertible, Ciphered};
 /// ```rust
 /// use homomorph::prelude::*;
 ///
+/// #[repr(C)]
 /// #[derive(Copy, Clone)]
 /// struct MyStruct {
 ///     a: usize,
@@ -90,6 +91,7 @@ pub trait HomomorphicOperation1<T: ByteConvertible> {
 /// ```rust
 /// use homomorph::prelude::*;
 ///
+/// #[repr(C)]
 /// #[derive(Copy, Clone)]
 /// struct MyStruct {
 ///     a: usize,
@@ -147,6 +149,7 @@ pub trait HomomorphicOperation2<T: ByteConvertible> {
 /// use homomorph::prelude::*;
 /// use core::ops::Deref;
 ///
+/// #[repr(C)]
 /// #[derive(Copy, Clone)]
 /// struct MyStruct {
 ///     a: usize,

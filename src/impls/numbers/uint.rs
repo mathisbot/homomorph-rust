@@ -77,15 +77,15 @@ fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
         // c <- (p1+p2)*c + p1*p2 + p1*p2*(p1+p2)*c
         // c <- c*(p1+p2)*(1+p1*p2) + p1*p2
         let p1_p2 = p1.and(p2);
-        carry = p1
-            .xor(p2)
-            .and(&carry)
-            .and(&CipheredBit::one().xor(&p1_p2))
-            .xor(&p1_p2);
+        if i + 1 < longest {
+            carry = carry
+                .and(&p1.xor(p2))
+                .and(&CipheredBit::one().xor(&p1_p2))
+                .xor(&p1_p2);
+        }
 
         result.push(s);
     }
-    result.push(carry);
 
     result
 }
