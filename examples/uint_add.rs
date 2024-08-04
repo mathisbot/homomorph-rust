@@ -1,9 +1,7 @@
 use rand::{self, Rng};
 use std::time::Instant;
 
-use homomorph::impls::numbers::HomomorphicAddition;
-use homomorph::operations::HomomorphicOperation2;
-use homomorph::{Ciphered, Context, Parameters};
+use homomorph::prelude::*;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -68,8 +66,12 @@ fn main() {
     let mut encrypted_data3: Vec<Ciphered<_>> = Vec::with_capacity(NUMBER_OF_TESTS);
     let start = Instant::now();
     for i in 0..NUMBER_OF_TESTS {
-        encrypted_data3
-            .push(unsafe { HomomorphicAddition::apply(&encrypted_data1[i], &encrypted_data2[i]) })
+        encrypted_data3.push(unsafe {
+            homomorph_impls::numbers::HomomorphicAddition::apply(
+                &encrypted_data1[i],
+                &encrypted_data2[i],
+            )
+        })
     }
     let elapsed = start.elapsed();
     println!(

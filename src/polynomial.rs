@@ -2,20 +2,23 @@
 
 use alloc::vec::Vec;
 
+/// Represents a coefficient of a `Polynomial`.
+pub(crate) type Coefficient = u128;
+
 /// A polynomial over Z/2Z.
 ///
 /// A polynomial is represented as a vector of coefficients.
-/// For speed purposes, we store the coefficients in a vector of u128, representing 128 coefficients at a time.
+/// For speed purposes, we store the coefficients in a vector of uint, representing multiple coefficients at a time.
 ///
 /// ## WARNING
 ///
-/// The first element of the vector are the terms with the least power of x
-/// BUT bits are reversed because of u128, so the last bit of the first u128 is the constant term.
+/// The first element of the vector are the terms with the least power of X
+/// BUT bits are reversed because of binary representation, so the last bit of the first element is the constant term.
 ///
-/// Thus, coefficient of x^i is stored in the (i/128)-th u128 at the (127-i%128)-th bit.
-#[derive(Debug, Eq)]
+/// Thus, if x is Coefficient::BITS, coefficient of x^i is stored in the (i/x)-th usize at the (x-1-i%x)-th bit.
+#[derive(Debug, Eq, zeroize::Zeroize)]
 pub struct Polynomial {
-    coefficients: Vec<u128>,
+    coefficients: Vec<Coefficient>,
     degree: usize,
 }
 
@@ -27,7 +30,7 @@ impl Polynomial {
     /// ## Panics
     ///
     /// If the vector of coefficients is empty.
-    pub fn new(coefficients: Vec<u128>) -> Self {
+    pub fn new(coefficients: Vec<Coefficient>) -> Self {
         if coefficients.is_empty() {
             panic!("The vector of coefficients must not be empty.");
         }
@@ -47,7 +50,7 @@ impl Polynomial {
     /// ## Panics
     ///
     /// If the vector of coefficients is empty.
-    pub unsafe fn new_unchecked(coefficients: Vec<u128>, degree: usize) -> Self {
+    pub unsafe fn new_unchecked(coefficients: Vec<Coefficient>, degree: usize) -> Self {
         if coefficients.is_empty() {
             panic!("The vector of coefficients must not be empty.");
         }
@@ -61,9 +64,10 @@ impl Polynomial {
     ///
     /// This function shouldn't be used outside of the crate as it is
     /// easier to get a polynomial's degree using the `degree` field.
-    pub(crate) fn compute_degree(coefficients: &[u128]) -> usize {
+    pub(crate) fn compute_degree(coefficients: &[Coefficient]) -> usize {
         if let Some(i) = coefficients.iter().rposition(|&coeff| coeff != 0) {
-            127 - coefficients[i].leading_zeros() as usize + 128 * i
+            Coefficient::BITS as usize - 1 - coefficients[i].leading_zeros() as usize
+                + Coefficient::BITS as usize * i
         } else {
             0
         }
@@ -77,21 +81,21 @@ impl Polynomial {
     /// This means that randomness is cryptographically secure, and works on a vast majority
     /// of platforms, including baremetal (x86).
     pub fn random(degree: usize) -> Self {
-        let num_elements = (degree / 128) + 1;
+        let num_elements = (degree / Coefficient::BITS as usize) + 1;
 
-        let mut coefficients: Vec<u128> = Vec::with_capacity(num_elements);
+        let mut coefficients: Vec<Coefficient> = Vec::with_capacity(num_elements);
 
         let bytes = unsafe {
             core::slice::from_raw_parts_mut(
                 coefficients.as_mut_ptr() as *mut u8,
-                num_elements * size_of::<u128>(),
+                num_elements * size_of::<Coefficient>(),
             )
         };
         getrandom::getrandom(bytes).unwrap();
         unsafe { coefficients.set_len(num_elements) };
 
-        coefficients[num_elements - 1] &= (1 << (degree % 128)) - 1;
-        coefficients[num_elements - 1] |= 1 << (degree % 128);
+        coefficients[num_elements - 1] &= (1 << (degree % Coefficient::BITS as usize)) - 1;
+        coefficients[num_elements - 1] |= 1 << (degree % Coefficient::BITS as usize);
 
         unsafe { Self::new_unchecked(coefficients, degree) }
     }
@@ -111,8 +115,9 @@ impl Polynomial {
 
     /// Returns the monomial x^degree
     pub fn monomial(degree: usize) -> Self {
-        let mut coefficients = vec![0; degree / 128 + 1];
-        coefficients[degree / 128] = 1 << (degree % 128);
+        let mut coefficients = vec![0; degree / Coefficient::BITS as usize + 1];
+        coefficients[degree / Coefficient::BITS as usize] =
+            1 << (degree % Coefficient::BITS as usize);
 
         unsafe { Self::new_unchecked(coefficients, degree) }
     }
@@ -137,7 +142,7 @@ impl Polynomial {
     }
 
     /// Returns the coefficients of the polynomial
-    pub fn coefficients(&self) -> &Vec<u128> {
+    pub fn coefficients(&self) -> &Vec<Coefficient> {
         &self.coefficients
     }
 
@@ -150,7 +155,7 @@ impl Polynomial {
     pub fn add(&self, other: &Self) -> Self {
         // We know that degree of the sum is at most max(deg(p1), deg(p2)).
         let max_deg = self.degree().max(other.degree());
-        let len = max_deg / 128 + 1;
+        let len = max_deg / Coefficient::BITS as usize + 1;
         let mut result = Vec::with_capacity(len);
 
         for i in 0..len {
@@ -184,31 +189,31 @@ impl Polynomial {
         }
 
         // The degree of the product is deg(p1) + deg(p2).
-        let result_len = (self.degree() + other.degree()) / 128 + 1;
+        let result_len = (self.degree() + other.degree()) / Coefficient::BITS as usize + 1;
         let mut result = vec![0; result_len];
 
         for (i, &a) in self
             .coefficients()
             .iter()
-            .take(self.degree() / 128 + 1)
+            .take(self.degree() / Coefficient::BITS as usize + 1)
             .enumerate()
         {
             for (j, &b) in other
                 .coefficients()
                 .iter()
-                .take(other.degree() / 128 + 1)
+                .take(other.degree() / Coefficient::BITS as usize + 1)
                 .enumerate()
             {
                 let mut shifted_a = a;
 
                 // This inner loop shows that polynomial multiplication doesn't
-                // really benefit from using `u128`s instead of `bool`s.
+                // really benefit from using uints instead of `bool`s.
                 // TODO: Think hard and find a way to optimize this.
-                for k in 0..128 {
+                for k in 0..Coefficient::BITS as usize {
                     if shifted_a & 1 == 1 {
                         result[i + j] ^= b << k;
                         if k > 0 && i + j + 1 < result_len {
-                            result[i + j + 1] ^= b >> (128 - k);
+                            result[i + j + 1] ^= b >> (Coefficient::BITS as usize - k);
                         }
                     }
                     shifted_a >>= 1;
@@ -229,18 +234,20 @@ impl Polynomial {
         let mut r = self.coefficients().clone();
         let mut r_degree = self.degree();
 
-        let max_coefficient_idx = (other.degree() / 128 + 1).min(other.coefficients().len());
+        let max_coefficient_idx =
+            (other.degree() / Coefficient::BITS as usize + 1).min(other.coefficients().len());
 
         // At most self.degree() - other.degree() iterations
         while r_degree >= other.degree() {
             let shift = r_degree - other.degree();
-            let block_shift = shift / 128;
-            let bit_shift = shift % 128;
+            let block_shift = shift / Coefficient::BITS as usize;
+            let bit_shift = shift % Coefficient::BITS as usize;
 
             for i in 0..max_coefficient_idx {
                 r[block_shift + i] ^= other.coefficients()[i] << bit_shift;
                 if bit_shift != 0 && block_shift + i + 1 < r.len() {
-                    r[block_shift + i + 1] ^= other.coefficients()[i] >> (128 - bit_shift);
+                    r[block_shift + i + 1] ^=
+                        other.coefficients()[i] >> (Coefficient::BITS as usize - bit_shift);
                 }
             }
 
@@ -255,8 +262,10 @@ impl Polynomial {
 
 impl Clone for Polynomial {
     fn clone(&self) -> Polynomial {
-        let mut cloned_coefficients = Vec::with_capacity((self.degree() + 127) / 128);
-        for i in 0..=(self.degree() / 128) {
+        let mut cloned_coefficients = Vec::with_capacity(
+            (self.degree() + Coefficient::BITS as usize - 1) / Coefficient::BITS as usize,
+        );
+        for i in 0..=(self.degree() / Coefficient::BITS as usize) {
             cloned_coefficients.push(self.coefficients()[i]);
         }
         unsafe { Polynomial::new_unchecked(cloned_coefficients, self.degree()) }
@@ -266,14 +275,14 @@ impl Clone for Polynomial {
 impl PartialEq for Polynomial {
     fn eq(&self, other: &Self) -> bool {
         self.degree() == other.degree()
-            && self.coefficients()[0..self.degree() / 128 + 1]
-                == other.coefficients()[0..other.degree() / 128 + 1]
+            && self.coefficients()[0..self.degree() / Coefficient::BITS as usize + 1]
+                == other.coefficients()[0..other.degree() / Coefficient::BITS as usize + 1]
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::Polynomial;
+    use super::{Coefficient, Polynomial};
 
     #[test]
     fn test_compute_degree() {
@@ -281,7 +290,10 @@ mod test {
         assert_eq!(Polynomial::compute_degree(&coefficients), 4);
 
         let coefficients = vec![0b10010, 0b1];
-        assert_eq!(Polynomial::compute_degree(&coefficients), 128);
+        assert_eq!(
+            Polynomial::compute_degree(&coefficients),
+            Coefficient::BITS as usize
+        );
 
         let coefficients = vec![0b10010, 0b0];
         assert_eq!(Polynomial::compute_degree(&coefficients), 4);
@@ -292,8 +304,11 @@ mod test {
         let p = Polynomial::random(5);
         assert_eq!(Polynomial::compute_degree(p.coefficients()), 5);
 
-        let p = Polynomial::random(128);
-        assert_eq!(Polynomial::compute_degree(p.coefficients()), 128);
+        let p = Polynomial::random(Coefficient::BITS as usize);
+        assert_eq!(
+            Polynomial::compute_degree(p.coefficients()),
+            Coefficient::BITS as usize
+        );
     }
 
     #[test]
@@ -345,7 +360,7 @@ mod test {
         let p3 = p1.mul(&p2);
         assert_eq!(*p3.coefficients(), vec![0b1001]);
 
-        let p1 = Polynomial::new(vec![u128::MAX]);
+        let p1 = Polynomial::new(vec![Coefficient::MAX]);
         let p2 = Polynomial::new(vec![0b11]);
         let p3 = p1.mul(&p2);
         assert_eq!(*p3.coefficients(), vec![0b1, 0b1]);

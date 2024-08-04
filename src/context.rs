@@ -74,7 +74,7 @@ impl Parameters {
 }
 
 /// The secret key.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, zeroize::Zeroize, zeroize::ZeroizeOnDrop)]
 pub struct SecretKey {
     s: Polynomial,
 }
@@ -106,10 +106,10 @@ impl SecretKey {
     /// let sk = SecretKey::new(s);
     /// ```
     pub fn new(bytes: Vec<u8>) -> Self {
-        let mut coeffs: Vec<u128> = Vec::with_capacity(bytes.len() / 16 + 1);
-        let mut n = 0u128;
+        let mut coeffs: Vec<_> = Vec::with_capacity(bytes.len() / 16 + 1);
+        let mut n = 0;
         for (i, byte) in bytes.iter().enumerate() {
-            n |= (*byte as u128) << (i % 8 * 8);
+            n |= (*byte as crate::polynomial::Coefficient) << (i % 8 * 8);
             if i % 8 == 7 {
                 coeffs.push(n);
                 n = 0;
@@ -199,10 +199,10 @@ impl PublicKey {
     pub fn new(bytes: Vec<Vec<u8>>) -> Self {
         let mut list: Vec<Polynomial> = Vec::with_capacity(bytes.capacity());
         for bytes in bytes.iter() {
-            let mut coeffs: Vec<u128> = Vec::with_capacity(bytes.len() / 16 + 1);
-            let mut n = 0u128;
+            let mut coeffs: Vec<_> = Vec::with_capacity(bytes.len() / 16 + 1);
+            let mut n = 0;
             for (i, byte) in bytes.iter().enumerate() {
-                n |= (*byte as u128) << (i % 8 * 8);
+                n |= (*byte as crate::polynomial::Coefficient) << (i % 8 * 8);
                 if i % 8 == 7 {
                     coeffs.push(n);
                     n = 0;
