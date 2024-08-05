@@ -16,7 +16,7 @@ pub type Coefficient = u128;
 /// BUT bits are reversed because of binary representation, so the last bit of the first element is the constant term.
 ///
 /// Thus, if x is `Coefficient::BITS`, coefficient of x^i is stored in the (i/x)-th usize at the (x-1-i%x)-th bit.
-#[derive(Debug, Eq, zeroize::Zeroize)]
+#[derive(Debug, Eq)]
 pub struct Polynomial {
     coefficients: Vec<Coefficient>,
     degree: usize,
@@ -77,6 +77,9 @@ impl Polynomial {
 
         let mut coefficients: Vec<Coefficient> = Vec::with_capacity(num_elements);
 
+        // Safety
+        // `Vec::with_capacity` ensures that the buffer is big enough to hold `num_elements` elements,
+        // therefore `num_elements * size_of::<Coefficient>()` bytes.
         let bytes = unsafe {
             core::slice::from_raw_parts_mut(
                 coefficients.as_mut_ptr().cast::<u8>(),
@@ -84,6 +87,9 @@ impl Polynomial {
             )
         };
         getrandom::getrandom(bytes).unwrap();
+        // Safety
+        // `Vec::with_capacity` ensures that the buffer is big enough to hold `num_elements` bytes.
+        // We initialized the buffer with `getrandom`, so it is safe to set the length.
         unsafe { coefficients.set_len(num_elements) };
 
         coefficients[num_elements - 1] &= (1 << (degree % Coefficient::BITS as usize)) - 1;
@@ -264,6 +270,42 @@ impl Polynomial {
         Self {
             coefficients: r,
             degree: r_degree,
+        }
+    }
+
+    /// Zeroize the polynomial
+    ///
+    /// It can be useful to zeroize on drop a struct represented by a polynomial
+    /// if it is critical.
+    ///
+    /// ## Safety
+    ///
+    /// This function is unsafe because it writes zeroes to the memory
+    /// pointed to by the coefficients.
+    ///
+    /// You should not use the polynomial after calling this function.
+    pub unsafe fn zeroize(&mut self) {
+        // Zeroize degree
+        //
+        // Safety
+        // We are only writing into a single piece of memory.
+        // It is equivalent to `self.degree = 0`, but volatile.
+        unsafe {
+            core::ptr::write_volatile(&mut self.degree, core::mem::zeroed());
+        };
+
+        // Zeroize coefficients
+        let len = self.coefficients().len();
+        let base_ptr = self.coefficients.as_mut_ptr();
+        for i in 0..len {
+            // Safety
+            // We know the pointer is valid because it points to an area inside of the buffer,
+            // as `i` is between 0 and len-1.
+            // We are writing `size_of::<Coefficient>()` bytes of zeroes to a valid pointer
+            // to a `Coefficient`.
+            unsafe {
+                core::ptr::write_volatile(base_ptr.add(i), core::mem::zeroed());
+            };
         }
     }
 }
@@ -447,5 +489,17 @@ mod test {
         let p3 = p1.rem(&p2);
         assert!(p3.degree() < p2.degree());
         assert_eq!(*p3.coefficients(), vec![0b1010]);
+    }
+
+    #[test]
+    fn test_zeroize() {
+        let mut p = Polynomial::new(vec![0b1001]);
+        unsafe {
+            p.zeroize();
+        }
+        // DO NOT USE p AFTER THIS
+        // This is for test purposes only
+        assert_eq!(p.degree(), 0);
+        assert_eq!(*p.coefficients(), vec![0]);
     }
 }

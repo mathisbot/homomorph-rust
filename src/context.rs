@@ -75,7 +75,7 @@ impl Parameters {
 }
 
 /// The secret key.
-#[derive(Clone, Debug, PartialEq, Eq, zeroize::Zeroize, zeroize::ZeroizeOnDrop)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SecretKey {
     s: Polynomial,
 }
@@ -159,6 +159,17 @@ impl SecretKey {
 
     pub(crate) const fn get_polynomial(&self) -> &Polynomial {
         &self.s
+    }
+}
+
+/// The secret key is zeroized when dropped
+/// because its content should not leak.
+impl Drop for SecretKey {
+    fn drop(&mut self) {
+        // Safety
+        // The content will not be used afterwards
+        // as we are dropping the secret key.
+        unsafe { self.s.zeroize() };
     }
 }
 
@@ -464,6 +475,22 @@ mod tests {
         let sk2 = SecretKey::new(&bytes);
 
         assert_eq!(sk, sk2);
+    }
+
+    #[test]
+    fn test_secret_key_zeroized_on_drop() {
+        let s = vec![5, 14, 8];
+        let sk = SecretKey::new(&s);
+
+        let p = sk.get_polynomial().clone();
+        let ptr = core::ptr::from_ref(sk.get_polynomial());
+
+        drop(sk);
+
+        // EXTREMELY UNSAFE
+        let p_retrieved = unsafe { &*ptr };
+
+        assert_ne!(p, *p_retrieved);
     }
 
     #[test]

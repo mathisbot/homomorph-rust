@@ -87,6 +87,12 @@ pub unsafe trait ByteConvertible {
 unsafe impl<T: Copy + Sized> ByteConvertible for T {
     fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(size_of::<T>());
+
+        // Safety
+        // Because of `Vec::with_capacity`, we know that the buffer
+        // is big enough to hold the `size_from::<T>()` bytes.
+        // We also know that the source is valid, because T is Sized and Copy,
+        // and we are reading exactly `size_of::<T>()` bytes from it.
         unsafe {
             memcpy(
                 core::ptr::from_ref(self).cast::<u8>(),
@@ -117,6 +123,11 @@ unsafe impl<T: Copy + Sized> ByteConvertible for T {
         );
 
         let mut data: MaybeUninit<T> = core::mem::MaybeUninit::uninit();
+
+        // Safety
+        // `MaybeUninit` ensures that it has the same alignment, ABI and size as T.
+        // Therefore, we can safely write `size_of::<T>()` bytes to it.
+        // We also know that the source is valid, because of the assertion.
         unsafe {
             memcpy(
                 bytes.as_ptr(),
@@ -162,8 +173,13 @@ impl<T: ByteConvertible> Ciphered<T> {
         let num_elements = (tau + 7) / 8;
         let mut part: Vec<u8> = Vec::with_capacity(num_elements);
 
+        // Safety
+        // `Vec::with_capacity` ensures that the buffer is big enough to hold `num_elements` bytes.
         let bytes = unsafe { core::slice::from_raw_parts_mut(part.as_mut_ptr(), num_elements) };
         getrandom::getrandom(bytes).unwrap();
+        // Safety
+        // `Vec::with_capacity` ensures that the buffer is big enough to hold `num_elements` bytes.
+        // We initialized the buffer with `getrandom`, so it is safe to set the length.
         unsafe { part.set_len(num_elements) };
 
         part
@@ -294,7 +310,7 @@ mod tests {
     #[test]
     #[should_panic = "Invalid byte count for conversion: expected 8 got 1"]
     fn test_byteconvertible_panic() {
-        let bytes = [0u8; 1];
+        let bytes = [0_u8; 1];
         let _ = MyStruct::from_bytes(&bytes);
     }
 

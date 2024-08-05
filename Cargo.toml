@@ -10,7 +10,6 @@ repository = "https://github.com/mathisbot/homomorph-rust"
 
 [dependencies]
 getrandom = { version = "0.2.15", default-features = false, features = ["rdrand"] }
-zeroize = { version = "1.8.1", default-features = false, features = ["alloc","zeroize_derive"] }
 
 [dev-dependencies]
 rand = "0.8.5"
