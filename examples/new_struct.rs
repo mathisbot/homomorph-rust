@@ -83,18 +83,6 @@ impl HomomorphicOperation2<Vec3> for Vec3Add {
     }
 }
 
-struct Vec3Sub;
-
-impl HomomorphicOperation<0, u8> for Vec3Sub {
-    unsafe fn apply(args: [&Ciphered<u8>; 0]) -> Ciphered<u8> {
-        panic!(
-            "This function should never be called {}, {:?}",
-            size_of::<[&Ciphered<u8>; 0]>(),
-            args
-        );
-    }
-}
-
 fn main() {
     let params = Parameters::new(64, 32, 1, 32);
     let mut context = Context::new(params);
@@ -107,9 +95,6 @@ fn main() {
     let b = Ciphered::cipher(&Vec3 { x: 4, y: 5, z: 6 }, pk);
     let c = unsafe { Vec3Add::apply(&a, &b) };
     let d = Ciphered::decipher(&c, sk);
-
-    let s = unsafe { Vec3Sub::apply([]) };
-    let _ds = Ciphered::decipher(&s, sk);
 
     assert_eq!(Vec3 { x: 5, y: 7, z: 9 }, d);
 }
