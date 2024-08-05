@@ -198,12 +198,13 @@ mod tests {
         let mut context = Context::new(parameters);
         context.generate_secret_key();
         context.generate_public_key();
+        let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
-        let a = Ciphered::cipher(&0b1010u8, pk);
-        let b = Ciphered::cipher(&0b1100u8, pk);
+        let a = Ciphered::cipher(&0b1010_u8, pk);
+        let b = Ciphered::cipher(&0b1100_u8, pk);
         let c = unsafe { HomomorphicAndGate::apply(&a, &b) };
-        let d = c.decipher(context.get_secret_key().unwrap());
+        let d = c.decipher(sk);
         assert_eq!(0b1000, d);
     }
 
@@ -213,12 +214,13 @@ mod tests {
         let mut context = Context::new(parameters);
         context.generate_secret_key();
         context.generate_public_key();
+        let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
-        let a = Ciphered::cipher(&0b1010u8, pk);
-        let b = Ciphered::cipher(&0b1100u8, pk);
+        let a = Ciphered::cipher(&0b1010_u8, pk);
+        let b = Ciphered::cipher(&0b1100_u8, pk);
         let c = unsafe { HomomorphicOrGate::apply(&a, &b) };
-        let d = c.decipher(context.get_secret_key().unwrap());
+        let d = c.decipher(sk);
         assert_eq!(0b1110, d);
     }
 
@@ -228,12 +230,13 @@ mod tests {
         let mut context = Context::new(parameters);
         context.generate_secret_key();
         context.generate_public_key();
+        let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
-        let a = Ciphered::cipher(&0b1010u8, pk);
-        let b = Ciphered::cipher(&0b1100u8, pk);
+        let a = Ciphered::cipher(&0b1010_u8, pk);
+        let b = Ciphered::cipher(&0b1100_u8, pk);
         let c = unsafe { HomomorphicXorGate::apply(&a, &b) };
-        let d = c.decipher(context.get_secret_key().unwrap());
+        let d = c.decipher(sk);
         assert_eq!(0b0110, d);
     }
 
@@ -243,16 +246,17 @@ mod tests {
         let mut context = Context::new(parameters);
         context.generate_secret_key();
         context.generate_public_key();
+        let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
         let mut a = Ciphered::cipher(&0b0000_1010_u8, pk);
         unsafe { HomomorphicNotGate::apply(&mut a) };
-        let d = a.decipher(context.get_secret_key().unwrap());
+        let d = a.decipher(sk);
         assert_eq!(0b1111_0101, d);
 
         let mut a = Ciphered::cipher(&0b0000_1100_u8, pk);
         unsafe { HomomorphicNotGate::apply(&mut a) };
-        let d = a.decipher(context.get_secret_key().unwrap());
+        let d = a.decipher(sk);
         assert_eq!(0b1111_0011, d);
     }
 
@@ -262,11 +266,11 @@ mod tests {
         let mut context = Context::new(parameters);
         context.generate_secret_key();
         context.generate_public_key();
-        let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
+        let pk = context.get_public_key().unwrap();
 
-        let a = Ciphered::cipher(&22u8, pk);
-        let b = Ciphered::cipher(&20u8, pk);
+        let a = Ciphered::cipher(&22_u8, pk);
+        let b = Ciphered::cipher(&20_u8, pk);
         let c = unsafe { HomomorphicAddition::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(42, d);
@@ -291,16 +295,8 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a_raw = {
-            let mut buffer = [0u8; 8];
-            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            u64::from_le_bytes(buffer)
-        } / 2;
-        let b_raw = {
-            let mut buffer = [0u8; 8];
-            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            u64::from_le_bytes(buffer)
-        } / 2;
+        let a_raw = thread_rng().gen::<u64>() / 2;
+        let b_raw = thread_rng().gen::<u64>() / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);
@@ -320,21 +316,9 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a_raw = {
-            let mut buffer = [0u8; 1];
-            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            u8::from_le_bytes(buffer)
-        } / 2;
-        let b_raw = {
-            let mut buffer = [0u8; 1];
-            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            u8::from_le_bytes(buffer)
-        } / 2;
-        let c_raw = {
-            let mut buffer = [0u8; 1];
-            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            u8::from_le_bytes(buffer)
-        } / 2;
+        let a_raw = thread_rng().gen::<u8>() / 2;
+        let b_raw = thread_rng().gen::<u8>() / 2;
+        let c_raw = thread_rng().gen::<u8>() / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);
@@ -355,8 +339,8 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a = Ciphered::cipher(&6u8, pk);
-        let b = Ciphered::cipher(&7u8, pk);
+        let a = Ciphered::cipher(&6_u8, pk);
+        let b = Ciphered::cipher(&7_u8, pk);
         let c = unsafe { HomomorphicMultiplication::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(42, d);

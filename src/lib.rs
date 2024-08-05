@@ -150,7 +150,6 @@
 //! while the last one takes a compile-time-known number of arguments as a slice of refs.
 //! The main idea behind the last trait is to allow the user to define operations on an arbitrary number of ciphered data
 //! while still benefiting from Rust's type system.
-//! The const `N` is statically asserted to be greater than 0, so that it is impossible to define an operation with 0 arguments.
 //!
 //! Inside of the function, you can work with `Cipehered<T>` as if it were a `&Vec<CipheredBit>`
 //! (because `Cipehered<T>` implements `Deref<Vec<CipheredBit>`).
@@ -275,7 +274,7 @@
 extern crate alloc;
 
 #[cfg(feature = "custom_rand")]
-pub use getrandom::register_custom_getrandom as provide_getrandom;
+pub use getrandom::register_custom_getrandom;
 
 mod polynomial;
 

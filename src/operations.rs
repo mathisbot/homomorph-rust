@@ -13,7 +13,6 @@
 //! while the last one takes a compile-time-known number of arguments as a slice of refs.
 //! The main idea behind the last trait is to allow the user to define operations on an arbitrary number of ciphered data
 //! while still benefiting from Rust's type system.
-//! The const `N` is statically asserted to be greater than 0, so that it is impossible to define an operation with 0 arguments.
 //!
 //! Inside of the function, you can work with `Cipehered<T>` as if it were a `&Vec<CipheredBit>`
 //! (because `Cipehered<T>` implements `Deref<Vec<CipheredBit>`).
@@ -126,11 +125,6 @@ pub trait HomomorphicOperation2<T: ByteConvertible> {
 
 /// This trait is used to define homomorphic operations between a compile-time-known number of ciphered data
 ///
-/// ## Note
-///
-/// The const `N` is statically asserted to be greater than 0, so that it is impossible to define
-/// an operation with 0 arguments.
-///
 /// ## Safety
 ///
 /// As described here <https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#properties>,
@@ -185,10 +179,6 @@ pub trait HomomorphicOperation2<T: ByteConvertible> {
 /// let d = Ciphered::decipher(&c, sk);
 /// ```
 pub trait HomomorphicOperation<const N: usize, T: ByteConvertible> {
-    #[doc(hidden)]
-    /// Statically asserts that N is greater than 0
-    const __N_IS_GREATER_THAN_ZERO: () = const { assert!(N > 0) };
-
     /// ## Safety
     ///
     /// The function `apply` is marked as unsafe as it handles raw bits of data.

@@ -83,6 +83,7 @@ pub unsafe trait ByteConvertible {
 
 // All types that implement Copy and Sized can be converted to bytes
 // by simply reading stack data as bytes
+// TODO: Make it derivable ?
 unsafe impl<T: Copy + Sized> ByteConvertible for T {
     fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(size_of::<T>());
@@ -109,7 +110,7 @@ unsafe impl<T: Copy + Sized> ByteConvertible for T {
     /// This can happen with overflows when adding two unsigned integers for example.
     fn from_bytes(bytes: &[u8]) -> Self {
         assert!(
-            bytes.len() >= size_of::<T>(),
+            bytes.len() == size_of::<T>(),
             "Invalid size of bytes for conversion: {} instead of {}",
             bytes.len(),
             size_of::<T>()
@@ -175,8 +176,7 @@ impl<T: ByteConvertible> Ciphered<T> {
         let tau = pk.len();
         let random_part = Self::part(tau);
 
-        let mut sum =
-            unsafe { Polynomial::new_unchecked(vec![crate::polynomial::Coefficient::from(x)], 0) };
+        let mut sum = Polynomial::new_from_bool(x);
         for i in 0..tau {
             let random = random_part[i / 8] & (1 << (i % 8));
             if random != 0 {
@@ -234,7 +234,7 @@ impl<T: ByteConvertible> Ciphered<T> {
                 chunk
                     .iter()
                     .enumerate()
-                    .fold(0u8, |byte, (i, &bit)| byte | ((u8::from(bit)) << i))
+                    .fold(0, |byte, (i, &bit)| byte | ((u8::from(bit)) << i))
             })
             .collect::<Vec<_>>();
 
@@ -266,6 +266,32 @@ mod tests {
     }
 
     #[test]
+    fn test_byteconvertible() {
+        let data = 0b1000_1010_u8;
+        let bytes = data.to_bytes();
+        let decrypted = u8::from_bytes(&bytes);
+        assert_eq!(data, decrypted);
+
+        let data = MyStruct { a: 42, b: 69 };
+        let bytes = data.to_bytes();
+        let decrypted = MyStruct::from_bytes(&bytes);
+        assert_eq!(data, decrypted);
+
+        let data = MyStruct { a: 42, b: 69 };
+        let mut bytes = data.to_bytes();
+        bytes[0] ^= 1;
+        let decrypted = MyStruct::from_bytes(&bytes);
+        assert_ne!(data, decrypted);
+    }
+
+    #[test]
+    #[should_panic = "Invalid size of bytes for conversion: 2 instead of 1"]
+    fn test_byteconvertible_panic() {
+        let bytes = [0u8; 2];
+        let _ = u8::from_bytes(&bytes);
+    }
+
+    #[test]
     fn test_cipher() {
         let parameters = Parameters::new(64, 32, 8, 32);
         let mut context = Context::new(parameters);
@@ -284,14 +310,24 @@ mod tests {
         let decrypted = ciphered.decipher(sk);
         assert_eq!(data, decrypted);
 
-        let data = "Hello, World!";
-        let ciphered = Ciphered::cipher(&data, pk);
-        let decrypted = ciphered.decipher(sk);
-        assert_eq!(data, decrypted);
-
         let data = MyStruct { a: 42, b: 69 };
         let ciphered = Ciphered::cipher(&data, pk);
         let decrypted = ciphered.decipher(sk);
         assert_eq!(data, decrypted);
+    }
+
+    #[test]
+    fn test_deref() {
+        let parameters = Parameters::new(64, 32, 8, 32);
+        let mut context = Context::new(parameters);
+        context.generate_secret_key();
+        context.generate_public_key();
+        let pk = context.get_public_key().unwrap();
+
+        let data = 0b1000_1010_u8;
+        let ciphered = Ciphered::cipher(&data, pk);
+
+        // Assert it is possible to work with bits
+        let _iter = ciphered.iter();
     }
 }

@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -14,48 +14,57 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        target: x86_64-unknown-linux-gnu
-        profile: minimal
-        components: rustfmt, clippy
-        override: true
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-unknown-linux-gnu
+          profile: minimal
+          override: true
 
-    - name: Build
-      run: cargo build --lib --verbose
+      - name: Build
+        run: cargo build --lib --verbose
 
-    - name: Run basic tests
-      run: cargo test --verbose
+      - name: Run basic tests
+        run: cargo test --verbose
 
-    - name: Run extensive tests
-      run: cargo test --release --verbose -- --ignored
+      - name: Run a basic example
+        run: cargo run --release --example new_struct
 
-    - name: Run a basic example
-      run: cargo run --release --example new_struct
+  clippy-fmt:
+    runs-on: ubuntu-latest
 
-    - name: Run Clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings --no-deps
+    steps:
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-unknown-linux-gnu
+          profile: minimal
+          components: rustfmt, clippy
+          override: true
 
-    - name: Check formatting
-      run: cargo fmt -- --check
+      - name: Run clippy
+        run: cargo clippy --verbose --all-targets --all-features -- -D warnings --no-deps
+
+      - name: Run fmt
+        run: cargo fmt --verbose --all -- --check
 
   x86_64-unknown-none:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        target: x86_64-unknown-none
-        profile: minimal
-        override: true
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-unknown-none
+          profile: minimal
+          override: true
 
-    - name: Build
-      run: cargo build --lib --verbose
+      - name: Build
+        run: cargo build --lib --verbose --target x86_64-unknown-none

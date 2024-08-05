@@ -3,9 +3,6 @@ use std::time::Instant;
 
 use homomorph::prelude::*;
 
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
-
 const NUMBER_OF_TESTS: usize = 1_000;
 
 fn main() {

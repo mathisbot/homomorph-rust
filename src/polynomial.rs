@@ -42,23 +42,12 @@ impl Polynomial {
         }
     }
 
-    /// Create a new polynomial from a vector of coefficients and a degree
-    ///
-    /// ## Safety
-    ///
-    /// The user must provide the correct degree
-    ///
-    /// ## Panics
-    ///
-    /// If the vector of coefficients is empty.
-    pub unsafe fn new_unchecked(coefficients: Vec<Coefficient>, degree: usize) -> Self {
-        assert!(
-            !coefficients.is_empty(),
-            "The vector of coefficients must not be empty."
-        );
+    /// Create a new polynomial of degree 0 from a bool
+    pub fn new_from_bool(x: bool) -> Self {
+        let coefficients = vec![Coefficient::from(x)];
         Self {
             coefficients,
-            degree,
+            degree: 0,
         }
     }
 
@@ -100,7 +89,10 @@ impl Polynomial {
         coefficients[num_elements - 1] &= (1 << (degree % Coefficient::BITS as usize)) - 1;
         coefficients[num_elements - 1] |= 1 << (degree % Coefficient::BITS as usize);
 
-        unsafe { Self::new_unchecked(coefficients, degree) }
+        Self {
+            coefficients,
+            degree,
+        }
     }
 
     /// Returns the null polynomial
@@ -122,7 +114,10 @@ impl Polynomial {
         coefficients[degree / Coefficient::BITS as usize] =
             1 << (degree % Coefficient::BITS as usize);
 
-        unsafe { Self::new_unchecked(coefficients, degree) }
+        Self {
+            coefficients,
+            degree,
+        }
     }
 
     /// Evaluates the given polynomial at a given point
@@ -131,12 +126,13 @@ impl Polynomial {
             return (self.coefficients()[0] & 1) == 1;
         }
 
-        let result = self
+        let count_ones = self
             .coefficients()
             .iter()
-            .fold(0, |acc, &coeff| acc + coeff.count_ones());
+            .map(|&coeff| coeff.count_ones())
+            .sum::<u32>();
 
-        (result % 2) == 1
+        (count_ones % 2) == 1
     }
 
     /// Returns the degree of the polynomial
@@ -169,10 +165,13 @@ impl Polynomial {
         }
 
         if self.degree() == other.degree() {
-            // We know that the degree of the sum is exactly max(deg(p1), deg(p2)).
             Self::new(result)
         } else {
-            unsafe { Self::new_unchecked(result, max_deg) }
+            // We know that the degree of the sum is exactly max(deg(p1), deg(p2)).
+            Self {
+                coefficients: result,
+                degree: max_deg,
+            }
         }
     }
 
@@ -227,7 +226,10 @@ impl Polynomial {
             }
         }
 
-        unsafe { Self::new_unchecked(result, self.degree() + other.degree()) }
+        Self {
+            coefficients: result,
+            degree: self.degree() + other.degree(),
+        }
     }
 
     /// Compute the remainder of the division of two polynomials
@@ -259,33 +261,47 @@ impl Polynomial {
             r_degree = Self::compute_degree(&r);
         }
 
-        unsafe { Self::new_unchecked(r, r_degree) }
+        Self {
+            coefficients: r,
+            degree: r_degree,
+        }
     }
 }
 
 impl Clone for Polynomial {
     fn clone(&self) -> Self {
-        let mut cloned_coefficients = Vec::with_capacity(
-            (self.degree() + Coefficient::BITS as usize - 1) / Coefficient::BITS as usize,
-        );
+        let mut cloned_coefficients =
+            Vec::with_capacity(self.degree() / Coefficient::BITS as usize + 1);
         for i in 0..=(self.degree() / Coefficient::BITS as usize) {
             cloned_coefficients.push(self.coefficients()[i]);
         }
-        unsafe { Self::new_unchecked(cloned_coefficients, self.degree()) }
+        Self {
+            coefficients: cloned_coefficients,
+            degree: self.degree(),
+        }
     }
 }
 
 impl PartialEq for Polynomial {
     fn eq(&self, other: &Self) -> bool {
-        self.degree() == other.degree()
-            && self.coefficients()[0..=self.degree() / Coefficient::BITS as usize]
-                == other.coefficients()[0..=self.degree() / Coefficient::BITS as usize]
+        if self.degree() != other.degree() {
+            return false;
+        }
+
+        let relevant_length = self.degree() / Coefficient::BITS as usize + 1;
+        self.coefficients()[0..relevant_length] == other.coefficients()[0..relevant_length]
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::{Coefficient, Polynomial};
+
+    #[test]
+    #[should_panic = "The vector of coefficients must not be empty."]
+    fn test_new_empty() {
+        Polynomial::new(vec![]);
+    }
 
     #[test]
     fn test_compute_degree() {
@@ -300,6 +316,47 @@ mod test {
 
         let coefficients = vec![0b10010, 0b0];
         assert_eq!(Polynomial::compute_degree(&coefficients), 4);
+    }
+
+    #[test]
+    fn test_eq() {
+        let p1 = Polynomial::new(vec![0b1001]);
+        let p2 = Polynomial::new(vec![0b1001]);
+        assert_eq!(p1, p2);
+
+        let p1 = Polynomial::new(vec![0b1001, 0b1000_0011_0101_1010, 0b0, 0b1, 0b0]);
+        let p2 = Polynomial::new(vec![0b1001, 0b1000_0011_0101_1010, 0b0, 0b1, 0b0]);
+        assert_eq!(p1, p2);
+
+        let p1 = Polynomial::new(vec![0b1001]);
+        let p2 = Polynomial::new(vec![0b1001, 0b0]);
+        assert_eq!(p1, p2);
+
+        let p1 = Polynomial::new(vec![0b1001]);
+        let p2 = Polynomial::new(vec![0b1000]);
+        assert_ne!(p1, p2);
+
+        let p1 = Polynomial::new(vec![0b1000, 0b10, 0b0]);
+        let p2 = Polynomial::new(vec![0b1000, 0b0, 0b0]);
+        assert_ne!(p1, p2);
+    }
+
+    #[test]
+    fn test_monomial() {
+        let p = Polynomial::monomial(5);
+        assert_eq!(Polynomial::compute_degree(p.coefficients()), 5);
+
+        let p = Polynomial::monomial(Coefficient::BITS as usize - 1);
+        assert_eq!(
+            Polynomial::compute_degree(p.coefficients()),
+            Coefficient::BITS as usize - 1
+        );
+
+        let p = Polynomial::monomial(Coefficient::BITS as usize);
+        assert_eq!(
+            Polynomial::compute_degree(p.coefficients()),
+            Coefficient::BITS as usize
+        );
     }
 
     #[test]

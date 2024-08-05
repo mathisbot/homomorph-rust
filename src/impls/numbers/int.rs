@@ -59,8 +59,8 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a = Ciphered::cipher(&22i8, pk);
-        let b = Ciphered::cipher(&-20i8, pk);
+        let a = Ciphered::cipher(&22_i8, pk);
+        let b = Ciphered::cipher(&-20_i8, pk);
         let c = unsafe { HomomorphicAddition::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(d, 2);
@@ -86,16 +86,8 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a_raw = {
-            let mut buffer = [0u8; 8];
-            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            i64::from_le_bytes(buffer)
-        } / 2;
-        let b_raw = {
-            let mut buffer = [0u8; 8];
-            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            i64::from_le_bytes(buffer)
-        } / 2;
+        let a_raw = thread_rng().gen::<i64>() / 2;
+        let b_raw = thread_rng().gen::<i64>() / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);
@@ -116,21 +108,9 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a_raw = {
-            let mut buffer = [0u8; 1];
-            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            i8::from_le_bytes(buffer)
-        } / 2;
-        let b_raw = {
-            let mut buffer = [0u8; 1];
-            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            i8::from_le_bytes(buffer)
-        } / 2;
-        let c_raw = {
-            let mut buffer = [0u8; 1];
-            getrandom::getrandom(&mut buffer).expect("Failed to generate random bytes");
-            i8::from_le_bytes(buffer)
-        } / 2;
+        let a_raw = thread_rng().gen::<i8>() / 2;
+        let b_raw = thread_rng().gen::<i8>() / 2;
+        let c_raw = thread_rng().gen::<i8>() / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);
@@ -151,8 +131,8 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a = Ciphered::cipher(&6i8, pk);
-        let b = Ciphered::cipher(&-7i8, pk);
+        let a = Ciphered::cipher(&6_i8, pk);
+        let b = Ciphered::cipher(&-7_i8, pk);
         let c = unsafe { HomomorphicMultiplication::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(d, -42);

@@ -24,6 +24,7 @@ use alloc::vec::Vec;
 /// `delta` is strictly less than `d`.
 ///
 /// For more information, visit <https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system>.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Parameters {
     d: u16,
     dp: u16,
@@ -110,7 +111,7 @@ impl SecretKey {
         let mut coeffs: Vec<_> =
             Vec::with_capacity(bytes.len() / size_of::<crate::polynomial::Coefficient>());
         for chunk in bytes.chunks(size_of::<crate::polynomial::Coefficient>()) {
-            let mut array = [0u8; size_of::<crate::polynomial::Coefficient>()];
+            let mut array = [0; size_of::<crate::polynomial::Coefficient>()];
             array[..chunk.len()].copy_from_slice(chunk);
             coeffs.push(crate::polynomial::Coefficient::from_le_bytes(array));
         }
@@ -200,7 +201,7 @@ impl PublicKey {
             let mut coeffs: Vec<_> =
                 Vec::with_capacity(bytes.len() / size_of::<crate::polynomial::Coefficient>());
             for chunk in bytes.chunks(size_of::<crate::polynomial::Coefficient>()) {
-                let mut array = [0u8; size_of::<crate::polynomial::Coefficient>()];
+                let mut array = [0; size_of::<crate::polynomial::Coefficient>()];
                 array[..chunk.len()].copy_from_slice(chunk);
                 coeffs.push(crate::polynomial::Coefficient::from_le_bytes(array));
             }
@@ -266,6 +267,7 @@ impl PublicKey {
 }
 
 /// The cipher context.
+#[derive(Clone, Debug)]
 pub struct Context {
     secret_key: Option<SecretKey>,
     public_key: Option<PublicKey>,
@@ -449,7 +451,7 @@ mod tests {
         let bytes = sk.get_bytes();
         let sk2 = SecretKey::new(&bytes);
 
-        assert_eq!(sk.s, sk2.s);
+        assert_eq!(sk, sk2);
     }
 
     #[test]
@@ -460,7 +462,7 @@ mod tests {
         let bytes = pk.get_bytes();
         let pk2 = PublicKey::new(&bytes);
 
-        assert_eq!(pk.list, pk2.list);
+        assert_eq!(pk, pk2);
     }
 
     #[test]
@@ -479,5 +481,13 @@ mod tests {
 
         assert_eq!(sk, sk2);
         assert_eq!(pk, pk2);
+    }
+
+    #[test]
+    #[should_panic = "Secret key not generated yet"]
+    fn test_context_panic() {
+        let params = Parameters::new(64, 32, 8, 32);
+        let mut context = Context::new(params);
+        context.generate_public_key();
     }
 }
