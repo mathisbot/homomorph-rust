@@ -1,7 +1,5 @@
 # Homomorphic Encryption Scheme in Rust
 
-[Code coverage](tarpaulin-report.html)
-
 This repository contains a Rust implementation of an homomorphic encryption scheme.
 
 Homomorphic encryption allows computations to be performed on encrypted data without decrypting it, preserving the privacy of the data.
