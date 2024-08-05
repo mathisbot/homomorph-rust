@@ -155,7 +155,7 @@ pub trait HomomorphicOperation2<T: ByteConvertible> {
 /// impl<const N: usize> HomomorphicOperation<N, MyStruct> for MyOperation {
 ///     /// ## Safety
 ///     ///
-///     /// `d/delta` on cipher must have been at least `18*sizeof::<T>()`.
+///     /// `d/delta` on cipher must have been at least `3*sizeof::<T>()`.
 ///     unsafe fn apply(args: [&Ciphered<MyStruct>; N]) -> Ciphered<MyStruct> {
 ///         let result = args[0].deref().clone();
 ///
@@ -166,7 +166,7 @@ pub trait HomomorphicOperation2<T: ByteConvertible> {
 /// }
 ///
 /// // Usage
-/// let params = Parameters::new(128, 128, 1, 128);
+/// let params = Parameters::new(32, 8, 4, 8);
 /// let mut context = Context::new(params);
 /// context.generate_secret_key();
 /// context.generate_public_key();

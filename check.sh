@@ -40,6 +40,8 @@ run_command "cargo run --example new_struct"
 run_command "cargo clippy --all-targets --all-features -- -D warnings --no-deps"
 run_command "cargo test --release -- --ignored"
 run_command "cargo fmt"
+# Optional
+# run_command "cargo tarpaulin --lib --all-features --locked --out Html"
 
 echo -e "\n./src contains $(count_lines 'src') non-empty lines" 
 echo -e "\033[32mReady to push!\033[0m"

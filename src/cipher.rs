@@ -111,9 +111,9 @@ unsafe impl<T: Copy + Sized> ByteConvertible for T {
     fn from_bytes(bytes: &[u8]) -> Self {
         assert!(
             bytes.len() == size_of::<T>(),
-            "Invalid size of bytes for conversion: {} instead of {}",
-            bytes.len(),
-            size_of::<T>()
+            "Invalid byte count for conversion: expected {} got {}",
+            size_of::<T>(),
+            bytes.len()
         );
 
         let mut data: MaybeUninit<T> = core::mem::MaybeUninit::uninit();
@@ -261,12 +261,19 @@ mod tests {
     #[derive(Copy, Clone, Debug, PartialEq)]
     #[repr(C)]
     struct MyStruct {
-        a: usize,
-        b: usize,
+        a: u32,
+        b: u32,
     }
 
     #[test]
     fn test_byteconvertible() {
+        let raw = [2_u8, 1_u8];
+        let data = u16::from_bytes(&raw);
+        assert_eq!(258, data);
+
+        let bytes = data.to_bytes();
+        assert_eq!(raw, bytes.as_slice());
+
         let data = 0b1000_1010_u8;
         let bytes = data.to_bytes();
         let decrypted = u8::from_bytes(&bytes);
@@ -285,10 +292,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic = "Invalid size of bytes for conversion: 2 instead of 1"]
+    #[should_panic = "Invalid byte count for conversion: expected 8 got 1"]
     fn test_byteconvertible_panic() {
-        let bytes = [0u8; 2];
-        let _ = u8::from_bytes(&bytes);
+        let bytes = [0u8; 1];
+        let _ = MyStruct::from_bytes(&bytes);
     }
 
     #[test]

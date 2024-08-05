@@ -42,6 +42,8 @@ Run-Command "cargo run --example new_struct"
 Run-Command "cargo clippy --all-targets --all-features -- -D warnings --no-deps"
 Run-Command "cargo test --release -- --ignored"
 Run-Command "cargo fmt"
+# Optional
+# Run-Command "cargo tarpaulin --lib --all-features --locked --out Html"
 
 Write-Host "`n./src contains $(Count-Lines "src") non-empty lines" -ForegroundColor blue
 Write-Host "Ready to push!" -ForegroundColor Green

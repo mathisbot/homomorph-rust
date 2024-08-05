@@ -1,6 +1,6 @@
 # Homomorphic Encryption Scheme in Rust
 
-[![Coverage Status](https://coveralls.io/repos/github/mathisbot/homomorph-rust/badge.svg)](https://coveralls.io/github/mathisbot/homomorph-rust)
+[Code coverage](tarpaulin-report.html)
 
 This repository contains a Rust implementation of an homomorphic encryption scheme.
 

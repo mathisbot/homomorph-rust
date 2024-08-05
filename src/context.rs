@@ -444,6 +444,18 @@ mod tests {
     use super::*;
 
     #[test]
+    #[should_panic = "Delta must be strictly less than d"]
+    fn test_parameters_delta_panic() {
+        let _ = Parameters::new(6, 3, 6, 5);
+    }
+
+    #[test]
+    #[should_panic = "Parameters must be strictly positive"]
+    fn test_parameters_null_panic() {
+        let _ = Parameters::new(6, 0, 2, 5);
+    }
+
+    #[test]
     fn test_secret_key() {
         let s = vec![5, 14, 8];
         let sk = SecretKey::new(&s);
