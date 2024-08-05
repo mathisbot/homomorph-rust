@@ -56,7 +56,7 @@ You may also need a source of randomness. On bare x86, randomness can still be r
 
 ## Benchmarks
 
-Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 10 000 `u32`s using `mimalloc`.
+Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 10 000 `u32`s.
 
 Parameters used for this benchmark were :
 - `d` = 128
@@ -66,10 +66,10 @@ Parameters used for this benchmark were :
 
 | Operation         | Average time     |
 |:-----------------:|:----------------:|
-| Encryption        |      43.4 µs     |
-| Decryption        |      13.8 µs     |
-| Add               |       3.7 ms     |
-| Dec. after add    |       5.2 ms     |
+| Encryption        |      82.7 µs     |
+| Decryption        |      15.0 µs     |
+| Add               |       4.4 ms     |
+| Dec. after add    |       4.8 ms     |
 
 It is still more efficient to decrypt, operate and then re-encrypt the data. This limits the use of the system to applications where security is paramount, and takes precedence over speed.
 
