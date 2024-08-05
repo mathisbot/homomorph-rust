@@ -31,7 +31,7 @@ jobs:
         run: cargo test --verbose
 
       - name: Run a basic example
-        run: cargo run --release --example new_struct
+        run: cargo run --example new_struct
 
   clippy-fmt:
     runs-on: ubuntu-latest
@@ -57,7 +57,7 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     container:
-      image: xd009642/tarpaulin:develop-nightly
+      image: xd009642/tarpaulin
       options: --security-opt seccomp=unconfined
     steps:
       - name: Checkout repository
@@ -65,7 +65,7 @@ jobs:
 
       - name: Generate code coverage
         run: |
-          cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
+          cargo tarpaulin --all-targets --all-features --lib --timeout 180 --out xml
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v2
