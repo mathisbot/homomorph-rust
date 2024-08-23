@@ -64,14 +64,10 @@ impl HomomorphicOperation2<Vec3> for Vec3Add {
         let by: Ciphered<Coordinate> = Ciphered::new_from_raw(by.to_vec());
         let bz: Ciphered<Coordinate> = Ciphered::new_from_raw(bz.to_vec());
 
-        // Perform already implemented homomorphic addition over `Coordinate` (`uint` is already implemented)
+        // Perform the already implemented homomorphic addition over `Coordinate`
         let x = homomorph_impls::numbers::HomomorphicAddition::apply(&ax, &bx);
         let y = homomorph_impls::numbers::HomomorphicAddition::apply(&ay, &by);
         let z = homomorph_impls::numbers::HomomorphicAddition::apply(&az, &bz);
-
-        assert_eq!(x.len(), Coordinate::BITS as usize);
-        assert_eq!(y.len(), Coordinate::BITS as usize);
-        assert_eq!(z.len(), Coordinate::BITS as usize);
 
         // Merge the results
         let mut res = Vec::with_capacity(8 * size_of::<Vec3>());

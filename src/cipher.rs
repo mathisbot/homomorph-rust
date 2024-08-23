@@ -85,6 +85,7 @@ pub unsafe trait ByteConvertible {
 // by simply reading stack data as bytes
 // TODO: Make it derivable ?
 unsafe impl<T: Copy + Sized> ByteConvertible for T {
+    /// This function is used to convert a type to a byte array
     fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(size_of::<T>());
 
@@ -109,11 +110,6 @@ unsafe impl<T: Copy + Sized> ByteConvertible for T {
     /// ## Panics
     ///
     /// This function will panic if the byte array is too small.
-    ///
-    /// ## Note
-    ///
-    /// If the byte array is too big, data will be truncated.
-    /// This can happen with overflows when adding two unsigned integers for example.
     fn from_bytes(bytes: &[u8]) -> Self {
         assert!(
             bytes.len() == size_of::<T>(),
@@ -211,11 +207,14 @@ impl<T: ByteConvertible> Ciphered<T> {
     /// * `data` - The data to encrypt
     /// * `pk` - The public key to use for encryption
     pub fn cipher(data: &T, pk: &PublicKey) -> Self {
-        let c_data = data
-            .to_bytes()
-            .iter()
-            .flat_map(|&byte| (0..8).map(move |i| Self::cipher_bit((byte >> i) & 1 == 1, pk)))
-            .collect::<Vec<_>>();
+        let mut c_data = Vec::with_capacity(data.to_bytes().len() * 8);
+
+        for &byte in &data.to_bytes() {
+            for i in 0..8 {
+                let bit = (byte >> i) & 1;
+                c_data.push(Self::cipher_bit(bit == 1, pk));
+            }
+        }
 
         Self {
             phantom: core::marker::PhantomData,
@@ -238,21 +237,33 @@ impl<T: ByteConvertible> Ciphered<T> {
     ///
     /// * `self` - The ciphered data to decrypt
     /// * `sk` - The secret key to use for decryption
+    ///
+    /// ## Panics
+    ///
+    /// This function will panic if the ciphered data length is not a multiple of 8
     pub fn decipher(&self, sk: &SecretKey) -> T {
-        let deciphered_bits: Vec<bool> = self
-            .iter()
-            .map(|c_bit| Self::decipher_bit(c_bit, sk))
-            .collect();
+        assert!(
+            self.len() % 8 == 0,
+            "Invalid ciphered data length: expected multiple of 8, got {}",
+            self.len()
+        );
 
-        let bytes = deciphered_bits
-            .chunks_exact(8)
-            .map(|chunk| {
-                chunk
-                    .iter()
-                    .enumerate()
-                    .fold(0, |byte, (i, &bit)| byte | ((u8::from(bit)) << i))
-            })
-            .collect::<Vec<_>>();
+        let mut bytes = Vec::with_capacity(self.len() / 8);
+
+        let mut byte = 0u8;
+        let mut bit_count = 0;
+
+        for c_bit in self.iter() {
+            let bit = u8::from(Self::decipher_bit(c_bit, sk));
+            byte |= bit << bit_count;
+            bit_count += 1;
+
+            if bit_count == 8 {
+                bytes.push(byte);
+                byte = 0;
+                bit_count = 0;
+            }
+        }
 
         ByteConvertible::from_bytes(&bytes)
     }

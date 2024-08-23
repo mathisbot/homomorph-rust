@@ -1,8 +1,8 @@
-use crate::impls::numbers::{
+use crate::prelude::*;
+use homomorph_impls::numbers::{
     HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
     HomomorphicOrGate, HomomorphicXorGate,
 };
-use crate::prelude::*;
 
 use alloc::vec::Vec;
 
@@ -72,19 +72,21 @@ fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
         let p2 = b.get(i).unwrap_or(&null_bit);
         let s = p1.xor(p2).xor(&carry);
 
+        result.push(s);
+
+        if i + 1 >= longest {
+            break;
+        }
+
         // carry = p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
         // This is too long and can be simplified :
         // c <- (p1+p2)*c + p1*p2 + p1*p2*(p1+p2)*c
         // c <- c*(p1+p2)*(1+p1*p2) + p1*p2
         let p1_p2 = p1.and(p2);
-        if i + 1 < longest {
-            carry = carry
-                .and(&p1.xor(p2))
-                .and(&CipheredBit::one().xor(&p1_p2))
-                .xor(&p1_p2);
-        }
-
-        result.push(s);
+        carry = carry
+            .and(&p1.xor(p2))
+            .and(&CipheredBit::one().xor(&p1_p2))
+            .xor(&p1_p2);
     }
 
     result
@@ -149,12 +151,12 @@ fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit], size: usize) -> 
             result[i] = result[i].xor(&partial_products[i][i - j]);
         }
         // Propagate carry
-        for c in carry[i] {
+        for j in 0..carry[i].len() {
             if i + 1 < max_len {
-                let t = result[i].and(&c);
+                let t = result[i].and(&carry[i][j]);
                 carry[i + 1].push(t);
             }
-            result[i] = result[i].xor(&c);
+            result[i] = result[i].xor(&carry[i][j]);
         }
     }
     // All subsequent carries are thrown away
@@ -332,7 +334,7 @@ mod tests {
     #[test]
     #[should_panic = "not yet implemented: Homormophic multiplication for uint"]
     fn test_homomorphic_multiplication() {
-        let parameters = Parameters::new(4096, 8, 1, 4);
+        let parameters = Parameters::new(1024, 8, 1, 4);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
         context.generate_public_key();
@@ -344,6 +346,12 @@ mod tests {
         let c = unsafe { HomomorphicMultiplication::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(42, d);
+
+        let a = Ciphered::cipher(&0_u8, pk);
+        let b = Ciphered::cipher(&151_u8, pk);
+        let c = unsafe { HomomorphicMultiplication::apply(&a, &b) };
+        let d = c.decipher(sk);
+        assert_eq!(0, d);
 
         let a_raw = thread_rng().gen::<u16>() / 2;
         let b_raw = thread_rng().gen::<u16>() / 2;

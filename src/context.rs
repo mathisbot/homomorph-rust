@@ -122,7 +122,7 @@ impl SecretKey {
 
     #[must_use]
     /// Generates a random secret key of the given degree
-    pub(self) fn random(d: u16) -> Self {
+    fn random(d: u16) -> Self {
         Self {
             s: Polynomial::random(d as usize),
         }
@@ -224,7 +224,7 @@ impl PublicKey {
 
     #[must_use]
     /// Generates a random public key
-    pub(self) fn random(dp: u16, delta: u16, tau: u16, secret_key: &SecretKey) -> Self {
+    fn random(dp: u16, delta: u16, tau: u16, secret_key: &SecretKey) -> Self {
         let list: Vec<_> = (0..tau)
             .map(|_| {
                 let q = Polynomial::random(dp as usize);

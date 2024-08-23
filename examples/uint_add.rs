@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use homomorph::prelude::*;
 
-const NUMBER_OF_TESTS: usize = 1_000;
+const NUMBER_OF_TESTS: usize = 10_000;
 
 fn main() {
     let mut rng = rand::thread_rng();

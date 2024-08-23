@@ -152,10 +152,10 @@
 //! while still benefiting from Rust's type system.
 //!
 //! Inside of the function, you can work with `Cipehered<T>` as if it were a `&Vec<CipheredBit>`
-//! (because `Cipehered<T>` implements `Deref<Vec<CipheredBit>`).
+//! (because `Cipehered<T>` implements `Deref<Vec<CipheredBit>>`).
 //!
 //! From that point, all operations are highly unsafe as you are working with raw bits.
-//! For instance, can apply logic gates to the `CipheredBit`s.
+//! For instance, you can apply logic gates to the `CipheredBit`s.
 //!
 //! If you need more information on this traits, visit [their documentation](operations).
 //!

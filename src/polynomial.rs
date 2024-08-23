@@ -23,6 +23,20 @@ pub struct Polynomial {
 }
 
 impl Polynomial {
+    /// Compute the degree of a polynomial
+    ///
+    /// This function shouldn't be used outside of the crate as it is
+    /// easier to get a polynomial's degree using the `degree` field.
+    fn compute_degree(coefficients: &[Coefficient]) -> usize {
+        coefficients
+            .iter()
+            .rposition(|&coeff| coeff != 0)
+            .map_or(0, |i| {
+                Coefficient::BITS as usize - 1 - coefficients[i].leading_zeros() as usize
+                    + Coefficient::BITS as usize * i
+            })
+    }
+
     /// Create a new polynomial from a vector of coefficients
     ///
     /// The degree of the polynomial is computed from the vector of coefficients.
@@ -49,20 +63,6 @@ impl Polynomial {
             coefficients,
             degree: 0,
         }
-    }
-
-    /// Compute the degree of a polynomial
-    ///
-    /// This function shouldn't be used outside of the crate as it is
-    /// easier to get a polynomial's degree using the `degree` field.
-    pub(crate) fn compute_degree(coefficients: &[Coefficient]) -> usize {
-        coefficients
-            .iter()
-            .rposition(|&coeff| coeff != 0)
-            .map_or(0, |i| {
-                Coefficient::BITS as usize - 1 - coefficients[i].leading_zeros() as usize
-                    + Coefficient::BITS as usize * i
-            })
     }
 
     /// Generate a random polynomial of a given degree
@@ -215,15 +215,24 @@ impl Polynomial {
                 let in_bounds = i + j + 1 < result_len;
 
                 let mut processed_a = a;
+                let mut local_result_l = 0; // Reduce cache misses
+                let mut local_result_h = 0; // Reduce cache misses
                 while processed_a != 0 {
                     let k = processed_a.trailing_zeros() as usize;
 
-                    result[i + j] ^= b << k;
-                    if in_bounds && k > 0 {
-                        result[i + j + 1] ^= b >> (Coefficient::BITS as usize - k);
+                    local_result_l ^= b << k;
+
+                    if k > 0 && in_bounds {
+                        local_result_h ^= b >> (Coefficient::BITS as usize - k);
                     }
 
                     processed_a &= processed_a - 1;
+                }
+
+                result[i + j] ^= local_result_l;
+
+                if in_bounds {
+                    result[i + j + 1] ^= local_result_h;
                 }
             }
         }
@@ -306,7 +315,7 @@ impl Polynomial {
         };
 
         // Zeroize coefficients
-        let len = self.coefficients().len();
+        let len = self.coefficients().capacity();
         let base_ptr = self.coefficients.as_mut_ptr();
         for i in 0..len {
             // Safety

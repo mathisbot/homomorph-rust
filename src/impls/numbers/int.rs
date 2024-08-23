@@ -1,6 +1,61 @@
-use crate::impls::numbers::{HomomorphicAddition, HomomorphicMultiplication};
-use crate::operations::HomomorphicOperation2;
-use crate::Ciphered;
+use crate::prelude::*;
+use homomorph_impls::numbers::{
+    HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
+    HomomorphicOrGate, HomomorphicXorGate,
+};
+
+macro_rules! impl_homomorphic_gates_int {
+    ($($t:ty),+) => {
+        $(
+            impl HomomorphicOperation2<$t> for HomomorphicAndGate {
+                /// Perform a homomorphic AND gate on two ciphered numbers.
+                ///
+                /// ## Safety
+                ///
+                /// `d/delta` on cipher must have been at least 2.
+                unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
+                    Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.and(b)).collect())
+                }
+            }
+
+            impl HomomorphicOperation2<$t> for HomomorphicOrGate {
+                /// Perform a homomorphic OR gate on two ciphered numbers.
+                ///
+                /// ## Safety
+                ///
+                /// `d/delta` on cipher must have been at least 2.
+                unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
+                    Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.or(b)).collect())
+                }
+            }
+
+            impl HomomorphicOperation2<$t> for HomomorphicXorGate {
+                /// Perform a homomorphic XOR gate on two ciphered numbers.
+                ///
+                /// ## Safety
+                ///
+                /// `d/delta` on cipher must have been at least 1.
+                unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
+                    Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.xor(b)).collect())
+                }
+            }
+
+            impl HomomorphicOperation1<$t> for HomomorphicNotGate {
+                /// Perform a homomorphic NOT gate on a ciphered number.
+                ///
+                /// ## Safety
+                ///
+                /// `d/delta` on cipher must have been at least 1.
+                unsafe fn apply(a: &mut Ciphered<$t>) -> &mut Ciphered<$t> {
+                    *a = Ciphered::new_from_raw(a.iter().map(|a| a.not()).collect());
+                    a
+                }
+            }
+        )+
+    }
+}
+
+impl_homomorphic_gates_int!(i8, i16, i32, isize, i64, i128);
 
 macro_rules! impl_homomorphic_addition_int {
     ($($t:ty),+) => {
