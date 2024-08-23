@@ -212,22 +212,18 @@ impl Polynomial {
                 .take(other.degree() / Coefficient::BITS as usize + 1)
                 .enumerate()
             {
-                let mut shifted_a = a;
+                let in_bounds = i + j + 1 < result_len;
 
-                // This inner loop shows that polynomial multiplication doesn't
-                // really benefit from using uints instead of `bool`s.
-                // TODO: Think hard and find a way to optimize this.
-                for k in 0..Coefficient::BITS as usize {
-                    if shifted_a & 1 == 1 {
-                        result[i + j] ^= b << k;
-                        if k > 0 && i + j + 1 < result_len {
-                            result[i + j + 1] ^= b >> (Coefficient::BITS as usize - k);
-                        }
+                let mut processed_a = a;
+                while processed_a != 0 {
+                    let k = processed_a.trailing_zeros() as usize;
+
+                    result[i + j] ^= b << k;
+                    if in_bounds && k > 0 {
+                        result[i + j + 1] ^= b >> (Coefficient::BITS as usize - k);
                     }
-                    shifted_a >>= 1;
-                    if shifted_a == 0 {
-                        break;
-                    }
+
+                    processed_a &= processed_a - 1;
                 }
             }
         }
@@ -245,26 +241,41 @@ impl Polynomial {
         let mut r = self.coefficients().clone();
         let mut r_degree = self.degree();
 
-        let max_coefficient_idx =
-            (other.degree() / Coefficient::BITS as usize + 1).min(other.coefficients().len());
+        let other_degree = other.degree();
 
-        // At most self.degree() - other.degree() iterations
-        while r_degree >= other.degree() {
-            let shift = r_degree - other.degree();
+        while r_degree >= other_degree {
+            let shift = r_degree - other_degree;
             let block_shift = shift / Coefficient::BITS as usize;
             let bit_shift = shift % Coefficient::BITS as usize;
 
-            for i in 0..max_coefficient_idx {
+            let max_idx =
+                (other_degree / Coefficient::BITS as usize + 1).min(other.coefficients().len());
+            let max_bound = r.len() - block_shift - 1;
+            let bit_shift_right = Coefficient::BITS as usize - bit_shift;
+
+            for i in 0..max_idx {
                 r[block_shift + i] ^= other.coefficients()[i] << bit_shift;
-                if bit_shift != 0 && block_shift + i + 1 < r.len() {
-                    r[block_shift + i + 1] ^=
-                        other.coefficients()[i] >> (Coefficient::BITS as usize - bit_shift);
+                if bit_shift != 0 && i < max_bound {
+                    r[block_shift + i + 1] ^= other.coefficients()[i] >> bit_shift_right;
                 }
             }
 
-            // Degree needs to be recomputed as it may not be
-            // r_degree - 1
-            r_degree = Self::compute_degree(&r);
+            // Faster than `compute_degree`.
+            while r_degree > 0
+                && (r[r_degree / Coefficient::BITS as usize]
+                    >> (r_degree % Coefficient::BITS as usize))
+                    == 0
+            {
+                let bit_position = r_degree % Coefficient::BITS as usize;
+                let local_coeff = r[r_degree / Coefficient::BITS as usize];
+
+                let shift_amount =
+                    (Coefficient::BITS as usize - bit_position) & (Coefficient::BITS as usize - 1);
+                let shifted_coeff = local_coeff << shift_amount;
+
+                r_degree -=
+                    ((shifted_coeff.leading_zeros() as usize).min(bit_position) + 1).min(r_degree);
+            }
         }
 
         Self {
@@ -314,9 +325,11 @@ impl Clone for Polynomial {
     fn clone(&self) -> Self {
         let mut cloned_coefficients =
             Vec::with_capacity(self.degree() / Coefficient::BITS as usize + 1);
-        for i in 0..=(self.degree() / Coefficient::BITS as usize) {
-            cloned_coefficients.push(self.coefficients()[i]);
-        }
+
+        let relevant_length = self.degree() / Coefficient::BITS as usize;
+
+        cloned_coefficients.extend_from_slice(&self.coefficients()[..=relevant_length]);
+
         Self {
             coefficients: cloned_coefficients,
             degree: self.degree(),
@@ -438,7 +451,7 @@ mod test {
     }
 
     #[test]
-    fn test_add_fn() {
+    fn test_add() {
         // Simple case
         let p1 = Polynomial::new(vec![0b1001]);
         let p2 = Polynomial::new(vec![0b0011]);
@@ -453,7 +466,7 @@ mod test {
     }
 
     #[test]
-    fn test_mul_fn() {
+    fn test_mul() {
         let p1 = Polynomial::new(vec![0b1001]);
         let p2 = Polynomial::new(vec![0b11]);
         let p3 = p1.mul(&p2);

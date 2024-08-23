@@ -66,10 +66,10 @@ Parameters used for this benchmark were :
 
 | Operation         | Average time     |
 |:-----------------:|:----------------:|
-| Encryption        |      82.7 µs     |
-| Decryption        |      15.0 µs     |
-| Add               |       4.4 ms     |
-| Dec. after add    |       4.8 ms     |
+| Encryption        |      83.2 µs     |
+| Decryption        |      18.1 µs     |
+| Add               |       2.4 ms     |
+| Dec. after add    |       1.4 ms     |
 
 It is still more efficient to decrypt, operate and then re-encrypt the data. This limits the use of the system to applications where security is paramount, and takes precedence over speed.
 

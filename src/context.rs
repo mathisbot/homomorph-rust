@@ -348,16 +348,14 @@ impl Context {
     /// context.generate_public_key();
     /// ```
     pub fn generate_public_key(&mut self) {
-        if let Some(secret_key) = &self.secret_key {
-            self.public_key = Some(PublicKey::random(
-                self.parameters.dp,
-                self.parameters.delta,
-                self.parameters.tau,
-                secret_key,
-            ));
-        } else {
-            panic!("Secret key not generated yet");
-        }
+        self.public_key = Some(PublicKey::random(
+            self.parameters.dp,
+            self.parameters.delta,
+            self.parameters.tau,
+            self.secret_key
+                .as_ref()
+                .expect("Secret key not generated yet"),
+        ));
     }
 
     #[must_use]

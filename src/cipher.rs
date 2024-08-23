@@ -194,8 +194,8 @@ impl<T: ByteConvertible> Ciphered<T> {
 
         let mut sum = Polynomial::new_from_bool(x);
         for i in 0..tau {
-            let random = random_part[i / 8] & (1 << (i % 8));
-            if random != 0 {
+            let should_add = random_part[i / 8] & (1 << (i % 8));
+            if should_add != 0 {
                 sum = sum.add(&pk[i]);
             }
         }
@@ -245,7 +245,7 @@ impl<T: ByteConvertible> Ciphered<T> {
             .collect();
 
         let bytes = deciphered_bits
-            .chunks(8)
+            .chunks_exact(8)
             .map(|chunk| {
                 chunk
                     .iter()

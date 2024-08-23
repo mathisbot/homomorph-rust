@@ -149,12 +149,12 @@ fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit], size: usize) -> 
             result[i] = result[i].xor(&partial_products[i][i - j]);
         }
         // Propagate carry
-        for j in 0..carry[i].len() {
+        for c in carry[i] {
             if i + 1 < max_len {
-                let t = result[i].and(&carry[i][j]);
+                let t = result[i].and(&c);
                 carry[i + 1].push(t);
             }
-            result[i] = result[i].xor(&carry[i][j]);
+            result[i] = result[i].xor(&c);
         }
     }
     // All subsequent carries are thrown away
