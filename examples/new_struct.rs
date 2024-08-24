@@ -35,9 +35,9 @@ unsafe impl ByteConvertible for Vec3 {
             bytes.len(),
         );
 
-        let x = u16::from_le_bytes([bytes[0], bytes[1]]);
-        let y = u16::from_le_bytes([bytes[2], bytes[3]]);
-        let z = u16::from_le_bytes([bytes[4], bytes[5]]);
+        let x = Coordinate::from_le_bytes([bytes[0], bytes[1]]);
+        let y = Coordinate::from_le_bytes([bytes[2], bytes[3]]);
+        let z = Coordinate::from_le_bytes([bytes[4], bytes[5]]);
 
         Self { x, y, z }
     }

@@ -2,6 +2,7 @@ use rand::{self, Rng};
 use std::time::Instant;
 
 use homomorph::prelude::*;
+use homomorph_impls::numbers::HomomorphicAddition;
 
 const NUMBER_OF_TESTS: usize = 1_000;
 
@@ -63,12 +64,8 @@ fn main() {
     let mut encrypted_data3: Vec<Ciphered<_>> = Vec::with_capacity(NUMBER_OF_TESTS);
     let start = Instant::now();
     for i in 0..NUMBER_OF_TESTS {
-        encrypted_data3.push(unsafe {
-            homomorph_impls::numbers::HomomorphicAddition::apply(
-                &encrypted_data1[i],
-                &encrypted_data2[i],
-            )
-        })
+        encrypted_data3
+            .push(unsafe { HomomorphicAddition::apply(&encrypted_data1[i], &encrypted_data2[i]) })
     }
     let elapsed = start.elapsed();
     println!(

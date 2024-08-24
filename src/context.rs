@@ -72,13 +72,31 @@ impl Parameters {
         );
         Self { d, dp, delta, tau }
     }
+
+    #[must_use]
+    pub const fn d(&self) -> u16 {
+        self.d
+    }
+
+    #[must_use]
+    pub const fn dp(&self) -> u16 {
+        self.dp
+    }
+
+    #[must_use]
+    pub const fn delta(&self) -> u16 {
+        self.delta
+    }
+
+    #[must_use]
+    pub const fn tau(&self) -> u16 {
+        self.tau
+    }
 }
 
 /// The secret key.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SecretKey {
-    s: Polynomial,
-}
+pub struct SecretKey(Polynomial);
 
 impl SecretKey {
     #[must_use]
@@ -115,17 +133,17 @@ impl SecretKey {
             array[..chunk.len()].copy_from_slice(chunk);
             coeffs.push(crate::polynomial::Coefficient::from_le_bytes(array));
         }
-        Self {
-            s: Polynomial::new(coeffs),
-        }
+        Self(Polynomial::new(coeffs))
     }
 
     #[must_use]
     /// Generates a random secret key of the given degree
     fn random(d: u16) -> Self {
-        Self {
-            s: Polynomial::random(d as usize),
-        }
+        Self(Polynomial::random(d as usize))
+    }
+
+    pub(crate) const fn get_polynomial(&self) -> &Polynomial {
+        &self.0
     }
 
     #[must_use]
@@ -151,14 +169,10 @@ impl SecretKey {
     /// ```
     pub fn get_bytes(&self) -> Vec<u8> {
         let mut bytes: Vec<u8> = Vec::new();
-        for x in self.s.coefficients() {
+        for x in self.get_polynomial().coefficients() {
             bytes.extend_from_slice(x.to_le_bytes().as_ref());
         }
         bytes
-    }
-
-    pub(crate) const fn get_polynomial(&self) -> &Polynomial {
-        &self.s
     }
 }
 
@@ -169,15 +183,13 @@ impl Drop for SecretKey {
         // Safety
         // The content will not be used afterwards
         // as we are dropping the secret key.
-        unsafe { self.s.zeroize() };
+        unsafe { self.0.zeroize() };
     }
 }
 
 /// The public key.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PublicKey {
-    list: Vec<Polynomial>,
-}
+pub struct PublicKey(Vec<Polynomial>);
 
 impl PublicKey {
     #[must_use]
@@ -219,7 +231,7 @@ impl PublicKey {
             let p = Polynomial::new(coeffs);
             list.push(p);
         }
-        Self { list }
+        Self(list)
     }
 
     #[must_use]
@@ -228,14 +240,18 @@ impl PublicKey {
         let list: Vec<_> = (0..tau)
             .map(|_| {
                 let q = Polynomial::random(dp as usize);
-                let sq = secret_key.s.clone().mul(&q);
+                let sq = secret_key.clone().get_polynomial().mul(&q);
                 let r = Polynomial::random(delta as usize);
                 let rx = r.mul(&Polynomial::monomial(1));
                 sq.add(&rx)
             })
             .collect();
 
-        Self { list }
+        Self(list)
+    }
+
+    pub(crate) const fn get_polynomials(&self) -> &Vec<Polynomial> {
+        &self.0
     }
 
     #[must_use]
@@ -261,8 +277,8 @@ impl PublicKey {
     /// let key_bytes = context.get_public_key().unwrap().get_bytes();
     /// ```
     pub fn get_bytes(&self) -> Vec<Vec<u8>> {
-        let mut bytes_outer: Vec<Vec<u8>> = Vec::with_capacity(self.list.len());
-        for pol in &self.list {
+        let mut bytes_outer: Vec<Vec<u8>> = Vec::with_capacity(self.get_polynomials().len());
+        for pol in self.get_polynomials() {
             let mut bytes: Vec<u8> = Vec::with_capacity((pol.coefficients().len() - 1) * 16);
             for x in pol.coefficients() {
                 bytes.extend_from_slice(x.to_le_bytes().as_ref());
@@ -270,10 +286,6 @@ impl PublicKey {
             bytes_outer.push(bytes);
         }
         bytes_outer
-    }
-
-    pub(crate) const fn get_polynomials(&self) -> &Vec<Polynomial> {
-        &self.list
     }
 }
 
@@ -313,49 +325,9 @@ impl Context {
         }
     }
 
-    /// Generates a secret key.
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use homomorph::{Context, Parameters};
-    ///
-    /// let params = Parameters::new(6, 3, 2, 5);
-    /// let mut context = Context::new(params);
-    ///
-    /// context.generate_secret_key();
-    /// ```
-    pub fn generate_secret_key(&mut self) {
-        self.secret_key = Some(SecretKey::random(self.parameters.d));
-    }
-
-    /// Generates a public key out of the private key.
-    ///
-    /// ## Panics
-    ///
-    /// This function will panic if the secret key has not been generated yet.
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use homomorph::{Context, Parameters};
-    /// use rand::thread_rng;
-    ///
-    /// let params = Parameters::new(6, 3, 2, 5);
-    /// let mut context = Context::new(params);
-    /// context.generate_secret_key();
-    ///
-    /// context.generate_public_key();
-    /// ```
-    pub fn generate_public_key(&mut self) {
-        self.public_key = Some(PublicKey::random(
-            self.parameters.dp,
-            self.parameters.delta,
-            self.parameters.tau,
-            self.secret_key
-                .as_ref()
-                .expect("Secret key not generated yet"),
-        ));
+    #[must_use]
+    pub const fn parameters(&self) -> &Parameters {
+        &self.parameters
     }
 
     #[must_use]
@@ -399,6 +371,49 @@ impl Context {
     /// ```
     pub const fn get_public_key(&self) -> Option<&PublicKey> {
         self.public_key.as_ref()
+    }
+
+    /// Generates a secret key.
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use homomorph::{Context, Parameters};
+    ///
+    /// let params = Parameters::new(6, 3, 2, 5);
+    /// let mut context = Context::new(params);
+    ///
+    /// context.generate_secret_key();
+    /// ```
+    pub fn generate_secret_key(&mut self) {
+        self.secret_key = Some(SecretKey::random(self.parameters().d()));
+    }
+
+    /// Generates a public key out of the private key.
+    ///
+    /// ## Panics
+    ///
+    /// This function will panic if the secret key has not been generated yet.
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use homomorph::{Context, Parameters};
+    /// use rand::thread_rng;
+    ///
+    /// let params = Parameters::new(6, 3, 2, 5);
+    /// let mut context = Context::new(params);
+    /// context.generate_secret_key();
+    ///
+    /// context.generate_public_key();
+    /// ```
+    pub fn generate_public_key(&mut self) {
+        self.public_key = Some(PublicKey::random(
+            self.parameters().dp(),
+            self.parameters().delta(),
+            self.parameters().tau(),
+            self.get_secret_key().expect("Secret key not generated yet"),
+        ));
     }
 
     /// Explicitly sets the secret key.

@@ -185,12 +185,11 @@ impl_homomorphic_multiplication_uint!(u8, u16, u32, usize, u64, u128);
 
 #[cfg(test)]
 mod tests {
-    use crate::impls::numbers::{
+    use crate::prelude::*;
+    use homomorph_impls::numbers::{
         HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
         HomomorphicOrGate, HomomorphicXorGate,
     };
-    use crate::operations::{HomomorphicOperation1, HomomorphicOperation2};
-    use crate::{Ciphered, Context, Parameters};
 
     use rand::{thread_rng, Rng};
 

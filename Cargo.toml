@@ -21,4 +21,3 @@ custom_rand = ["getrandom/custom"]
 [profile.release]
 codegen-units = 1
 lto = "thin"
-debug = 1
