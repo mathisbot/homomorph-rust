@@ -28,18 +28,18 @@ unsafe impl ByteConvertible for Vec3 {
     }
 
     fn from_bytes(bytes: &[u8]) -> Self {
-        if bytes.len() != 3 * size_of::<Coordinate>() {
-            panic!(
-                "Invalid size of bytes for conversion: {} instead of {}",
-                bytes.len(),
-                3 * size_of::<Coordinate>()
-            );
-        }
+        assert!(
+            3 * size_of::<Coordinate>() == bytes.len(),
+            "Invalid size of bytes for conversion: expected {} got {}.",
+            3 * size_of::<Coordinate>(),
+            bytes.len(),
+        );
 
         let x = u16::from_le_bytes([bytes[0], bytes[1]]);
         let y = u16::from_le_bytes([bytes[2], bytes[3]]);
         let z = u16::from_le_bytes([bytes[4], bytes[5]]);
-        Vec3 { x, y, z }
+
+        Self { x, y, z }
     }
 }
 
@@ -52,15 +52,15 @@ impl HomomorphicOperation2<Vec3> for Vec3Add {
     unsafe fn apply(a: &Ciphered<Vec3>, b: &Ciphered<Vec3>) -> Ciphered<Vec3> {
         // Unwrap the first `Vec3`
         let (ax, a) = a.split_at(Coordinate::BITS as usize);
-        let ax: Ciphered<Coordinate> = Ciphered::new_from_raw(ax.to_vec());
         let (ay, az) = a.split_at(Coordinate::BITS as usize);
+        let ax: Ciphered<Coordinate> = Ciphered::new_from_raw(ax.to_vec());
         let ay: Ciphered<Coordinate> = Ciphered::new_from_raw(ay.to_vec());
         let az: Ciphered<Coordinate> = Ciphered::new_from_raw(az.to_vec());
 
         // Unwrap the second `Vec3`
         let (bx, b) = b.split_at(Coordinate::BITS as usize);
-        let bx: Ciphered<Coordinate> = Ciphered::new_from_raw(bx.to_vec());
         let (by, bz) = b.split_at(Coordinate::BITS as usize);
+        let bx: Ciphered<Coordinate> = Ciphered::new_from_raw(bx.to_vec());
         let by: Ciphered<Coordinate> = Ciphered::new_from_raw(by.to_vec());
         let bz: Ciphered<Coordinate> = Ciphered::new_from_raw(bz.to_vec());
 

@@ -81,10 +81,10 @@ pub unsafe trait ByteConvertible {
     fn from_bytes(bytes: &[u8]) -> Self;
 }
 
-// All types that implement Copy and Sized can be converted to bytes
+// All types that implement Copy can be converted to bytes
 // by simply reading stack data as bytes
 // TODO: Make it derivable ?
-unsafe impl<T: Copy + Sized> ByteConvertible for T {
+unsafe impl<T: Copy> ByteConvertible for T {
     /// This function is used to convert a type to a byte array
     fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(size_of::<T>());
@@ -92,8 +92,8 @@ unsafe impl<T: Copy + Sized> ByteConvertible for T {
         // Safety
         // Because of `Vec::with_capacity`, we know that the buffer
         // is big enough to hold the `size_from::<T>()` bytes.
-        // We also know that the source is valid, because T is Sized and Copy,
-        // and we are reading exactly `size_of::<T>()` bytes from it.
+        // We also know that the source is valid, because we are reading
+        // exactly `size_of::<T>()` bytes from `T`.
         unsafe {
             memcpy(
                 core::ptr::from_ref(self).cast::<u8>(),
@@ -225,8 +225,7 @@ impl<T: ByteConvertible> Ciphered<T> {
     #[must_use]
     // See https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system
     fn decipher_bit(c_bit: &CipheredBit, sk: &SecretKey) -> bool {
-        let sk = sk.get_polynomial();
-        let remainder = c_bit.0.rem(sk);
+        let remainder = c_bit.0.rem(sk.get_polynomial());
         remainder.evaluate(false)
     }
 
@@ -250,8 +249,8 @@ impl<T: ByteConvertible> Ciphered<T> {
 
         let mut bytes = Vec::with_capacity(self.len() / 8);
 
-        let mut byte = 0u8;
-        let mut bit_count = 0;
+        let mut byte = 0;
+        let mut bit_count: u8 = 0;
 
         for c_bit in self.iter() {
             let bit = u8::from(Self::decipher_bit(c_bit, sk));

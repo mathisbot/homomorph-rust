@@ -98,11 +98,81 @@ impl_homomorphic_multiplication_int!(i8, i16, i32, isize, i64, i128);
 
 #[cfg(test)]
 mod tests {
-    use crate::impls::numbers::{HomomorphicAddition, HomomorphicMultiplication};
-    use crate::operations::HomomorphicOperation2;
-    use crate::{Ciphered, Context, Parameters};
+    use crate::prelude::*;
+    use homomorph_impls::numbers::{
+        HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
+        HomomorphicOrGate, HomomorphicXorGate,
+    };
 
     use rand::{thread_rng, Rng};
+
+    #[test]
+    fn test_homomorphic_and_gate() {
+        let parameters = Parameters::new(32, 8, 8, 8);
+        let mut context = Context::new(parameters);
+        context.generate_secret_key();
+        context.generate_public_key();
+        let sk = context.get_secret_key().unwrap();
+        let pk = context.get_public_key().unwrap();
+
+        let a = Ciphered::cipher(&0b1010_i8, pk);
+        let b = Ciphered::cipher(&0b1100_i8, pk);
+        let c = unsafe { HomomorphicAndGate::apply(&a, &b) };
+        let d = c.decipher(sk);
+        assert_eq!(0b1000, d);
+    }
+
+    #[test]
+    fn test_homomorphic_or_gate() {
+        let parameters = Parameters::new(32, 8, 8, 8);
+        let mut context = Context::new(parameters);
+        context.generate_secret_key();
+        context.generate_public_key();
+        let sk = context.get_secret_key().unwrap();
+        let pk = context.get_public_key().unwrap();
+
+        let a = Ciphered::cipher(&0b1010_i8, pk);
+        let b = Ciphered::cipher(&0b1100_i8, pk);
+        let c = unsafe { HomomorphicOrGate::apply(&a, &b) };
+        let d = c.decipher(sk);
+        assert_eq!(0b1110, d);
+    }
+
+    #[test]
+    fn test_homomorphic_xor_gate() {
+        let parameters = Parameters::new(16, 8, 8, 8);
+        let mut context = Context::new(parameters);
+        context.generate_secret_key();
+        context.generate_public_key();
+        let sk = context.get_secret_key().unwrap();
+        let pk = context.get_public_key().unwrap();
+
+        let a = Ciphered::cipher(&0b1010_i8, pk);
+        let b = Ciphered::cipher(&0b1100_i8, pk);
+        let c = unsafe { HomomorphicXorGate::apply(&a, &b) };
+        let d = c.decipher(sk);
+        assert_eq!(0b0110, d);
+    }
+
+    #[test]
+    fn test_homomorphic_not_gate() {
+        let parameters = Parameters::new(16, 8, 8, 8);
+        let mut context = Context::new(parameters);
+        context.generate_secret_key();
+        context.generate_public_key();
+        let sk = context.get_secret_key().unwrap();
+        let pk = context.get_public_key().unwrap();
+
+        let mut a = Ciphered::cipher(&0b0000_1010_i8, pk);
+        unsafe { HomomorphicNotGate::apply(&mut a) };
+        let d = a.decipher(sk);
+        assert_eq!(-11, d);
+
+        let mut a = Ciphered::cipher(&0b0000_1100_i8, pk);
+        unsafe { HomomorphicNotGate::apply(&mut a) };
+        let d = a.decipher(sk);
+        assert_eq!(-13, d);
+    }
 
     #[test]
     #[should_panic = "not yet implemented: Homormophic addition for int"]

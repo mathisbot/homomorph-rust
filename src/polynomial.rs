@@ -3,7 +3,9 @@
 use alloc::vec::Vec;
 
 /// Represents a coefficient of a `Polynomial`.
-pub type Coefficient = u128;
+pub type Coefficient = usize;
+
+const BITS_PER_COEFF: usize = Coefficient::BITS as usize;
 
 /// A polynomial over Z/2Z.
 ///
@@ -32,8 +34,7 @@ impl Polynomial {
             .iter()
             .rposition(|&coeff| coeff != 0)
             .map_or(0, |i| {
-                Coefficient::BITS as usize - 1 - coefficients[i].leading_zeros() as usize
-                    + Coefficient::BITS as usize * i
+                BITS_PER_COEFF - 1 - coefficients[i].leading_zeros() as usize + BITS_PER_COEFF * i
             })
     }
 
@@ -73,7 +74,7 @@ impl Polynomial {
     /// This means that randomness is cryptographically secure, and works on a vast majority
     /// of platforms, including baremetal (x86).
     pub fn random(degree: usize) -> Self {
-        let num_elements = (degree / Coefficient::BITS as usize) + 1;
+        let num_elements = (degree / BITS_PER_COEFF) + 1;
 
         let mut coefficients: Vec<Coefficient> = Vec::with_capacity(num_elements);
 
@@ -92,8 +93,8 @@ impl Polynomial {
         // We initialized the buffer with `getrandom`, so it is safe to set the length.
         unsafe { coefficients.set_len(num_elements) };
 
-        coefficients[num_elements - 1] &= (1 << (degree % Coefficient::BITS as usize)) - 1;
-        coefficients[num_elements - 1] |= 1 << (degree % Coefficient::BITS as usize);
+        coefficients[num_elements - 1] &= (1 << (degree % BITS_PER_COEFF)) - 1;
+        coefficients[num_elements - 1] |= 1 << (degree % BITS_PER_COEFF);
 
         Self {
             coefficients,
@@ -116,9 +117,8 @@ impl Polynomial {
 
     /// Returns the monomial x^degree
     pub fn monomial(degree: usize) -> Self {
-        let mut coefficients = vec![0; degree / Coefficient::BITS as usize + 1];
-        coefficients[degree / Coefficient::BITS as usize] =
-            1 << (degree % Coefficient::BITS as usize);
+        let mut coefficients = vec![0; degree / BITS_PER_COEFF + 1];
+        coefficients[degree / BITS_PER_COEFF] = 1 << (degree % BITS_PER_COEFF);
 
         Self {
             coefficients,
@@ -132,11 +132,10 @@ impl Polynomial {
             return (self.coefficients()[0] & 1) == 1;
         }
 
-        let count_ones = self
-            .coefficients()
-            .iter()
-            .map(|&coeff| coeff.count_ones())
-            .sum::<u32>();
+        let mut count_ones = 0;
+        for coeff in self.coefficients() {
+            count_ones += coeff.count_ones();
+        }
 
         (count_ones % 2) == 1
     }
@@ -160,7 +159,7 @@ impl Polynomial {
     pub fn add(&self, other: &Self) -> Self {
         // We know that degree of the sum is at most max(deg(p1), deg(p2)).
         let max_deg = self.degree().max(other.degree());
-        let len = max_deg / Coefficient::BITS as usize + 1;
+        let len = max_deg / BITS_PER_COEFF + 1;
         let mut result = Vec::with_capacity(len);
 
         for i in 0..len {
@@ -188,32 +187,22 @@ impl Polynomial {
     ///
     /// However, this function allocates a new polynomial.
     pub fn mul(&self, other: &Self) -> Self {
-        // We need to handle the special case of the null polynomial
-        // because the degree of the null polynomial is not well defined.
-        if (self.degree() == 0 && self.coefficients().first().copied().unwrap_or(0) == 0)
-            || (other.degree() == 0 && other.coefficients().first().copied().unwrap_or(0) == 0)
-        {
-            return Self::null();
-        }
-
         // The degree of the product is deg(p1) + deg(p2).
-        let result_len = (self.degree() + other.degree()) / Coefficient::BITS as usize + 1;
+        let result_len = (self.degree() + other.degree()) / BITS_PER_COEFF + 1;
         let mut result = vec![0; result_len];
 
         for (i, &a) in self
             .coefficients()
             .iter()
-            .take(self.degree() / Coefficient::BITS as usize + 1)
+            .take(self.degree() / BITS_PER_COEFF + 1)
             .enumerate()
         {
             for (j, &b) in other
                 .coefficients()
                 .iter()
-                .take(other.degree() / Coefficient::BITS as usize + 1)
+                .take(other.degree() / BITS_PER_COEFF + 1)
                 .enumerate()
             {
-                let in_bounds = i + j + 1 < result_len;
-
                 let mut processed_a = a;
                 let mut local_result_l = 0; // Reduce cache misses
                 let mut local_result_h = 0; // Reduce cache misses
@@ -222,8 +211,8 @@ impl Polynomial {
 
                     local_result_l ^= b << k;
 
-                    if k > 0 && in_bounds {
-                        local_result_h ^= b >> (Coefficient::BITS as usize - k);
+                    if k > 0 {
+                        local_result_h ^= b >> (BITS_PER_COEFF - k);
                     }
 
                     processed_a &= processed_a - 1;
@@ -231,7 +220,7 @@ impl Polynomial {
 
                 result[i + j] ^= local_result_l;
 
-                if in_bounds {
+                if i + j + 1 < result_len {
                     result[i + j + 1] ^= local_result_h;
                 }
             }
@@ -250,40 +239,34 @@ impl Polynomial {
         let mut r = self.coefficients().clone();
         let mut r_degree = self.degree();
 
-        let other_degree = other.degree();
+        // At most self.degree() - other.degree() iterations
+        while r_degree >= other.degree() {
+            let shift = r_degree - other.degree();
+            let block_shift = shift / BITS_PER_COEFF;
+            let bit_shift = shift % BITS_PER_COEFF;
 
-        while r_degree >= other_degree {
-            let shift = r_degree - other_degree;
-            let block_shift = shift / Coefficient::BITS as usize;
-            let bit_shift = shift % Coefficient::BITS as usize;
-
-            let max_idx =
-                (other_degree / Coefficient::BITS as usize + 1).min(other.coefficients().len());
+            let max_idx = (other.degree() / BITS_PER_COEFF + 1).min(other.coefficients().len());
             let max_bound = r.len() - block_shift - 1;
-            let bit_shift_right = Coefficient::BITS as usize - bit_shift;
-
             for i in 0..max_idx {
                 r[block_shift + i] ^= other.coefficients()[i] << bit_shift;
                 if bit_shift != 0 && i < max_bound {
-                    r[block_shift + i + 1] ^= other.coefficients()[i] >> bit_shift_right;
+                    r[block_shift + i + 1] ^=
+                        other.coefficients()[i] >> (BITS_PER_COEFF - bit_shift);
                 }
             }
 
-            // Faster than `compute_degree`.
-            while r_degree > 0
-                && (r[r_degree / Coefficient::BITS as usize]
-                    >> (r_degree % Coefficient::BITS as usize))
-                    == 0
+            // ~8x faster than `Self::compute_degree`
+            while r_degree > 0 && (r[r_degree / BITS_PER_COEFF] >> (r_degree % BITS_PER_COEFF)) == 0
             {
-                let bit_position = r_degree % Coefficient::BITS as usize;
-                let local_coeff = r[r_degree / Coefficient::BITS as usize];
+                let bit_position = r_degree % BITS_PER_COEFF;
 
-                let shift_amount =
-                    (Coefficient::BITS as usize - bit_position) & (Coefficient::BITS as usize - 1);
-                let shifted_coeff = local_coeff << shift_amount;
+                // Panic
+                // BITS_PER_COEFF - bit_position is at most BITS_PER_COEFF, which is a valid u32
+                let shifted_coeff = r[r_degree / BITS_PER_COEFF]
+                    .wrapping_shl(u32::try_from(BITS_PER_COEFF - bit_position).unwrap());
 
-                r_degree -=
-                    ((shifted_coeff.leading_zeros() as usize).min(bit_position) + 1).min(r_degree);
+                r_degree = r_degree
+                    .saturating_sub((shifted_coeff.leading_zeros() as usize).min(bit_position) + 1);
             }
         }
 
@@ -332,15 +315,10 @@ impl Polynomial {
 
 impl Clone for Polynomial {
     fn clone(&self) -> Self {
-        let mut cloned_coefficients =
-            Vec::with_capacity(self.degree() / Coefficient::BITS as usize + 1);
-
-        let relevant_length = self.degree() / Coefficient::BITS as usize;
-
-        cloned_coefficients.extend_from_slice(&self.coefficients()[..=relevant_length]);
+        let relevant_length = self.degree() / BITS_PER_COEFF;
 
         Self {
-            coefficients: cloned_coefficients,
+            coefficients: self.coefficients()[..=relevant_length].to_vec(),
             degree: self.degree(),
         }
     }
@@ -352,14 +330,14 @@ impl PartialEq for Polynomial {
             return false;
         }
 
-        let relevant_length = self.degree() / Coefficient::BITS as usize + 1;
-        self.coefficients()[0..relevant_length] == other.coefficients()[0..relevant_length]
+        let relevant_length = self.degree() / BITS_PER_COEFF + 1;
+        self.coefficients()[..relevant_length] == other.coefficients()[..relevant_length]
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::{Coefficient, Polynomial};
+    use super::{Coefficient, Polynomial, BITS_PER_COEFF};
 
     #[test]
     #[should_panic = "The vector of coefficients must not be empty."]
@@ -373,10 +351,7 @@ mod test {
         assert_eq!(Polynomial::compute_degree(&coefficients), 4);
 
         let coefficients = vec![0b10010, 0b1];
-        assert_eq!(
-            Polynomial::compute_degree(&coefficients),
-            Coefficient::BITS as usize
-        );
+        assert_eq!(Polynomial::compute_degree(&coefficients), BITS_PER_COEFF);
 
         let coefficients = vec![0b10010, 0b0];
         assert_eq!(Polynomial::compute_degree(&coefficients), 4);
@@ -410,17 +385,14 @@ mod test {
         let p = Polynomial::monomial(5);
         assert_eq!(Polynomial::compute_degree(p.coefficients()), 5);
 
-        let p = Polynomial::monomial(Coefficient::BITS as usize - 1);
+        let p = Polynomial::monomial(BITS_PER_COEFF - 1);
         assert_eq!(
             Polynomial::compute_degree(p.coefficients()),
-            Coefficient::BITS as usize - 1
+            BITS_PER_COEFF - 1
         );
 
-        let p = Polynomial::monomial(Coefficient::BITS as usize);
-        assert_eq!(
-            Polynomial::compute_degree(p.coefficients()),
-            Coefficient::BITS as usize
-        );
+        let p = Polynomial::monomial(BITS_PER_COEFF);
+        assert_eq!(Polynomial::compute_degree(p.coefficients()), BITS_PER_COEFF);
     }
 
     #[test]
@@ -428,11 +400,8 @@ mod test {
         let p = Polynomial::random(5);
         assert_eq!(Polynomial::compute_degree(p.coefficients()), 5);
 
-        let p = Polynomial::random(Coefficient::BITS as usize);
-        assert_eq!(
-            Polynomial::compute_degree(p.coefficients()),
-            Coefficient::BITS as usize
-        );
+        let p = Polynomial::random(BITS_PER_COEFF);
+        assert_eq!(Polynomial::compute_degree(p.coefficients()), BITS_PER_COEFF);
     }
 
     #[test]
