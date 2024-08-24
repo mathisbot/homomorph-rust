@@ -50,9 +50,19 @@ I do not intend to publish the crate on `crates.io`.
 
 ## Bare metal
 
-The crates partially supports `no_std` environments: it uses `Vec` a lot, so it relies on an external `alloc` crate. As each bit ciphered takes up a lot of space, storing ciphered objects on the stack wouldn't be possible (at least on low end machines). This is why the heap is needed here.
+The crates supports `no_std` environments.
 
-You may also need a source of randomness. On bare x86, randomness can still be retrieved using `RDRAND`. On other architectures, such as `aarch64-unknown-none`, you will have to implement `provide_getrandom`, which is a re-export of `getrandom::register_custom_getrandom`, gated behind the `custom_rand` feature.
+As `Vec` is used a lot, the crate relies on an external `alloc` crate.
+As each bit ciphered takes up a lot of space, storing ciphered objects
+on the stack wouldn't be possible (at least on low end machines).
+This is why the heap is needed here.
+
+You may also need a source of randomness.
+On bare x86, randomness can still be retrieved using `RDRAND`.
+On other architectures, such as `aarch64-unknown-none`,
+you will have to implement `provide_getrandom`,
+which is a re-export of `getrandom::register_custom_getrandom`,
+gated behind the `custom_rand` feature.
 
 ## Benchmarks
 
@@ -62,7 +72,7 @@ Parameters used for this benchmark were :
 - `d` = 128
 - `dp` = 128
 - `delta` = 1
-- `tau` = 128.
+- `tau` = 128
 
 | Operation         | Average time     |
 |:-----------------:|:----------------:|

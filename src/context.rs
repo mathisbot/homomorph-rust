@@ -123,17 +123,10 @@ impl SecretKey {
     /// // INSECURE!!! Only for demonstration purposes
     /// let s = vec![5, 14, 8];
     ///
-    /// let sk = SecretKey::new(&s);
+    /// let sk = SecretKey::from_bytes(&s);
     /// ```
-    pub fn new(bytes: &[u8]) -> Self {
-        let mut coeffs: Vec<_> =
-            Vec::with_capacity(bytes.len() / size_of::<crate::polynomial::Coefficient>());
-        for chunk in bytes.chunks(size_of::<crate::polynomial::Coefficient>()) {
-            let mut array = [0; size_of::<crate::polynomial::Coefficient>()];
-            array[..chunk.len()].copy_from_slice(chunk);
-            coeffs.push(crate::polynomial::Coefficient::from_le_bytes(array));
-        }
-        Self(Polynomial::new(coeffs))
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Self(Polynomial::from_bytes(bytes))
     }
 
     #[must_use]
@@ -165,14 +158,10 @@ impl SecretKey {
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     /// context.generate_secret_key();
     ///
-    /// let key_bytes = context.get_secret_key().unwrap().get_bytes();
+    /// let key_bytes = context.get_secret_key().unwrap().to_bytes();
     /// ```
-    pub fn get_bytes(&self) -> Vec<u8> {
-        let mut bytes: Vec<u8> = Vec::new();
-        for x in self.get_polynomial().coefficients() {
-            bytes.extend_from_slice(x.to_le_bytes().as_ref());
-        }
-        bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.get_polynomial().to_bytes()
     }
 }
 
@@ -216,20 +205,12 @@ impl PublicKey {
     /// // INSECURE!!! Only for demonstration purposes
     /// let p = vec![vec![4, 7, 5], vec![1, 2, 3], vec![5, 4, 6]];
     ///
-    /// let pk = PublicKey::new(&p);
+    /// let pk = PublicKey::from_bytes(&p);
     /// ```
-    pub fn new(bytes_vec: &Vec<Vec<u8>>) -> Self {
-        let mut list: Vec<Polynomial> = Vec::with_capacity(bytes_vec.capacity());
+    pub fn from_bytes(bytes_vec: &Vec<Vec<u8>>) -> Self {
+        let mut list: Vec<Polynomial> = Vec::with_capacity(bytes_vec.len());
         for bytes in bytes_vec {
-            let mut coeffs: Vec<_> =
-                Vec::with_capacity(bytes.len() / size_of::<crate::polynomial::Coefficient>());
-            for chunk in bytes.chunks(size_of::<crate::polynomial::Coefficient>()) {
-                let mut array = [0; size_of::<crate::polynomial::Coefficient>()];
-                array[..chunk.len()].copy_from_slice(chunk);
-                coeffs.push(crate::polynomial::Coefficient::from_le_bytes(array));
-            }
-            let p = Polynomial::new(coeffs);
-            list.push(p);
+            list.push(Polynomial::from_bytes(bytes));
         }
         Self(list)
     }
@@ -274,16 +255,12 @@ impl PublicKey {
     /// context.generate_secret_key();
     /// context.generate_public_key();
     ///
-    /// let key_bytes = context.get_public_key().unwrap().get_bytes();
+    /// let key_bytes = context.get_public_key().unwrap().to_bytes();
     /// ```
-    pub fn get_bytes(&self) -> Vec<Vec<u8>> {
+    pub fn to_bytes(&self) -> Vec<Vec<u8>> {
         let mut bytes_outer: Vec<Vec<u8>> = Vec::with_capacity(self.get_polynomials().len());
         for pol in self.get_polynomials() {
-            let mut bytes: Vec<u8> = Vec::with_capacity((pol.coefficients().len() - 1) * 16);
-            for x in pol.coefficients() {
-                bytes.extend_from_slice(x.to_le_bytes().as_ref());
-            }
-            bytes_outer.push(bytes);
+            bytes_outer.push(pol.to_bytes());
         }
         bytes_outer
     }
@@ -399,7 +376,6 @@ impl Context {
     ///
     /// ```
     /// use homomorph::{Context, Parameters};
-    /// use rand::thread_rng;
     ///
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
@@ -431,7 +407,7 @@ impl Context {
     ///
     /// // INSECURE!!! Only for demonstration purposes
     /// let s = vec![5, 14, 8];
-    /// let sk = SecretKey::new(&s);
+    /// let sk = SecretKey::from_bytes(&s);
     ///
     /// context.set_secret_key(sk);
     /// ```
@@ -454,7 +430,7 @@ impl Context {
     ///
     /// // INSECURE!!! Only for demonstration purposes
     /// let p = vec![vec![4, 7, 5], vec![1, 2, 3], vec![5, 4, 6]];
-    /// let pk = PublicKey::new(&p);
+    /// let pk = PublicKey::from_bytes(&p);
     ///
     /// context.set_public_key(pk);
     /// ```
@@ -482,10 +458,10 @@ mod tests {
     #[test]
     fn test_secret_key() {
         let s = vec![5, 14, 8];
-        let sk = SecretKey::new(&s);
+        let sk = SecretKey::from_bytes(&s);
 
-        let bytes = sk.get_bytes();
-        let sk2 = SecretKey::new(&bytes);
+        let bytes = sk.to_bytes();
+        let sk2 = SecretKey::from_bytes(&bytes);
 
         assert_eq!(sk, sk2);
     }
@@ -493,7 +469,7 @@ mod tests {
     #[test]
     fn test_secret_key_zeroized_on_drop() {
         let s = vec![5, 14, 8];
-        let sk = SecretKey::new(&s);
+        let sk = SecretKey::from_bytes(&s);
 
         let p = sk.get_polynomial().clone();
         let ptr = core::ptr::from_ref(sk.get_polynomial());
@@ -509,10 +485,10 @@ mod tests {
     #[test]
     fn test_public_key() {
         let p = vec![vec![4, 7, 5], vec![1, 2, 3], vec![5, 4, 6]];
-        let pk = PublicKey::new(&p);
+        let pk = PublicKey::from_bytes(&p);
 
-        let bytes = pk.get_bytes();
-        let pk2 = PublicKey::new(&bytes);
+        let bytes = pk.to_bytes();
+        let pk2 = PublicKey::from_bytes(&bytes);
 
         assert_eq!(pk, pk2);
     }

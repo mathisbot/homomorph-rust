@@ -9,38 +9,11 @@ use homomorph::prelude::*;
 
 type Coordinate = u16;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 struct Vec3 {
     x: Coordinate,
     y: Coordinate,
     z: Coordinate,
-}
-
-// If you don't want to implement `ByteConvertible` for your struct,
-// use repr(C) and derive Copy
-unsafe impl ByteConvertible for Vec3 {
-    fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(3 * size_of::<Coordinate>());
-        bytes.extend_from_slice(&self.x.to_le_bytes());
-        bytes.extend_from_slice(&self.y.to_le_bytes());
-        bytes.extend_from_slice(&self.z.to_le_bytes());
-        bytes
-    }
-
-    fn from_bytes(bytes: &[u8]) -> Self {
-        assert!(
-            3 * size_of::<Coordinate>() == bytes.len(),
-            "Invalid size of bytes for conversion: expected {} got {}.",
-            3 * size_of::<Coordinate>(),
-            bytes.len(),
-        );
-
-        let x = Coordinate::from_le_bytes([bytes[0], bytes[1]]);
-        let y = Coordinate::from_le_bytes([bytes[2], bytes[3]]);
-        let z = Coordinate::from_le_bytes([bytes[4], bytes[5]]);
-
-        Self { x, y, z }
-    }
 }
 
 struct Vec3Add;

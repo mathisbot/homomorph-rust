@@ -46,11 +46,11 @@
 //! context.generate_secret_key();
 //! context.generate_public_key();
 //!
-//! let sk_bytes = context.get_secret_key().unwrap().get_bytes();
-//! let pk_bytes = context.get_public_key().unwrap().get_bytes();
+//! let sk_bytes = context.get_secret_key().unwrap().to_bytes();
+//! let pk_bytes = context.get_public_key().unwrap().to_bytes();
 //!
-//! context.set_secret_key(SecretKey::new(&sk_bytes));
-//! context.set_public_key(PublicKey::new(&pk_bytes));
+//! context.set_secret_key(SecretKey::from_bytes(&sk_bytes));
+//! context.set_public_key(PublicKey::from_bytes(&pk_bytes));
 //! ```
 //!
 //! #### Cipher
@@ -107,24 +107,23 @@
 //! The crate's API also allows you to define your own operations on any ciphered data.
 //! Let's take a look at how you can do so.
 //!
-//! #### `ByteConvertible` trait
+//! #### `Encode` and `Decode` traits
 //!
 //! Data is handled as arrays of bits, to match binary representation.
-//! Thus, types need to implement a specific trait, `ByteConvertible`.
+//! Thus, data is implicitely converted to arrays of bytes on cipher.
 //!
-//! The main idea of the `ByteConvertible` trait is to be able to convert the data to a byte array and back.
+//! Your data needs to implement the `Encode` and `Decode` traits from `bincode`,
+//! in order to be serialized into bytes.
+//! These types are re-exported by the crate.
 //!
-//! This trait is already implemented for all types that implement `Copy`.
+//! For a vast majority of structs, deriving these traits is enough.
 //!
-//! As some specific logic can be necessary to convert your own structs,
-//! the implementation is left to you.
-//! For instance, you can't just blindly convert a `Vec` to bytes, as the
-//! majority of its data lives on the heap.
+//! If you ever encounter a problem, it might means that you need to implement the traits
+//! manually.
 //!
 //! #### Cipher
 //!
 //! The system uses a `Ciphered<T>` type to store encrypted data.
-//! It is implemented for any type that implements `ByteConvertible`.
 //!
 //! The system is in fact very simple, as it needs to be very general.
 //! Every bit is ciphered as a `CipheredBit` (which is a polynomial in the backend).
@@ -139,9 +138,9 @@
 //!
 //! Currently, there are 3 traits that you can use :
 //!
-//! - `HomomorphicOperation1<T: ByteConvertible>`
-//! - `HomomorphicOperation2<T: ByteConvertible>`
-//! - `HomomorphicOperation<const N: usize, T: ByteConvertible>`
+//! - `HomomorphicOperation1<T: Encode + Decode>`
+//! - `HomomorphicOperation2<T: Encode + Decode>`
+//! - `HomomorphicOperation<const N: usize, T: Encode + Decode>`
 //!
 //! The traits only bounds one function to implement, `apply`.
 //! The operation is performed on raw data, which means it takes `Ciphered<T>` as arguments.
@@ -172,47 +171,7 @@
 //!
 //! We will be working with a sample data structure.
 //!
-//! First, we need to implement the `ByteConvertible` trait for `MyStruct`,
-//! because we didn't derive `Copy` for `MyStruct`.
-//! In a real-world application, you would derive `Copy` for your struct.
-//!
-//! Doing so will make all ciphering operation available for this struct.
-//!
-//! ```rust
-//! use homomorph::prelude::*;
-//! use core::ptr::copy_nonoverlapping as memcpy;
-//!
-//! struct MyStruct {
-//!     a: u32,
-//!     b: u32,
-//! }
-//!
-//! // Fortunately, `MyStruct` is `Sized`!
-//! unsafe impl ByteConvertible for MyStruct {
-//!     fn to_bytes(&self) -> Vec<u8> {
-//!         let mut bytes = Vec::with_capacity(size_of::<MyStruct>());
-//!         bytes.extend_from_slice(&self.a.to_le_bytes());
-//!         bytes.extend_from_slice(&self.b.to_le_bytes());
-//!         bytes
-//!     }
-//!
-//!     fn from_bytes(bytes: &[u8]) -> Self {
-//!         if bytes.len() != size_of::<MyStruct>() {
-//!             panic!(
-//!                 "Invalid size of bytes for conversion: {} instead of {}",
-//!                 bytes.len(),
-//!                 size_of::<MyStruct>()
-//!             );
-//!         }
-//!
-//!         let (a_bytes, b_bytes) = bytes.split_at(size_of::<u32>());
-//!
-//!         let a = u32::from_le_bytes([a_bytes[0], a_bytes[1], a_bytes[2], a_bytes[3]]);
-//!         let b = u32::from_le_bytes([b_bytes[0], b_bytes[1], b_bytes[2], b_bytes[3]]);
-//!         MyStruct { a, b }
-//!     }
-//! }
-//! ```
+//! First, we need to derive the serialization traits for `MyStruct`.
 //!
 //! If we then want to implement an homomorphic addition for our struct,
 //! we will have to define a struct `HomomorphicAddition`
@@ -228,9 +187,7 @@
 //! ```rust
 //! use homomorph::prelude::*;
 //!
-//! // Here, we derive Copy so that `ByteConvertible` is automatically implemented
-//! #[repr(C)]
-//! #[derive(Copy, Clone)]
+//! #[derive(Copy, Clone, Debug, Encode, Decode)]
 //! struct MyStruct {
 //!     a: usize,
 //!     b: usize,
@@ -276,13 +233,16 @@ extern crate alloc;
 #[cfg(feature = "custom_rand")]
 pub use getrandom::register_custom_getrandom;
 
+// TODO: Add custom serialization to allow working with `Vec`s
+pub use bincode::{Decode, Encode};
+
 mod polynomial;
 
 mod context;
 pub use context::{Context, Parameters, PublicKey, SecretKey};
 
 mod cipher;
-pub use cipher::{ByteConvertible, Ciphered, CipheredBit};
+pub use cipher::{Ciphered, CipheredBit};
 
 pub mod operations;
 

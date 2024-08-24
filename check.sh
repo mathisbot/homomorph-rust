@@ -36,7 +36,7 @@ count_lines() {
 run_command "cargo build --lib"
 run_command "cargo build --lib --target x86_64-unknown-none"
 run_command "cargo test"
-run_command "cargo run --example new_struct"
+run_command "cargo run --example simple_struct"
 run_command "cargo clippy --all-targets --all-features -- -D warnings --no-deps"
 run_command "cargo test --release -- --ignored"
 run_command "cargo fmt"

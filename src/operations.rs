@@ -2,9 +2,9 @@
 //!
 //! Currently, there are 3 traits that you can use :
 //!
-//! - `HomomorphicOperation1<T: ByteConvertible>`
-//! - `HomomorphicOperation2<T: ByteConvertible>`
-//! - `HomomorphicOperation<const N: usize, T: ByteConvertible>`
+//! - `HomomorphicOperation1<T: Encode + Decode>`
+//! - `HomomorphicOperation2<T: Encode + Decode>`
+//! - `HomomorphicOperation<const N: usize, T: Encode + Decode>`
 //!
 //! The traits only bounds one function to implement, `apply`.
 //! The operation is performed on raw data, which means it takes `Ciphered<T>` as arguments.
@@ -20,7 +20,7 @@
 //! From that point, all operations are highly unsafe as you are working with raw bits.
 //! For instance, can apply logic gates to the `CipheredBit`s.
 
-use crate::{ByteConvertible, Ciphered};
+use crate::Ciphered;
 
 /// This trait is used to define homomorphic operations on a single ciphered data
 ///
@@ -41,8 +41,7 @@ use crate::{ByteConvertible, Ciphered};
 /// ```rust
 /// use homomorph::prelude::*;
 ///
-/// #[repr(C)]
-/// #[derive(Copy, Clone)]
+/// #[derive(Copy, Clone, Debug, Encode, Decode)]
 /// struct MyStruct {
 ///     a: usize,
 ///     b: usize,
@@ -60,7 +59,7 @@ use crate::{ByteConvertible, Ciphered};
 ///     }
 /// }
 /// ```
-pub trait HomomorphicOperation1<T: ByteConvertible> {
+pub trait HomomorphicOperation1<T: crate::Encode + crate::Decode> {
     /// ## Safety
     ///
     /// The function `apply` is marked as unsafe as it handles raw bits of data.
@@ -91,7 +90,7 @@ pub trait HomomorphicOperation1<T: ByteConvertible> {
 /// use homomorph::prelude::*;
 ///
 /// #[repr(C)]
-/// #[derive(Copy, Clone)]
+/// #[derive(Copy, Clone, Debug, Encode, Decode)]
 /// struct MyStruct {
 ///     a: usize,
 ///     b: usize,
@@ -112,7 +111,7 @@ pub trait HomomorphicOperation1<T: ByteConvertible> {
 ///     }
 /// }
 /// ```
-pub trait HomomorphicOperation2<T: ByteConvertible> {
+pub trait HomomorphicOperation2<T: crate::Encode + crate::Decode> {
     /// ## Safety
     ///
     /// The function `apply` is marked as unsafe as it handles raw bits of data.
@@ -144,7 +143,7 @@ pub trait HomomorphicOperation2<T: ByteConvertible> {
 /// use core::ops::Deref;
 ///
 /// #[repr(C)]
-/// #[derive(Copy, Clone)]
+/// #[derive(Copy, Clone, Debug, Encode, Decode)]
 /// struct MyStruct {
 ///     a: usize,
 ///     b: usize,
@@ -178,7 +177,7 @@ pub trait HomomorphicOperation2<T: ByteConvertible> {
 /// let c = unsafe { MyOperation::apply([&a, &b]) };
 /// let d = Ciphered::decipher(&c, sk);
 /// ```
-pub trait HomomorphicOperation<const N: usize, T: ByteConvertible> {
+pub trait HomomorphicOperation<const N: usize, T: crate::Encode + crate::Decode> {
     /// ## Safety
     ///
     /// The function `apply` is marked as unsafe as it handles raw bits of data.

@@ -31,7 +31,7 @@ jobs:
         run: cargo test --verbose
 
       - name: Run a basic example
-        run: cargo run --example new_struct
+        run: cargo run --example simple_struct
 
   clippy-fmt:
     runs-on: ubuntu-latest

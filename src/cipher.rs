@@ -2,9 +2,16 @@ use crate::polynomial::Polynomial;
 use crate::{PublicKey, SecretKey};
 
 use alloc::vec::Vec;
-use core::mem::MaybeUninit;
 use core::ops::Deref;
-use core::ptr::copy_nonoverlapping as memcpy;
+
+static CONFIG: bincode::config::Configuration<
+    bincode::config::LittleEndian,
+    bincode::config::Fixint,
+    bincode::config::NoLimit,
+> = bincode::config::standard()
+    .with_little_endian()
+    .with_fixed_int_encoding()
+    .with_no_limit();
 
 /// Represents a single bit that is encrypted
 ///
@@ -67,82 +74,14 @@ impl CipheredBit {
     }
 }
 
-/// This trait is used to convert a type to a byte array and back
-///
-/// This is the main trait that structures need to implement to be used with the `Ciphered` struct
-///
-/// ## Safety
-///
-/// Entirely converting a struct to a byte array and back has to be done with care.
-/// For example, when converting a `Vec` to a byte array, heap data also needs to be
-/// converted to a byte array.
-pub unsafe trait ByteConvertible {
-    fn to_bytes(&self) -> Vec<u8>;
-    fn from_bytes(bytes: &[u8]) -> Self;
-}
-
-// All types that implement Copy can be converted to bytes
-// by simply reading stack data as bytes
-// TODO: Make it derivable ?
-unsafe impl<T: Copy> ByteConvertible for T {
-    /// This function is used to convert a type to a byte array
-    fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(size_of::<T>());
-
-        // Safety
-        // Because of `Vec::with_capacity`, we know that the buffer
-        // is big enough to hold the `size_from::<T>()` bytes.
-        // We also know that the source is valid, because we are reading
-        // exactly `size_of::<T>()` bytes from `T`.
-        unsafe {
-            memcpy(
-                core::ptr::from_ref(self).cast::<u8>(),
-                bytes.as_mut_ptr(),
-                size_of::<T>(),
-            );
-            bytes.set_len(size_of::<T>());
-        }
-        bytes
-    }
-
-    /// This function is used to convert a byte array to a type
-    ///
-    /// ## Panics
-    ///
-    /// This function will panic if the byte array is too small.
-    fn from_bytes(bytes: &[u8]) -> Self {
-        assert!(
-            bytes.len() == size_of::<T>(),
-            "Invalid byte count for conversion: expected {} got {}",
-            size_of::<T>(),
-            bytes.len()
-        );
-
-        let mut data: MaybeUninit<T> = core::mem::MaybeUninit::uninit();
-
-        // Safety
-        // `MaybeUninit` ensures that it has the same alignment, ABI and size as T.
-        // Therefore, we can safely write `size_of::<T>()` bytes to it.
-        // We also know that the source is valid, because of the assertion.
-        unsafe {
-            memcpy(
-                bytes.as_ptr(),
-                data.as_mut_ptr().cast::<u8>(),
-                size_of::<T>(),
-            );
-            data.assume_init()
-        }
-    }
-}
-
 /// This struct is used to create and store encrypted data
 #[derive(Debug, Clone)]
-pub struct Ciphered<T: ByteConvertible> {
+pub struct Ciphered<T: crate::Encode + crate::Decode> {
     phantom: core::marker::PhantomData<T>,
     c_data: Vec<CipheredBit>,
 }
 
-impl<T: ByteConvertible> Ciphered<T> {
+impl<T: crate::Encode + crate::Decode> Ciphered<T> {
     #[must_use]
     /// This function is used to create a new `Ciphered` object
     ///
@@ -206,10 +145,17 @@ impl<T: ByteConvertible> Ciphered<T> {
     ///
     /// * `data` - The data to encrypt
     /// * `pk` - The public key to use for encryption
+    ///
+    /// ## Panics
+    ///
+    /// This function will panic if the serialization of the data fails.
+    /// In such cases, you should make sure your struct serializes correctly.
     pub fn cipher(data: &T, pk: &PublicKey) -> Self {
-        let mut c_data = Vec::with_capacity(data.to_bytes().len() * 8);
+        let bytes = bincode::encode_to_vec(data, CONFIG).expect("Failed to serialize data");
 
-        for &byte in &data.to_bytes() {
+        let mut c_data = Vec::with_capacity(bytes.len() * 8);
+
+        for &byte in &bytes {
             for i in 0..8 {
                 let bit = (byte >> i) & 1;
                 c_data.push(Self::cipher_bit(bit == 1, pk));
@@ -241,8 +187,9 @@ impl<T: ByteConvertible> Ciphered<T> {
     ///
     /// This function will panic if the ciphered data length is not a multiple of 8
     pub fn decipher(&self, sk: &SecretKey) -> T {
-        assert!(
-            self.len() % 8 == 0,
+        assert_eq!(
+            0,
+            self.len() % 8,
             "Invalid ciphered data length: expected multiple of 8, got {}",
             self.len()
         );
@@ -264,14 +211,16 @@ impl<T: ByteConvertible> Ciphered<T> {
             }
         }
 
-        ByteConvertible::from_bytes(&bytes)
+        let (d, l) =
+            bincode::decode_from_slice(&bytes, CONFIG).expect("Failed to deserialize data");
+
+        assert_eq!(l, bytes.len(), "Error while deserializing data");
+
+        d
     }
 }
 
-impl<T> Deref for Ciphered<T>
-where
-    T: ByteConvertible,
-{
+impl<T: crate::Encode + crate::Decode> Deref for Ciphered<T> {
     type Target = Vec<CipheredBit>;
 
     fn deref(&self) -> &Self::Target {
@@ -282,46 +231,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Context, Parameters};
+    use crate::{Context, Decode, Encode, Parameters};
 
-    #[derive(Copy, Clone, Debug, PartialEq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Decode, Encode)]
     #[repr(C)]
     struct MyStruct {
         a: u32,
         b: u32,
-    }
-
-    #[test]
-    fn test_byteconvertible() {
-        let raw = [2_u8, 1_u8];
-        let data = u16::from_bytes(&raw);
-        assert_eq!(258, data);
-
-        let bytes = data.to_bytes();
-        assert_eq!(raw, bytes.as_slice());
-
-        let data = 0b1000_1010_u8;
-        let bytes = data.to_bytes();
-        let decrypted = u8::from_bytes(&bytes);
-        assert_eq!(data, decrypted);
-
-        let data = MyStruct { a: 42, b: 69 };
-        let bytes = data.to_bytes();
-        let decrypted = MyStruct::from_bytes(&bytes);
-        assert_eq!(data, decrypted);
-
-        let data = MyStruct { a: 42, b: 69 };
-        let mut bytes = data.to_bytes();
-        bytes[0] ^= 1;
-        let decrypted = MyStruct::from_bytes(&bytes);
-        assert_ne!(data, decrypted);
-    }
-
-    #[test]
-    #[should_panic = "Invalid byte count for conversion: expected 8 got 1"]
-    fn test_byteconvertible_panic() {
-        let bytes = [0_u8; 1];
-        let _ = MyStruct::from_bytes(&bytes);
     }
 
     #[test]
@@ -333,18 +249,21 @@ mod tests {
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
-        let data = 0b1000_1010_u8;
+        let data = 2_u8;
         let ciphered = Ciphered::cipher(&data, pk);
+        assert_eq!(u8::BITS as usize, ciphered.len());
         let decrypted = ciphered.decipher(sk);
         assert_eq!(data, decrypted);
 
         let data = usize::MAX;
         let ciphered = Ciphered::cipher(&data, pk);
+        assert_eq!(usize::BITS as usize, ciphered.len());
         let decrypted = ciphered.decipher(sk);
         assert_eq!(data, decrypted);
 
         let data = MyStruct { a: 42, b: 69 };
         let ciphered = Ciphered::cipher(&data, pk);
+        assert_eq!(8 * size_of::<MyStruct>(), ciphered.len());
         let decrypted = ciphered.decipher(sk);
         assert_eq!(data, decrypted);
     }

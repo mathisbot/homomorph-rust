@@ -60,21 +60,17 @@ macro_rules! impl_homomorphic_gates_uint {
 impl_homomorphic_gates_uint!(u8, u16, u32, usize, u64, u128);
 
 fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredBit> {
-    let longest = a.len().max(b.len());
-    let mut result = Vec::with_capacity(longest + 1);
+    assert_eq!(a.len(), b.len());
+
+    let mut result = Vec::with_capacity(a.len());
     let mut carry = CipheredBit::zero();
 
-    // Avoid borrowing issues
-    let null_bit = CipheredBit::zero();
-
-    for i in 0..longest {
-        let p1 = a.get(i).unwrap_or(&null_bit);
-        let p2 = b.get(i).unwrap_or(&null_bit);
-        let s = p1.xor(p2).xor(&carry);
+    for (i, (cb1, cb2)) in a.iter().zip(b.iter()).enumerate() {
+        let s = cb1.xor(cb2).xor(&carry);
 
         result.push(s);
 
-        if i + 1 >= longest {
+        if i + 1 >= a.len() {
             break;
         }
 
@@ -82,11 +78,11 @@ fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
         // This is too long and can be simplified :
         // c <- (p1+p2)*c + p1*p2 + p1*p2*(p1+p2)*c
         // c <- c*(p1+p2)*(1+p1*p2) + p1*p2
-        let p1_p2 = p1.and(p2);
+        let cb1_cb2 = cb1.and(cb2);
         carry = carry
-            .and(&p1.xor(p2))
-            .and(&CipheredBit::one().xor(&p1_p2))
-            .xor(&p1_p2);
+            .and(&cb1.xor(cb2))
+            .and(&CipheredBit::one().xor(&cb1_cb2))
+            .xor(&cb1_cb2);
     }
 
     result

@@ -3,7 +3,7 @@
 use alloc::vec::Vec;
 
 /// Represents a coefficient of a `Polynomial`.
-pub type Coefficient = usize;
+type Coefficient = usize;
 
 const BITS_PER_COEFF: usize = Coefficient::BITS as usize;
 
@@ -96,6 +96,28 @@ impl Polynomial {
         coefficients[num_elements - 1] &= (1 << (degree % BITS_PER_COEFF)) - 1;
         coefficients[num_elements - 1] |= 1 << (degree % BITS_PER_COEFF);
 
+        Self {
+            coefficients,
+            degree,
+        }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(self.coefficients.len() * size_of::<Coefficient>());
+        for &coeff in self.coefficients() {
+            bytes.extend_from_slice(&coeff.to_le_bytes());
+        }
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let mut coefficients = Vec::with_capacity(bytes.len() / size_of::<Coefficient>());
+        for chunk in bytes.chunks(size_of::<Coefficient>()) {
+            let mut coeff_bytes = [0; size_of::<Coefficient>()];
+            coeff_bytes[..chunk.len()].copy_from_slice(chunk);
+            coefficients.push(Coefficient::from_le_bytes(coeff_bytes));
+        }
+        let degree = Self::compute_degree(&coefficients);
         Self {
             coefficients,
             degree,

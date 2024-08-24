@@ -1,4 +1,4 @@
-use rand::{self, Rng};
+use rand::{thread_rng, Rng};
 use std::time::Instant;
 
 use homomorph::prelude::*;
@@ -7,7 +7,7 @@ use homomorph_impls::numbers::HomomorphicAddition;
 const NUMBER_OF_TESTS: usize = 1_000;
 
 fn main() {
-    let mut rng = rand::thread_rng();
+    let mut rng = thread_rng();
 
     // Create a new context
     let params = Parameters::new(128, 128, 1, 128);
@@ -95,6 +95,13 @@ fn main() {
 
     // Check if the results are correct
     for i in 0..NUMBER_OF_TESTS {
-        assert_eq!(data1[i] + data2[i], decrypted_data_add[i]);
+        assert_eq!(
+            data1[i] + data2[i],
+            decrypted_data_add[i],
+            "Error at index {}: {} != {}",
+            i,
+            data1[i] + data2[i],
+            decrypted_data_add[i]
+        );
     }
 }

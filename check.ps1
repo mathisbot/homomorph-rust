@@ -38,7 +38,7 @@ function Count-Lines {
 Run-Command "cargo build --lib"
 Run-Command "cargo build --lib --target x86_64-unknown-none"
 Run-Command "cargo test"
-Run-Command "cargo run --example new_struct"
+Run-Command "cargo run --example simple_struct"
 Run-Command "cargo clippy --all-targets --all-features -- -D warnings --no-deps"
 Run-Command "cargo test --release -- --ignored"
 Run-Command "cargo fmt"
