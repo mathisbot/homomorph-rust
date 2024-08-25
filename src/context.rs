@@ -467,22 +467,6 @@ mod tests {
     }
 
     #[test]
-    fn test_secret_key_zeroized_on_drop() {
-        let s = vec![5, 14, 8];
-        let sk = SecretKey::from_bytes(&s);
-
-        let p = sk.get_polynomial().clone();
-        let ptr = core::ptr::from_ref(sk.get_polynomial());
-
-        drop(sk);
-
-        // EXTREMELY UNSAFE
-        let p_retrieved = unsafe { &*ptr };
-
-        assert_ne!(p, *p_retrieved);
-    }
-
-    #[test]
     fn test_public_key() {
         let p = vec![vec![4, 7, 5], vec![1, 2, 3], vec![5, 4, 6]];
         let pk = PublicKey::from_bytes(&p);

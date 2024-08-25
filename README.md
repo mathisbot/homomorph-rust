@@ -76,9 +76,9 @@ Parameters used for this benchmark were :
 
 | Operation         | Average time     |
 |:-----------------:|:----------------:|
-| Encryption        |     80.5  µs     |
+| Encryption        |     74.9  µs     |
 | Decryption        |     12.9  µs     |
-| Add               |      1.57 ms     |
+| Add               |      1.14 ms     |
 | Dec. after add    |      1.03 ms     |
 
 It is still more efficient to decrypt, operate and then re-encrypt the data. This limits the use of the system to applications where security is paramount, and takes precedence over speed.
@@ -87,7 +87,7 @@ It's worth remembering that the system is inherently slow, as each bit is cipher
 
 ## Good practices
 
-The properties of homomorphic encryption make it a great candidate for calculations in unsafe environments.
+The properties of homomorphic encryption make it a great candidate for computations in unsafe environments.
 
 It's best to encrypt/decrypt locally, and only perform homomorphic operations on the external environment.
 

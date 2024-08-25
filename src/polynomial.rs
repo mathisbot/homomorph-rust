@@ -1,4 +1,4 @@
-//! Polynomial backend for fast operations
+//! Polynomial backend for fast operations on polynomials over Z/2Z.
 
 use alloc::vec::Vec;
 
@@ -76,10 +76,10 @@ impl Polynomial {
     pub fn random(degree: usize) -> Self {
         let num_elements = (degree / BITS_PER_COEFF) + 1;
 
-        let mut coefficients: Vec<Coefficient> = Vec::with_capacity(num_elements);
+        let mut coefficients = vec![0; num_elements];
 
         // Safety
-        // `Vec::with_capacity` ensures that the buffer is big enough to hold `num_elements` elements,
+        // `vec!` ensures that the buffer is big enough to hold `num_elements` elements,
         // therefore `num_elements * size_of::<Coefficient>()` bytes.
         let bytes = unsafe {
             core::slice::from_raw_parts_mut(
@@ -88,10 +88,6 @@ impl Polynomial {
             )
         };
         getrandom::getrandom(bytes).unwrap();
-        // Safety
-        // `Vec::with_capacity` ensures that the buffer is big enough to hold `num_elements` bytes.
-        // We initialized the buffer with `getrandom`, so it is safe to set the length.
-        unsafe { coefficients.set_len(num_elements) };
 
         coefficients[num_elements - 1] &= (1 << (degree % BITS_PER_COEFF)) - 1;
         coefficients[num_elements - 1] |= 1 << (degree % BITS_PER_COEFF);
@@ -182,13 +178,12 @@ impl Polynomial {
         // We know that degree of the sum is at most max(deg(p1), deg(p2)).
         let max_deg = self.degree().max(other.degree());
         let len = max_deg / BITS_PER_COEFF + 1;
-        let mut result = Vec::with_capacity(len);
+        let mut result = vec![0; len];
 
-        for i in 0..len {
-            result.push(
-                self.coefficients().get(i).copied().unwrap_or(0)
-                    ^ other.coefficients().get(i).copied().unwrap_or(0),
-            );
+        for (i, rc) in result.iter_mut().enumerate() {
+            let a = self.coefficients().get(i).copied().unwrap_or(0);
+            let b = other.coefficients().get(i).copied().unwrap_or(0);
+            *rc = a ^ b;
         }
 
         if self.degree() == other.degree() {
@@ -226,21 +221,23 @@ impl Polynomial {
                 .enumerate()
             {
                 let mut processed_a = a;
-                let mut local_result_l = 0; // Reduce cache misses
+
+                if a & 1 == 1 {
+                    result[i + j] ^= b;
+                    processed_a ^= 1;
+                }
+
                 let mut local_result_h = 0; // Reduce cache misses
                 while processed_a != 0 {
                     let k = processed_a.trailing_zeros() as usize;
 
-                    local_result_l ^= b << k;
+                    result[i + j] ^= b << k;
 
-                    if k > 0 {
-                        local_result_h ^= b >> (BITS_PER_COEFF - k);
-                    }
+                    // k is guaranteed to be non-zero
+                    local_result_h ^= b >> (BITS_PER_COEFF - k);
 
                     processed_a &= processed_a - 1;
                 }
-
-                result[i + j] ^= local_result_l;
 
                 if i + j + 1 < result_len {
                     result[i + j + 1] ^= local_result_h;
@@ -267,7 +264,7 @@ impl Polynomial {
             let block_shift = shift / BITS_PER_COEFF;
             let bit_shift = shift % BITS_PER_COEFF;
 
-            let max_idx = (other.degree() / BITS_PER_COEFF + 1).min(other.coefficients().len());
+            let max_idx = other.degree() / BITS_PER_COEFF + 1;
             let max_bound = r.len() - block_shift - 1;
             for i in 0..max_idx {
                 r[block_shift + i] ^= other.coefficients()[i] << bit_shift;
@@ -320,18 +317,20 @@ impl Polynomial {
         };
 
         // Zeroize coefficients
-        let len = self.coefficients().capacity();
         let base_ptr = self.coefficients.as_mut_ptr();
-        for i in 0..len {
+        for i in 0..self.coefficients().capacity() {
             // Safety
             // We know the pointer is valid because it points to an area inside of the buffer,
-            // as `i` is between 0 and len-1.
+            // as `i` is between 0 and capacity-1.
             // We are writing `size_of::<Coefficient>()` bytes of zeroes to a valid pointer
             // to a `Coefficient`.
             unsafe {
                 core::ptr::write_volatile(base_ptr.add(i), core::mem::zeroed());
             };
         }
+
+        // Effectively clear the vector
+        self.coefficients.clear();
     }
 }
 
@@ -354,6 +353,14 @@ impl PartialEq for Polynomial {
 
         let relevant_length = self.degree() / BITS_PER_COEFF + 1;
         self.coefficients()[..relevant_length] == other.coefficients()[..relevant_length]
+    }
+}
+
+impl core::ops::Deref for Polynomial {
+    type Target = Vec<Coefficient>;
+
+    fn deref(&self) -> &Self::Target {
+        self.coefficients()
     }
 }
 
@@ -506,13 +513,15 @@ mod test {
 
     #[test]
     fn test_zeroize() {
-        let mut p = Polynomial::new(vec![0b1001]);
+        let mut p = Polynomial::new(vec![42, 42]);
+
         unsafe {
             p.zeroize();
         }
+
         // DO NOT USE p AFTER THIS
         // This is for test purposes only
         assert_eq!(p.degree(), 0);
-        assert_eq!(*p.coefficients(), vec![0]);
+        assert_eq!(*p.coefficients(), vec![]);
     }
 }

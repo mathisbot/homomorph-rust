@@ -6,6 +6,21 @@ use homomorph_impls::numbers::HomomorphicAddition;
 
 const NUMBER_OF_TESTS: usize = 1_000;
 
+fn benchmark<F>(mut closure: F, name: &str, count: u32)
+where
+    F: FnMut(),
+{
+    let start = Instant::now();
+    closure();
+    let elapsed = start.elapsed();
+    println!(
+        "Time needed to {}: {:?} ({:?} per)",
+        name,
+        elapsed,
+        elapsed / count
+    );
+}
+
 fn main() {
     let mut rng = thread_rng();
 
@@ -21,79 +36,66 @@ fn main() {
     let data1: Vec<_> = (0..NUMBER_OF_TESTS).map(|_| rng.gen::<u32>() / 2).collect();
     let data2: Vec<_> = (0..NUMBER_OF_TESTS).map(|_| rng.gen::<u32>() / 2).collect();
 
+    let mut encrypted_data1: Vec<Ciphered<_>> = Vec::with_capacity(NUMBER_OF_TESTS);
+    let mut encrypted_data2: Vec<Ciphered<_>> = Vec::with_capacity(NUMBER_OF_TESTS);
+
+    let mut decrypted_data1: Vec<_> = Vec::with_capacity(NUMBER_OF_TESTS);
+    let mut decrypted_data2: Vec<_> = Vec::with_capacity(NUMBER_OF_TESTS);
+
+    let mut encrypted_data_add: Vec<Ciphered<_>> = Vec::with_capacity(NUMBER_OF_TESTS);
+    let mut decrypted_data_add: Vec<_> = Vec::with_capacity(NUMBER_OF_TESTS);
+
     // Encrypt the data
-    let start = Instant::now();
-    let encrypted_data1: Vec<Ciphered<_>> = data1
-        .iter()
-        .map(|&data| Ciphered::cipher(&data, pk))
-        .collect();
-    let elapsed = start.elapsed();
-    println!(
-        "Time needed to encrypt {} data: {:?}",
-        NUMBER_OF_TESTS, elapsed
+    benchmark(
+        || {
+            for i in 0..NUMBER_OF_TESTS {
+                encrypted_data1.push(Ciphered::cipher(&data1[i], pk));
+                encrypted_data2.push(Ciphered::cipher(&data2[i], pk));
+            }
+        },
+        "encrypt",
+        2 * NUMBER_OF_TESTS as u32,
     );
-    println!(
-        "Time needed to encrypt 1 data: {:?}",
-        elapsed / NUMBER_OF_TESTS as u32
-    );
-    let encrypted_data2: Vec<Ciphered<_>> = data2
-        .iter()
-        .map(|&data| Ciphered::cipher(&data, pk))
-        .collect();
 
     // Decrypt the data
-    let start = Instant::now();
-    let decrypted_data: Vec<_> = encrypted_data1
-        .iter()
-        .map(|data| Ciphered::decipher(data, sk))
-        .collect();
-    let elapsed = start.elapsed();
-    println!(
-        "Time needed to decrypt {} data: {:?}",
-        NUMBER_OF_TESTS, elapsed
-    );
-    println!(
-        "Time needed to decrypt 1 data: {:?}",
-        elapsed / NUMBER_OF_TESTS as u32
+    benchmark(
+        || {
+            for i in 0..NUMBER_OF_TESTS {
+                decrypted_data1.push(Ciphered::decipher(&encrypted_data1[i], sk));
+                decrypted_data2.push(Ciphered::decipher(&encrypted_data2[i], sk));
+            }
+        },
+        "decrypt",
+        2 * NUMBER_OF_TESTS as u32,
     );
     for i in 0..NUMBER_OF_TESTS {
-        assert_eq!(decrypted_data[i], data1[i]);
+        assert_eq!(decrypted_data1[i], data1[i]);
+        assert_eq!(decrypted_data2[i], data2[i]);
     }
 
     // Perform the homomorphic operation
-    let mut encrypted_data3: Vec<Ciphered<_>> = Vec::with_capacity(NUMBER_OF_TESTS);
-    let start = Instant::now();
-    for i in 0..NUMBER_OF_TESTS {
-        encrypted_data3
-            .push(unsafe { HomomorphicAddition::apply(&encrypted_data1[i], &encrypted_data2[i]) })
-    }
-    let elapsed = start.elapsed();
-    println!(
-        "Time needed to perform {} homomorphic additions on encrypted data: {:?}",
-        NUMBER_OF_TESTS, elapsed
-    );
-    println!(
-        "Time needed to perform 1 homomorphic addition on encrypted data: {:?}",
-        elapsed / NUMBER_OF_TESTS as u32
+    benchmark(
+        || {
+            for i in 0..NUMBER_OF_TESTS {
+                encrypted_data_add.push(unsafe {
+                    HomomorphicAddition::apply(&encrypted_data1[i], &encrypted_data2[i])
+                });
+            }
+        },
+        "add",
+        NUMBER_OF_TESTS as u32,
     );
 
     // Decrypt the result
-    let start = Instant::now();
-    let decrypted_data_add: Vec<_> = encrypted_data3
-        .iter()
-        .map(|data| Ciphered::decipher(data, sk))
-        .collect();
-    let elapsed = start.elapsed();
-    println!(
-        "Time needed to decrypt {} processed data: {:?}",
-        NUMBER_OF_TESTS, elapsed
+    benchmark(
+        || {
+            for ec in &encrypted_data_add {
+                decrypted_data_add.push(Ciphered::decipher(ec, sk));
+            }
+        },
+        "decrypt added",
+        NUMBER_OF_TESTS as u32,
     );
-    println!(
-        "Time needed to decrypt 1 processed data: {:?}",
-        elapsed / NUMBER_OF_TESTS as u32
-    );
-
-    // Check if the results are correct
     for i in 0..NUMBER_OF_TESTS {
         assert_eq!(
             data1[i] + data2[i],

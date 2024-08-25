@@ -72,6 +72,43 @@ impl CipheredBit {
     pub fn not(&self) -> Self {
         self.xor(&Self::one())
     }
+
+    #[must_use]
+    // u8 is used instead of bool because they are the same size
+    // while u8 can store 8 times more information
+    fn part(tau: usize) -> Vec<u8> {
+        let num_elements = (tau + 7) / 8;
+        let mut part = vec![0; num_elements];
+
+        getrandom::getrandom(&mut part).unwrap();
+
+        part
+    }
+
+    #[must_use]
+    // See https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system
+    fn cipher(x: bool, pk: &PublicKey) -> Self {
+        let pk = pk.get_polynomials();
+        let tau = pk.len();
+        let random_part = Self::part(tau);
+
+        let mut sum = Polynomial::new_from_bool(x);
+        for i in 0..tau {
+            let should_add = random_part[i / 8] & (1 << (i % 8));
+            if should_add != 0 {
+                sum = sum.add(&pk[i]);
+            }
+        }
+
+        Self(sum)
+    }
+
+    #[must_use]
+    // See https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system
+    fn decipher(&self, sk: &SecretKey) -> bool {
+        let remainder = self.0.rem(sk.get_polynomial());
+        remainder.evaluate(false)
+    }
 }
 
 /// This struct is used to create and store encrypted data
@@ -102,43 +139,6 @@ impl<T: crate::Encode + crate::Decode> Ciphered<T> {
     }
 
     #[must_use]
-    // u8 is used instead of bool because they are the same size
-    // while u8 can store 8 times more information
-    fn part(tau: usize) -> Vec<u8> {
-        let num_elements = (tau + 7) / 8;
-        let mut part: Vec<u8> = Vec::with_capacity(num_elements);
-
-        // Safety
-        // `Vec::with_capacity` ensures that the buffer is big enough to hold `num_elements` bytes.
-        let bytes = unsafe { core::slice::from_raw_parts_mut(part.as_mut_ptr(), num_elements) };
-        getrandom::getrandom(bytes).unwrap();
-        // Safety
-        // `Vec::with_capacity` ensures that the buffer is big enough to hold `num_elements` bytes.
-        // We initialized the buffer with `getrandom`, so it is safe to set the length.
-        unsafe { part.set_len(num_elements) };
-
-        part
-    }
-
-    #[must_use]
-    // See https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system
-    fn cipher_bit(x: bool, pk: &PublicKey) -> CipheredBit {
-        let pk = pk.get_polynomials();
-        let tau = pk.len();
-        let random_part = Self::part(tau);
-
-        let mut sum = Polynomial::new_from_bool(x);
-        for i in 0..tau {
-            let should_add = random_part[i / 8] & (1 << (i % 8));
-            if should_add != 0 {
-                sum = sum.add(&pk[i]);
-            }
-        }
-
-        CipheredBit(sum)
-    }
-
-    #[must_use]
     /// Ciphers data
     ///
     /// ## Arguments
@@ -158,7 +158,7 @@ impl<T: crate::Encode + crate::Decode> Ciphered<T> {
         for &byte in &bytes {
             for i in 0..8 {
                 let bit = (byte >> i) & 1;
-                c_data.push(Self::cipher_bit(bit == 1, pk));
+                c_data.push(CipheredBit::cipher(bit == 1, pk));
             }
         }
 
@@ -166,13 +166,6 @@ impl<T: crate::Encode + crate::Decode> Ciphered<T> {
             phantom: core::marker::PhantomData,
             c_data,
         }
-    }
-
-    #[must_use]
-    // See https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system
-    fn decipher_bit(c_bit: &CipheredBit, sk: &SecretKey) -> bool {
-        let remainder = c_bit.0.rem(sk.get_polynomial());
-        remainder.evaluate(false)
     }
 
     #[must_use]
@@ -200,7 +193,7 @@ impl<T: crate::Encode + crate::Decode> Ciphered<T> {
         let mut bit_count: u8 = 0;
 
         for c_bit in self.iter() {
-            let bit = u8::from(Self::decipher_bit(c_bit, sk));
+            let bit = u8::from(c_bit.decipher(sk));
             byte |= bit << bit_count;
             bit_count += 1;
 
@@ -211,10 +204,8 @@ impl<T: crate::Encode + crate::Decode> Ciphered<T> {
             }
         }
 
-        let (d, l) =
-            bincode::decode_from_slice(&bytes, CONFIG).expect("Failed to deserialize data");
-
-        assert_eq!(l, bytes.len(), "Error while deserializing data");
+        let (d, _) =
+            bincode::decode_from_slice(&bytes, CONFIG).expect("Error while deserializing data");
 
         d
     }
