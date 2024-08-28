@@ -33,7 +33,7 @@
 //! let parameters = Parameters::new(64, 32, 8, 32);
 //! let mut context = Context::new(parameters);
 //! context.generate_secret_key();
-//! context.generate_public_key();
+//! context.generate_public_key().unwrap();
 //! ```
 //!
 //! If you need to save the keys for later use, you can do so by saving the raw bytes.
@@ -44,7 +44,7 @@
 //! let parameters = Parameters::new(64, 32, 8, 32);
 //! let mut context = Context::new(parameters);
 //! context.generate_secret_key();
-//! context.generate_public_key();
+//! context.generate_public_key().unwrap();
 //!
 //! let sk_bytes = context.get_secret_key().unwrap().to_bytes();
 //! let pk_bytes = context.get_public_key().unwrap().to_bytes();
@@ -64,7 +64,7 @@
 //! let parameters = Parameters::new(64, 32, 8, 32);
 //! let mut context = Context::new(parameters);
 //! context.generate_secret_key();
-//! context.generate_public_key();
+//! context.generate_public_key().unwrap();
 //! let sk = context.get_secret_key().unwrap();
 //! let pk = context.get_public_key().unwrap();
 //!
@@ -86,7 +86,7 @@
 //! let parameters = Parameters::new(128, 64, 1, 64);
 //! let mut context = Context::new(parameters);
 //! context.generate_secret_key();
-//! context.generate_public_key();
+//! context.generate_public_key().unwrap();
 //! let pk = context.get_public_key().unwrap();
 //! let sk = context.get_secret_key().unwrap();
 //!

@@ -2,9 +2,10 @@ use crate::polynomial::Polynomial;
 use crate::{PublicKey, SecretKey};
 
 use alloc::vec::Vec;
+
 use core::ops::Deref;
 
-static CONFIG: bincode::config::Configuration<
+const CONFIG: bincode::config::Configuration<
     bincode::config::LittleEndian,
     bincode::config::Fixint,
     bincode::config::NoLimit,
@@ -225,7 +226,6 @@ mod tests {
     use crate::{Context, Decode, Encode, Parameters};
 
     #[derive(Copy, Clone, Debug, PartialEq, Decode, Encode)]
-    #[repr(C)]
     struct MyStruct {
         a: u32,
         b: u32,
@@ -236,7 +236,7 @@ mod tests {
         let parameters = Parameters::new(64, 32, 8, 32);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
@@ -264,7 +264,7 @@ mod tests {
         let parameters = Parameters::new(64, 32, 8, 32);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
         let data = 0b1000_1010_u8;

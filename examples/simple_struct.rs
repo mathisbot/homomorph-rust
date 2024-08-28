@@ -53,10 +53,10 @@ impl HomomorphicOperation2<Vec3> for Vec3Add {
 }
 
 fn main() {
-    let params = Parameters::new(64, 32, 1, 32);
-    let mut context = Context::new(params);
+    const PARAMS: Parameters = Parameters::new(64, 32, 1, 32);
+    let mut context = Context::new(PARAMS);
     context.generate_secret_key();
-    context.generate_public_key();
+    context.generate_public_key().unwrap();
     let sk = context.get_secret_key().unwrap();
     let pk = context.get_public_key().unwrap();
 

@@ -60,7 +60,7 @@ macro_rules! impl_homomorphic_gates_uint {
 impl_homomorphic_gates_uint!(u8, u16, u32, usize, u64, u128);
 
 fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredBit> {
-    assert_eq!(a.len(), b.len());
+    debug_assert_eq!(a.len(), b.len());
 
     let mut result = Vec::with_capacity(a.len());
     let mut carry = CipheredBit::zero();
@@ -70,11 +70,12 @@ fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
 
         result.push(s);
 
+        // Ignore last carry
         if i + 1 >= a.len() {
             break;
         }
 
-        // carry = p1.bit_xor(&p2).bit_and(&carry).bit_or(&p1.bit_and(&p2));
+        // carry = p1.xor(&p2).and(&carry).or(&p1.and(&p2));
         // This is too long and can be simplified :
         // c <- (p1+p2)*c + p1*p2 + p1*p2*(p1+p2)*c
         // c <- c*(p1+p2)*(1+p1*p2) + p1*p2
@@ -194,7 +195,7 @@ mod tests {
         let parameters = Parameters::new(32, 8, 8, 8);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
@@ -210,7 +211,7 @@ mod tests {
         let parameters = Parameters::new(32, 8, 8, 8);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
@@ -226,7 +227,7 @@ mod tests {
         let parameters = Parameters::new(32, 16, 16, 16);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
@@ -242,7 +243,7 @@ mod tests {
         let parameters = Parameters::new(32, 16, 16, 16);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
@@ -262,7 +263,7 @@ mod tests {
         let parameters = Parameters::new(64, 16, 1, 16);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
@@ -288,7 +289,7 @@ mod tests {
         let parameters = Parameters::new(256, 128, 1, 128);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
@@ -309,7 +310,7 @@ mod tests {
         let parameters = Parameters::new(256, 128, 1, 128);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
@@ -332,7 +333,7 @@ mod tests {
         let parameters = Parameters::new(1024, 8, 1, 4);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 

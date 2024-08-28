@@ -1,5 +1,6 @@
 //! Polynomial backend for fast operations on polynomials over Z/2Z.
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 /// Represents a coefficient of a `Polynomial`.
@@ -9,18 +10,18 @@ const BITS_PER_COEFF: usize = Coefficient::BITS as usize;
 
 /// A polynomial over Z/2Z.
 ///
-/// A polynomial is represented as a vector of coefficients.
-/// For speed purposes, we store the coefficients in a vector of uint, representing multiple coefficients at a time.
+/// A polynomial is represented as a list of coefficients.
+/// For speed purposes, we store the coefficients in a boxed slice of uint, representing multiple coefficients at a time.
 ///
 /// ## WARNING
 ///
 /// The first element of the vector are the terms with the least power of X
 /// BUT bits are reversed because of binary representation, so the last bit of the first element is the constant term.
 ///
-/// Thus, if x is `Coefficient::BITS`, coefficient of x^i is stored in the (i/x)-th usize at the (x-1-i%x)-th bit.
+/// Thus, if we note b the value `Coefficient::BITS`, coefficient of X^i is the (b-1-i%b)-th bit of the (i/b)-th usize.
 #[derive(Debug, Eq)]
 pub struct Polynomial {
-    coefficients: Vec<Coefficient>,
+    coefficients: Box<[Coefficient]>,
     degree: usize,
 }
 
@@ -38,14 +39,14 @@ impl Polynomial {
             })
     }
 
-    /// Create a new polynomial from a vector of coefficients
+    /// Create a new polynomial from a boxed slice of coefficients
     ///
     /// The degree of the polynomial is computed from the vector of coefficients.
     ///
     /// ## Panics
     ///
     /// If the vector of coefficients is empty.
-    pub fn new(coefficients: Vec<Coefficient>) -> Self {
+    pub fn new(coefficients: Box<[Coefficient]>) -> Self {
         assert!(
             !coefficients.is_empty(),
             "The vector of coefficients must not be empty."
@@ -59,7 +60,7 @@ impl Polynomial {
 
     /// Create a new polynomial of degree 0 from a bool
     pub fn new_from_bool(x: bool) -> Self {
-        let coefficients = vec![Coefficient::from(x)];
+        let coefficients = Box::new([Coefficient::from(x)]);
         Self {
             coefficients,
             degree: 0,
@@ -76,7 +77,7 @@ impl Polynomial {
     pub fn random(degree: usize) -> Self {
         let num_elements = (degree / BITS_PER_COEFF) + 1;
 
-        let mut coefficients = vec![0; num_elements];
+        let mut coefficients = vec![0; num_elements].into_boxed_slice();
 
         // Safety
         // `vec!` ensures that the buffer is big enough to hold `num_elements` elements,
@@ -107,11 +108,14 @@ impl Polynomial {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        let mut coefficients = Vec::with_capacity(bytes.len() / size_of::<Coefficient>());
-        for chunk in bytes.chunks(size_of::<Coefficient>()) {
+        assert!(!bytes.is_empty(), "The vector of bytes must not be empty.");
+        let mut coefficients =
+            vec![0; (bytes.len() + size_of::<Coefficient>() - 1) / size_of::<Coefficient>()]
+                .into_boxed_slice();
+        for (i, chunk) in bytes.chunks(size_of::<Coefficient>()).enumerate() {
             let mut coeff_bytes = [0; size_of::<Coefficient>()];
             coeff_bytes[..chunk.len()].copy_from_slice(chunk);
-            coefficients.push(Coefficient::from_le_bytes(coeff_bytes));
+            coefficients[i] = Coefficient::from_le_bytes(coeff_bytes);
         }
         let degree = Self::compute_degree(&coefficients);
         Self {
@@ -128,14 +132,14 @@ impl Polynomial {
     /// is considered to be of degree 0 in this implementation.
     pub fn null() -> Self {
         Self {
-            coefficients: vec![0],
+            coefficients: Box::new([0]),
             degree: 0,
         }
     }
 
     /// Returns the monomial x^degree
     pub fn monomial(degree: usize) -> Self {
-        let mut coefficients = vec![0; degree / BITS_PER_COEFF + 1];
+        let mut coefficients = vec![0; degree / BITS_PER_COEFF + 1].into_boxed_slice();
         coefficients[degree / BITS_PER_COEFF] = 1 << (degree % BITS_PER_COEFF);
 
         Self {
@@ -164,7 +168,7 @@ impl Polynomial {
     }
 
     /// Returns the coefficients of the polynomial
-    pub const fn coefficients(&self) -> &Vec<Coefficient> {
+    pub const fn coefficients(&self) -> &[Coefficient] {
         &self.coefficients
     }
 
@@ -178,7 +182,7 @@ impl Polynomial {
         // We know that degree of the sum is at most max(deg(p1), deg(p2)).
         let max_deg = self.degree().max(other.degree());
         let len = max_deg / BITS_PER_COEFF + 1;
-        let mut result = vec![0; len];
+        let mut result = vec![0; len].into_boxed_slice();
 
         for (i, rc) in result.iter_mut().enumerate() {
             let a = self.coefficients().get(i).copied().unwrap_or(0);
@@ -206,7 +210,7 @@ impl Polynomial {
     pub fn mul(&self, other: &Self) -> Self {
         // The degree of the product is deg(p1) + deg(p2).
         let result_len = (self.degree() + other.degree()) / BITS_PER_COEFF + 1;
-        let mut result = vec![0; result_len];
+        let mut result = vec![0; result_len].into_boxed_slice();
 
         for (i, &a) in self
             .coefficients()
@@ -255,7 +259,7 @@ impl Polynomial {
     ///
     /// This function allocates a new polynomial.
     pub fn rem(&self, other: &Self) -> Self {
-        let mut r = self.coefficients().clone();
+        let mut r = self.coefficients.clone();
         let mut r_degree = self.degree();
 
         // At most self.degree() - other.degree() iterations
@@ -318,7 +322,7 @@ impl Polynomial {
 
         // Zeroize coefficients
         let base_ptr = self.coefficients.as_mut_ptr();
-        for i in 0..self.coefficients().capacity() {
+        for i in 0..self.coefficients().len() {
             // Safety
             // We know the pointer is valid because it points to an area inside of the buffer,
             // as `i` is between 0 and capacity-1.
@@ -328,9 +332,6 @@ impl Polynomial {
                 core::ptr::write_volatile(base_ptr.add(i), core::mem::zeroed());
             };
         }
-
-        // Effectively clear the vector
-        self.coefficients.clear();
     }
 }
 
@@ -338,8 +339,11 @@ impl Clone for Polynomial {
     fn clone(&self) -> Self {
         let relevant_length = self.degree() / BITS_PER_COEFF;
 
+        let mut cloned_coefficients = Vec::with_capacity(relevant_length + 1);
+        cloned_coefficients.extend_from_slice(&self.coefficients()[..=relevant_length]);
+
         Self {
-            coefficients: self.coefficients()[..=relevant_length].to_vec(),
+            coefficients: cloned_coefficients.into_boxed_slice(),
             degree: self.degree(),
         }
     }
@@ -357,7 +361,7 @@ impl PartialEq for Polynomial {
 }
 
 impl core::ops::Deref for Polynomial {
-    type Target = Vec<Coefficient>;
+    type Target = [Coefficient];
 
     fn deref(&self) -> &Self::Target {
         self.coefficients()
@@ -367,45 +371,46 @@ impl core::ops::Deref for Polynomial {
 #[cfg(test)]
 mod test {
     use super::{Coefficient, Polynomial, BITS_PER_COEFF};
+    use alloc::boxed::Box;
 
     #[test]
     #[should_panic = "The vector of coefficients must not be empty."]
     fn test_new_empty() {
-        Polynomial::new(vec![]);
+        Polynomial::new(Box::new([]));
     }
 
     #[test]
     fn test_compute_degree() {
-        let coefficients = vec![0b10010];
+        let coefficients = [0b10010];
         assert_eq!(Polynomial::compute_degree(&coefficients), 4);
 
-        let coefficients = vec![0b10010, 0b1];
+        let coefficients = [0b10010, 0b1];
         assert_eq!(Polynomial::compute_degree(&coefficients), BITS_PER_COEFF);
 
-        let coefficients = vec![0b10010, 0b0];
+        let coefficients = [0b10010, 0b0];
         assert_eq!(Polynomial::compute_degree(&coefficients), 4);
     }
 
     #[test]
     fn test_eq() {
-        let p1 = Polynomial::new(vec![0b1001]);
-        let p2 = Polynomial::new(vec![0b1001]);
+        let p1 = Polynomial::new(Box::new([0b1001]));
+        let p2 = Polynomial::new(Box::new([0b1001]));
         assert_eq!(p1, p2);
 
-        let p1 = Polynomial::new(vec![0b1001, 0b1000_0011_0101_1010, 0b0, 0b1, 0b0]);
-        let p2 = Polynomial::new(vec![0b1001, 0b1000_0011_0101_1010, 0b0, 0b1, 0b0]);
+        let p1 = Polynomial::new(Box::new([0b1001, 0b1000_0011_0101_1010, 0b0, 0b1, 0b0]));
+        let p2 = Polynomial::new(Box::new([0b1001, 0b1000_0011_0101_1010, 0b0, 0b1, 0b0]));
         assert_eq!(p1, p2);
 
-        let p1 = Polynomial::new(vec![0b1001]);
-        let p2 = Polynomial::new(vec![0b1001, 0b0]);
+        let p1 = Polynomial::new(Box::new([0b1001]));
+        let p2 = Polynomial::new(Box::new([0b1001, 0b0]));
         assert_eq!(p1, p2);
 
-        let p1 = Polynomial::new(vec![0b1001]);
-        let p2 = Polynomial::new(vec![0b1000]);
+        let p1 = Polynomial::new(Box::new([0b1001]));
+        let p2 = Polynomial::new(Box::new([0b1000]));
         assert_ne!(p1, p2);
 
-        let p1 = Polynomial::new(vec![0b1000, 0b10, 0b0]);
-        let p2 = Polynomial::new(vec![0b1000, 0b0, 0b0]);
+        let p1 = Polynomial::new(Box::new([0b1000, 0b10, 0b0]));
+        let p2 = Polynomial::new(Box::new([0b1000, 0b0, 0b0]));
         assert_ne!(p1, p2);
     }
 
@@ -435,12 +440,12 @@ mod test {
 
     #[test]
     fn test_clone() {
-        let p1 = Polynomial::new(vec![0b1001]);
+        let p1 = Polynomial::new(Box::new([0b1001]));
         #[allow(clippy::redundant_clone)]
         let p2 = p1.clone();
         assert_eq!(p1, p2);
 
-        let p1 = Polynomial::new(vec![0b1001, 0b1000_0011_0101_1010, 0b0, 0b1, 0b0]);
+        let p1 = Polynomial::new(Box::new([0b1001, 0b1000_0011_0101_1010, 0b0, 0b1, 0b0]));
         #[allow(clippy::redundant_clone)]
         let p2 = p1.clone();
         assert_eq!(p1, p2);
@@ -448,11 +453,11 @@ mod test {
 
     #[test]
     fn test_evaluate() {
-        let p = Polynomial::new(vec![0b1001]);
+        let p = Polynomial::new(Box::new([0b1001]));
         assert!(!p.evaluate(true));
         assert!(p.evaluate(false));
 
-        let p = Polynomial::new(vec![0b1111_00010, 0b1001]);
+        let p = Polynomial::new(Box::new([0b1111_00010, 0b1001]));
         assert!(p.evaluate(true));
         assert!(!p.evaluate(false));
     }
@@ -460,60 +465,60 @@ mod test {
     #[test]
     fn test_add() {
         // Simple case
-        let p1 = Polynomial::new(vec![0b1001]);
-        let p2 = Polynomial::new(vec![0b0011]);
+        let p1 = Polynomial::new(Box::new([0b1001]));
+        let p2 = Polynomial::new(Box::new([0b0011]));
         let p3 = p1.add(&p2);
-        assert_eq!(*p3.coefficients(), vec![0b1010]);
+        assert_eq!(*p3.coefficients(), [0b1010]);
 
         // Multiple coefficients
-        let p1 = Polynomial::new(vec![0b1001, 0b1]);
-        let p2 = Polynomial::new(vec![0b0101, 0b1]);
+        let p1 = Polynomial::new(Box::new([0b1001, 0b1]));
+        let p2 = Polynomial::new(Box::new([0b0101, 0b1]));
         let p3 = p1.add(&p2);
-        assert_eq!(*p3.coefficients(), vec![0b1100, 0b0]);
+        assert_eq!(*p3.coefficients(), [0b1100, 0b0]);
     }
 
     #[test]
     fn test_mul() {
-        let p1 = Polynomial::new(vec![0b1001]);
-        let p2 = Polynomial::new(vec![0b11]);
+        let p1 = Polynomial::new(Box::new([0b1001]));
+        let p2 = Polynomial::new(Box::new([0b11]));
         let p3 = p1.mul(&p2);
-        assert_eq!(*p3.coefficients(), vec![0b11011]);
+        assert_eq!(*p3.coefficients(), [0b11011]);
 
-        let p1 = Polynomial::new(vec![0b111]);
-        let p2 = Polynomial::new(vec![0b11]);
+        let p1 = Polynomial::new(Box::new([0b111]));
+        let p2 = Polynomial::new(Box::new([0b11]));
         let p3 = p1.mul(&p2);
-        assert_eq!(*p3.coefficients(), vec![0b1001]);
+        assert_eq!(*p3.coefficients(), [0b1001]);
 
-        let p1 = Polynomial::new(vec![Coefficient::MAX]);
-        let p2 = Polynomial::new(vec![0b11]);
+        let p1 = Polynomial::new(Box::new([Coefficient::MAX]));
+        let p2 = Polynomial::new(Box::new([0b11]));
         let p3 = p1.mul(&p2);
-        assert_eq!(*p3.coefficients(), vec![0b1, 0b1]);
+        assert_eq!(*p3.coefficients(), [0b1, 0b1]);
     }
 
     #[test]
     fn test_rem() {
-        let p1 = Polynomial::new(vec![0b1001]);
-        let p2 = Polynomial::new(vec![0b11]);
+        let p1 = Polynomial::new(Box::new([0b1001]));
+        let p2 = Polynomial::new(Box::new([0b11]));
         let p3 = p1.rem(&p2);
         assert!(p3.degree() < p2.degree());
-        assert_eq!(*p3.coefficients(), vec![0]);
+        assert_eq!(*p3.coefficients(), [0]);
 
-        let p1 = Polynomial::new(vec![0b1]);
-        let p2 = Polynomial::new(vec![0b10]);
+        let p1 = Polynomial::new(Box::new([0b1]));
+        let p2 = Polynomial::new(Box::new([0b10]));
         let p3 = p1.rem(&p2);
         assert!(p3.degree() < p2.degree());
-        assert_eq!(*p3.coefficients(), vec![1]);
+        assert_eq!(*p3.coefficients(), [1]);
 
-        let p1 = Polynomial::new(vec![0b10_1010_1101]);
-        let p2 = Polynomial::new(vec![0b11011]);
+        let p1 = Polynomial::new(Box::new([0b10_1010_1101]));
+        let p2 = Polynomial::new(Box::new([0b11011]));
         let p3 = p1.rem(&p2);
         assert!(p3.degree() < p2.degree());
-        assert_eq!(*p3.coefficients(), vec![0b1010]);
+        assert_eq!(*p3.coefficients(), [0b1010]);
     }
 
     #[test]
     fn test_zeroize() {
-        let mut p = Polynomial::new(vec![42, 42]);
+        let mut p = Polynomial::new(Box::new([42, 42]));
 
         unsafe {
             p.zeroize();
@@ -522,6 +527,6 @@ mod test {
         // DO NOT USE p AFTER THIS
         // This is for test purposes only
         assert_eq!(p.degree(), 0);
-        assert_eq!(*p.coefficients(), vec![]);
+        assert_eq!(*p.coefficients(), [0, 0]);
     }
 }

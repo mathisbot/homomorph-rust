@@ -168,7 +168,7 @@ pub trait HomomorphicOperation2<T: crate::Encode + crate::Decode> {
 /// let params = Parameters::new(32, 8, 4, 8);
 /// let mut context = Context::new(params);
 /// context.generate_secret_key();
-/// context.generate_public_key();
+/// context.generate_public_key().unwrap();
 /// let sk = context.get_secret_key().unwrap();
 /// let pk = context.get_public_key().unwrap();
 ///

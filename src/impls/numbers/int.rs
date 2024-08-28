@@ -111,7 +111,7 @@ mod tests {
         let parameters = Parameters::new(32, 8, 8, 8);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
@@ -127,7 +127,7 @@ mod tests {
         let parameters = Parameters::new(32, 8, 8, 8);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
@@ -143,7 +143,7 @@ mod tests {
         let parameters = Parameters::new(16, 8, 8, 8);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
@@ -159,7 +159,7 @@ mod tests {
         let parameters = Parameters::new(16, 8, 8, 8);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
@@ -180,7 +180,7 @@ mod tests {
         let parameters = Parameters::new(64, 16, 1, 16);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
@@ -207,7 +207,7 @@ mod tests {
         let parameters = Parameters::new(256, 128, 1, 128);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
@@ -229,7 +229,7 @@ mod tests {
         let parameters = Parameters::new(256, 128, 1, 128);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
@@ -252,7 +252,7 @@ mod tests {
         let parameters = Parameters::new(512, 64, 1, 64);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 

@@ -32,6 +32,9 @@ pub struct Parameters {
     tau: u16,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SecretKeyUnset;
+
 impl Parameters {
     #[must_use]
     /// Creates a new set of parameters.
@@ -64,7 +67,7 @@ impl Parameters {
     ///
     /// let parameters = Parameters::new(6, 3, 2, 5);
     /// ```
-    pub fn new(d: u16, dp: u16, delta: u16, tau: u16) -> Self {
+    pub const fn new(d: u16, dp: u16, delta: u16, tau: u16) -> Self {
         assert!(delta < d, "Delta must be strictly less than d");
         assert!(
             !(d == 0 || dp == 0 || delta == 0 || tau == 0),
@@ -253,7 +256,7 @@ impl PublicKey {
     ///
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     /// context.generate_secret_key();
-    /// context.generate_public_key();
+    /// context.generate_public_key().unwrap();
     ///
     /// let key_bytes = context.get_public_key().unwrap().to_bytes();
     /// ```
@@ -269,9 +272,9 @@ impl PublicKey {
 /// The cipher context.
 #[derive(Clone, Debug)]
 pub struct Context {
+    parameters: Parameters,
     secret_key: Option<SecretKey>,
     public_key: Option<PublicKey>,
-    parameters: Parameters,
 }
 
 impl Context {
@@ -294,11 +297,11 @@ impl Context {
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// ```
-    pub const fn new(params: Parameters) -> Self {
+    pub const fn new(parameters: Parameters) -> Self {
         Self {
+            parameters,
             secret_key: None,
             public_key: None,
-            parameters: params,
         }
     }
 
@@ -343,7 +346,7 @@ impl Context {
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
-    /// context.generate_public_key();
+    /// context.generate_public_key().unwrap();
     /// let public_key = context.get_public_key().unwrap();
     /// ```
     pub const fn get_public_key(&self) -> Option<&PublicKey> {
@@ -351,6 +354,10 @@ impl Context {
     }
 
     /// Generates a secret key.
+    ///
+    /// ## Note
+    ///
+    /// Clears the public key if it was generated before.
     ///
     /// ## Examples
     ///
@@ -364,13 +371,14 @@ impl Context {
     /// ```
     pub fn generate_secret_key(&mut self) {
         self.secret_key = Some(SecretKey::random(self.parameters().d()));
+        self.public_key = None;
     }
 
     /// Generates a public key out of the private key.
     ///
-    /// ## Panics
+    /// ## Errors
     ///
-    /// This function will panic if the secret key has not been generated yet.
+    /// Returns an error if the secret key has not been generated yet.
     ///
     /// ## Examples
     ///
@@ -381,15 +389,17 @@ impl Context {
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
     ///
-    /// context.generate_public_key();
+    /// context.generate_public_key().unwrap();
     /// ```
-    pub fn generate_public_key(&mut self) {
+    pub fn generate_public_key(&mut self) -> Result<(), SecretKeyUnset> {
         self.public_key = Some(PublicKey::random(
             self.parameters().dp(),
             self.parameters().delta(),
             self.parameters().tau(),
-            self.get_secret_key().expect("Secret key not generated yet"),
+            self.get_secret_key().ok_or(SecretKeyUnset)?,
         ));
+
+        Ok(())
     }
 
     /// Explicitly sets the secret key.
@@ -445,13 +455,14 @@ mod tests {
 
     #[test]
     #[should_panic = "Delta must be strictly less than d"]
-    fn test_parameters_delta_panic() {
+    const fn test_parameters_delta_panic() {
         let _ = Parameters::new(6, 3, 6, 5);
     }
 
     #[test]
     #[should_panic = "Parameters must be strictly positive"]
-    fn test_parameters_null_panic() {
+    #[allow(clippy::missing_const_for_fn)]
+    const fn test_parameters_null_panic() {
         let _ = Parameters::new(6, 0, 2, 5);
     }
 
@@ -482,7 +493,7 @@ mod tests {
         let params = Parameters::new(64, 32, 8, 32);
         let mut context = Context::new(params);
         context.generate_secret_key();
-        context.generate_public_key();
+        context.generate_public_key().unwrap();
         let sk = context.get_secret_key().unwrap().clone();
         context.set_secret_key(sk.clone());
         let pk = context.get_public_key().unwrap().clone();
@@ -500,6 +511,8 @@ mod tests {
     fn test_context_panic() {
         let params = Parameters::new(64, 32, 8, 32);
         let mut context = Context::new(params);
-        context.generate_public_key();
+        context
+            .generate_public_key()
+            .expect("Secret key not generated yet.");
     }
 }

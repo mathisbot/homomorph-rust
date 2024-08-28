@@ -60,13 +60,12 @@ This is why the heap is needed here.
 You may also need a source of randomness.
 On bare x86, randomness can still be retrieved using `RDRAND`.
 On other architectures, such as `aarch64-unknown-none`,
-you will have to implement `provide_getrandom`,
-which is a re-export of `getrandom::register_custom_getrandom`,
-gated behind the `custom_rand` feature.
+you will have to implement `getrandom::register_custom_getrandom`,
+which is re-exported by the crate behind the `custom_rand` feature.
 
 ## Benchmarks
 
-Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 10 000 `u32`s.
+Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 10 000 `u32`s using `cargo bench`.
 
 Parameters used for this benchmark were :
 - `d` = 128
@@ -77,9 +76,9 @@ Parameters used for this benchmark were :
 | Operation         | Average time     |
 |:-----------------:|:----------------:|
 | Encryption        |     74.9  µs     |
-| Decryption        |     12.9  µs     |
-| Add               |      1.14 ms     |
-| Dec. after add    |      1.03 ms     |
+| Decryption        |     13.2  µs     |
+| Add               |      1.16 ms     |
+| Dec. after add    |      1.04 ms     |
 
 It is still more efficient to decrypt, operate and then re-encrypt the data. This limits the use of the system to applications where security is paramount, and takes precedence over speed.
 

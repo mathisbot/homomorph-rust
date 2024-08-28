@@ -1,1 +1,9 @@
-/target
+# Compiled files
+target/
+debug/
+
+# rustfmt
+**/*.rs.bk
+
+# MSVC files
+*.pdb
