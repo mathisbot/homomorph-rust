@@ -35,12 +35,13 @@ function Count-Lines {
     return $nonEmptyLines
 }
 
-Run-Command "cargo build --lib"
-Run-Command "cargo build --lib --target x86_64-unknown-none"
-Run-Command "cargo test"
-Run-Command "cargo run --example simple_struct"
+Run-Command "cargo build --lib --all-features"
+Run-Command "cargo build --lib --target x86_64-unknown-none --all-features"
+Run-Command "cargo test --all-features"
+Run-Command "cargo run --example simple_struct --all-features"
+Run-Command "cargo run --example unbalanced_struct --all-features"
 Run-Command "cargo clippy --all-targets --all-features -- -D warnings --no-deps"
-Run-Command "cargo test --release -- --ignored"
+Run-Command "cargo test --release --all-features -- --ignored"
 Run-Command "cargo fmt"
 # Optional
 # Run-Command "cargo tarpaulin --lib --all-features --locked --out Html"

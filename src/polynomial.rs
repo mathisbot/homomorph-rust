@@ -148,20 +148,6 @@ impl Polynomial {
         }
     }
 
-    /// Evaluates the given polynomial at a given point
-    pub fn evaluate(&self, x: bool) -> bool {
-        if !x {
-            return (self.coefficients()[0] & 1) == 1;
-        }
-
-        let mut count_ones = 0;
-        for coeff in self.coefficients() {
-            count_ones += coeff.count_ones();
-        }
-
-        (count_ones % 2) == 1
-    }
-
     /// Returns the degree of the polynomial
     pub const fn degree(&self) -> usize {
         self.degree
@@ -170,6 +156,30 @@ impl Polynomial {
     /// Returns the coefficients of the polynomial
     pub const fn coefficients(&self) -> &[Coefficient] {
         &self.coefficients
+    }
+
+    /// Returns the coefficient of a given degree
+    pub fn coefficient(&self, degree: usize) -> Option<bool> {
+        self.coefficients()
+            .get(degree / BITS_PER_COEFF)
+            .copied()
+            .map(|coeff| (coeff >> (degree % BITS_PER_COEFF)) & 1 == 1)
+    }
+
+    /// Evaluates the given polynomial at a given point
+    pub fn evaluate(&self, x: bool) -> bool {
+        if !x {
+            // Panic
+            // self.coefficient is guaranteed to be non-empty
+            return self.coefficient(0).unwrap();
+        }
+
+        let mut count_ones = 0;
+        for coeff in self.coefficients() {
+            count_ones += coeff.count_ones();
+        }
+
+        (count_ones % 2) == 1
     }
 
     /// Add two polynomials together
@@ -204,7 +214,7 @@ impl Polynomial {
     /// Multiply two polynomials together
     ///
     /// The reason this function exists outside of the `std::ops::Mul` trait is because
-    /// it is interesting to add two polynomials without losing ownership of them.
+    /// it is interesting to multiply two polynomials without losing ownership of them.
     ///
     /// However, this function allocates a new polynomial.
     pub fn mul(&self, other: &Self) -> Self {
@@ -259,7 +269,7 @@ impl Polynomial {
     ///
     /// This function allocates a new polynomial.
     pub fn rem(&self, other: &Self) -> Self {
-        let mut r = self.coefficients.clone();
+        let mut r = self.coefficients().to_vec().into_boxed_slice();
         let mut r_degree = self.degree();
 
         // At most self.degree() - other.degree() iterations
@@ -325,7 +335,7 @@ impl Polynomial {
         for i in 0..self.coefficients().len() {
             // Safety
             // We know the pointer is valid because it points to an area inside of the buffer,
-            // as `i` is between 0 and capacity-1.
+            // as `i` is between 0 and len-1.
             // We are writing `size_of::<Coefficient>()` bytes of zeroes to a valid pointer
             // to a `Coefficient`.
             unsafe {

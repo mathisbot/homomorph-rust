@@ -65,6 +65,8 @@ fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
     let mut result = Vec::with_capacity(a.len());
     let mut carry = CipheredBit::zero();
 
+    let one_bit = CipheredBit::one();
+
     for (i, (cb1, cb2)) in a.iter().zip(b.iter()).enumerate() {
         let s = cb1.xor(cb2).xor(&carry);
 
@@ -82,7 +84,7 @@ fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
         let cb1_cb2 = cb1.and(cb2);
         carry = carry
             .and(&cb1.xor(cb2))
-            .and(&CipheredBit::one().xor(&cb1_cb2))
+            .and(&one_bit.xor(&cb1_cb2))
             .xor(&cb1_cb2);
     }
 

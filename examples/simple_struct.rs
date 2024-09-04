@@ -43,10 +43,10 @@ impl HomomorphicOperation2<Vec3> for Vec3Add {
         let z = homomorph_impls::numbers::HomomorphicAddition::apply(&az, &bz);
 
         // Merge the results
-        let mut res = Vec::with_capacity(8 * size_of::<Vec3>());
-        res.extend_from_slice(x.as_slice());
-        res.extend_from_slice(y.as_slice());
-        res.extend_from_slice(z.as_slice());
+        let mut res = Vec::with_capacity(x.len() + y.len() + z.len());
+        res.extend_from_slice(&x);
+        res.extend_from_slice(&y);
+        res.extend_from_slice(&z);
 
         Ciphered::new_from_raw(res)
     }

@@ -25,13 +25,13 @@ jobs:
           override: true
 
       - name: Build
-        run: cargo build --lib --verbose
+        run: cargo build --lib --all-features --verbose
 
       - name: Run basic tests
-        run: cargo test --verbose
+        run: cargo test --all-features --verbose
 
       - name: Run a basic example
-        run: cargo run --example simple_struct
+        run: cargo run --example simple_struct --all-features
 
   clippy-fmt:
     runs-on: ubuntu-latest

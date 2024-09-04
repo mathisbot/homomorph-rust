@@ -3,8 +3,6 @@ use crate::{PublicKey, SecretKey};
 
 use alloc::vec::Vec;
 
-use core::ops::Deref;
-
 const CONFIG: bincode::config::Configuration<
     bincode::config::LittleEndian,
     bincode::config::Fixint,
@@ -212,8 +210,8 @@ impl<T: crate::Encode + crate::Decode> Ciphered<T> {
     }
 }
 
-impl<T: crate::Encode + crate::Decode> Deref for Ciphered<T> {
-    type Target = Vec<CipheredBit>;
+impl<T: crate::Encode + crate::Decode> core::ops::Deref for Ciphered<T> {
+    type Target = [CipheredBit];
 
     fn deref(&self) -> &Self::Target {
         &self.c_data
@@ -223,8 +221,11 @@ impl<T: crate::Encode + crate::Decode> Deref for Ciphered<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Context, Decode, Encode, Parameters};
+    use crate::{Context, Parameters};
+    #[cfg(feature = "derive")]
+    use crate::{Decode, Encode};
 
+    #[cfg(feature = "derive")]
     #[derive(Copy, Clone, Debug, PartialEq, Decode, Encode)]
     struct MyStruct {
         a: u32,
@@ -252,11 +253,14 @@ mod tests {
         let decrypted = ciphered.decipher(sk);
         assert_eq!(data, decrypted);
 
-        let data = MyStruct { a: 42, b: 69 };
-        let ciphered = Ciphered::cipher(&data, pk);
-        assert_eq!(8 * size_of::<MyStruct>(), ciphered.len());
-        let decrypted = ciphered.decipher(sk);
-        assert_eq!(data, decrypted);
+        #[cfg(feature = "derive")]
+        {
+            let data = MyStruct { a: 42, b: 69 };
+            let ciphered = Ciphered::cipher(&data, pk);
+            assert_eq!(8 * size_of::<MyStruct>(), ciphered.len());
+            let decrypted = ciphered.decipher(sk);
+            assert_eq!(data, decrypted);
+        }
     }
 
     #[test]

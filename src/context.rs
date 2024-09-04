@@ -1,5 +1,6 @@
 use crate::polynomial::Polynomial;
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 /// Parameters for the algorithm.
@@ -181,7 +182,7 @@ impl Drop for SecretKey {
 
 /// The public key.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PublicKey(Vec<Polynomial>);
+pub struct PublicKey(Box<[Polynomial]>);
 
 impl PublicKey {
     #[must_use]
@@ -210,18 +211,18 @@ impl PublicKey {
     ///
     /// let pk = PublicKey::from_bytes(&p);
     /// ```
-    pub fn from_bytes(bytes_vec: &Vec<Vec<u8>>) -> Self {
+    pub fn from_bytes(bytes_vec: &[Vec<u8>]) -> Self {
         let mut list: Vec<Polynomial> = Vec::with_capacity(bytes_vec.len());
         for bytes in bytes_vec {
             list.push(Polynomial::from_bytes(bytes));
         }
-        Self(list)
+        Self(list.into_boxed_slice())
     }
 
     #[must_use]
     /// Generates a random public key
     fn random(dp: u16, delta: u16, tau: u16, secret_key: &SecretKey) -> Self {
-        let list: Vec<_> = (0..tau)
+        let list = (0..tau)
             .map(|_| {
                 let q = Polynomial::random(dp as usize);
                 let sq = secret_key.clone().get_polynomial().mul(&q);
@@ -229,12 +230,12 @@ impl PublicKey {
                 let rx = r.mul(&Polynomial::monomial(1));
                 sq.add(&rx)
             })
-            .collect();
+            .collect::<Vec<_>>();
 
-        Self(list)
+        Self(list.into_boxed_slice())
     }
 
-    pub(crate) const fn get_polynomials(&self) -> &Vec<Polynomial> {
+    pub(crate) const fn get_polynomials(&self) -> &[Polynomial] {
         &self.0
     }
 

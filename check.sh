@@ -33,12 +33,13 @@ count_lines() {
     echo "$non_empty_lines"
 }
 
-run_command "cargo build --lib"
-run_command "cargo build --lib --target x86_64-unknown-none"
-run_command "cargo test"
-run_command "cargo run --example simple_struct"
+run_command "cargo build --lib --all-features"
+run_command "cargo build --lib --target x86_64-unknown-none --all-features"
+run_command "cargo test --all-features"
+run_command "cargo run --example simple_struct --all-features"
+run_command "cargo run --example unbalanced_struct --all-features"
 run_command "cargo clippy --all-targets --all-features -- -D warnings --no-deps"
-run_command "cargo test --release -- --ignored"
+run_command "cargo test --release --all-features -- --ignored"
 run_command "cargo fmt"
 # Optional
 # run_command "cargo tarpaulin --lib --all-features --locked --out Html"

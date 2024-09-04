@@ -184,7 +184,14 @@
 //!
 //! Here, we would just mimic how a processor would implement addition on uint.
 //!
-//! ```rust
+#![cfg_attr(not(feature = "derive"), doc = "Using the `derive` flag:")]
+#![cfg_attr(
+    feature = "derive",
+    doc = "This example works because the `derive` feature flag is enabled:"
+)]
+//!
+#![cfg_attr(not(feature = "derive"), doc = "```rust,ignore")]
+#![cfg_attr(feature = "derive", doc = "```rust")]
 //! use homomorph::prelude::*;
 //!
 //! #[derive(Copy, Clone, Debug, Encode, Decode)]

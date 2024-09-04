@@ -38,7 +38,14 @@ use crate::Ciphered;
 ///
 /// ## Example
 ///
-/// ```rust
+#[cfg_attr(not(feature = "derive"), doc = "Using the `derive` flag:")]
+#[cfg_attr(
+    feature = "derive",
+    doc = "This example works because the `derive` feature flag is enabled:"
+)]
+///
+#[cfg_attr(not(feature = "derive"), doc = "```rust,ignore")]
+#[cfg_attr(feature = "derive", doc = "```rust")]
 /// use homomorph::prelude::*;
 ///
 /// #[derive(Copy, Clone, Debug, Encode, Decode)]
@@ -86,7 +93,14 @@ pub trait HomomorphicOperation1<T: crate::Encode + crate::Decode> {
 ///
 /// ## Example
 ///
-/// ```rust
+#[cfg_attr(not(feature = "derive"), doc = "Using the `derive` flag:")]
+#[cfg_attr(
+    feature = "derive",
+    doc = "This example works because the `derive` feature flag is enabled:"
+)]
+///
+#[cfg_attr(not(feature = "derive"), doc = "```rust,ignore")]
+#[cfg_attr(feature = "derive", doc = "```rust")]
 /// use homomorph::prelude::*;
 ///
 /// #[repr(C)]
@@ -138,7 +152,14 @@ pub trait HomomorphicOperation2<T: crate::Encode + crate::Decode> {
 ///
 /// ## Example
 ///
-/// ```rust
+#[cfg_attr(not(feature = "derive"), doc = "Using the `derive` flag:")]
+#[cfg_attr(
+    feature = "derive",
+    doc = "This example works because the `derive` feature flag is enabled:"
+)]
+///
+#[cfg_attr(not(feature = "derive"), doc = "```rust,ignore")]
+#[cfg_attr(feature = "derive", doc = "```rust")]
 /// use homomorph::prelude::*;
 /// use core::ops::Deref;
 ///
@@ -156,7 +177,7 @@ pub trait HomomorphicOperation2<T: crate::Encode + crate::Decode> {
 ///     ///
 ///     /// `d/delta` on cipher must have been at least `3*sizeof::<T>()`.
 ///     unsafe fn apply(args: [&Ciphered<MyStruct>; N]) -> Ciphered<MyStruct> {
-///         let result = args[0].deref().clone();
+///         let result = args[0].to_vec();
 ///
 ///         // Boring details here...
 ///
