@@ -88,7 +88,7 @@ impl Polynomial {
                 num_elements * size_of::<Coefficient>(),
             )
         };
-        getrandom::getrandom(bytes).unwrap();
+        getrandom::getrandom(bytes).expect("failed to generate random data");
 
         coefficients[num_elements - 1] &= (1 << (degree % BITS_PER_COEFF)) - 1;
         coefficients[num_elements - 1] |= 1 << (degree % BITS_PER_COEFF);
@@ -218,6 +218,16 @@ impl Polynomial {
     ///
     /// However, this function allocates a new polynomial.
     pub fn mul(&self, other: &Self) -> Self {
+        // If one of the polynomials is null, the product is null.
+        //
+        // Panic
+        // The two coefficient lists are not be empty.
+        if (self.degree() == 0 && !self.coefficient(0).unwrap())
+            || (other.degree() == 0 && !other.coefficient(0).unwrap())
+        {
+            return Self::null();
+        }
+
         // The degree of the product is deg(p1) + deg(p2).
         let result_len = (self.degree() + other.degree()) / BITS_PER_COEFF + 1;
         let mut result = vec![0; result_len].into_boxed_slice();
@@ -269,6 +279,19 @@ impl Polynomial {
     ///
     /// This function allocates a new polynomial.
     pub fn rem(&self, other: &Self) -> Self {
+        // Panic
+        // The coefficient list is not be empty.
+        assert!(
+            other.degree() > 0 || other.coefficient(0).unwrap(),
+            "attempt to divide by zero"
+        );
+
+        // Panic
+        // The coefficient list is not be empty.
+        if other.degree == 0 && other.coefficient(0).unwrap() {
+            return self.clone();
+        }
+
         let mut r = self.coefficients().to_vec().into_boxed_slice();
         let mut r_degree = self.degree();
 
@@ -499,10 +522,18 @@ mod test {
         let p3 = p1.mul(&p2);
         assert_eq!(*p3.coefficients(), [0b1001]);
 
+        // Multiple coefficients
         let p1 = Polynomial::new(Box::new([Coefficient::MAX]));
         let p2 = Polynomial::new(Box::new([0b11]));
         let p3 = p1.mul(&p2);
         assert_eq!(*p3.coefficients(), [0b1, 0b1]);
+
+        // Null polynomial
+        let p1 = Polynomial::new(Box::new([0]));
+        let p2 = Polynomial::new(Box::new([0b11]));
+        let p3 = p1.mul(&p2);
+        assert_eq!(*p3.coefficients(), [0]);
+        assert_eq!(p3.degree(), 0);
     }
 
     #[test]
@@ -524,6 +555,14 @@ mod test {
         let p3 = p1.rem(&p2);
         assert!(p3.degree() < p2.degree());
         assert_eq!(*p3.coefficients(), [0b1010]);
+    }
+
+    #[test]
+    #[should_panic = "attempt to divide by zero"]
+    fn test_rem_zero() {
+        let p1 = Polynomial::new(Box::new([0b1001]));
+        let p2 = Polynomial::null();
+        p1.rem(&p2);
     }
 
     #[test]
