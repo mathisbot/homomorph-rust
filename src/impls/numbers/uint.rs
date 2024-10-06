@@ -110,48 +110,42 @@ macro_rules! impl_homomorphic_addition_uint {
 
 impl_homomorphic_addition_uint!(u8, u16, u32, usize, u64, u128);
 
-// TODO: Remove these two lines
-#[allow(unreachable_code)]
-#[allow(unused_variables)]
-// https://en.m.wikipedia.org/wiki/Binary_multiplier#Unsigned_integers
-fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit], size: usize) -> Vec<CipheredBit> {
-    todo!("Homormophic multiplication for uint");
-
+/// `a` and `b` must have the same length, equal to the number of bits
+///
+/// From <https://en.m.wikipedia.org/wiki/Binary_multiplier#Unsigned_integers>
+fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredBit> {
     // We stop before overflow as overflowed bits will be thrown away on decryption
-    let max_len = size;
+    let length = a.len();
+    let mut result: Vec<CipheredBit> = vec![CipheredBit::zero(); length];
 
-    let mut result: Vec<CipheredBit> = vec![CipheredBit::zero(); max_len];
+    let partial_products: Vec<_> = a
+        .iter()
+        .map(|ai| b.iter().map(|bj| ai.and(bj)).collect::<Vec<_>>())
+        .collect();
 
-    // Avoid borrowing issues
-    let null_bit = CipheredBit::zero();
+    let mut carry: Vec<Vec<CipheredBit>> = Vec::with_capacity(length);
+    carry.push(Vec::new());
 
-    let mut partial_products = Vec::with_capacity(max_len);
-    for i in 0..max_len {
-        let mut pi = Vec::with_capacity(max_len);
-        let ai = a.get(i).unwrap_or(&null_bit);
-        for j in 0..max_len {
-            pi.push(ai.and(b.get(j).unwrap_or(&null_bit)));
-        }
-        partial_products.push(pi);
-    }
+    // Compiler hints
+    assert_eq!(result.len(), length);
+    assert_eq!(partial_products.len(), length);
 
-    // TODO: Fix this broken carry
-    let mut carry: Vec<Vec<CipheredBit>> = Vec::with_capacity(max_len);
-    carry.push(Vec::with_capacity(0));
-    for i in 0..max_len {
-        if i + 1 < max_len {
+    // TODO: Optimize this
+    for i in 0..length {
+        if i + 1 < length {
             carry.push(Vec::with_capacity(i + carry[i].len()));
         }
         // Apply partial products
-        for j in 0..i {
-            if i + 1 < max_len {
-                carry[i + 1].push(partial_products[i][i - j].and(&result[i]));
+        for (j, pj) in partial_products.iter().enumerate().take(i + 1) {
+            let pp = &pj[i - j];
+            if i + 1 < length {
+                carry[i + 1].push(pp.and(&result[i]));
             }
-            result[i] = result[i].xor(&partial_products[i][i - j]);
+            result[i] = result[i].xor(pp);
         }
         // Propagate carry
         for j in 0..carry[i].len() {
-            if i + 1 < max_len {
+            if i + 1 < length {
                 let t = result[i].and(&carry[i][j]);
                 carry[i + 1].push(t);
             }
@@ -173,7 +167,9 @@ macro_rules! impl_homomorphic_multiplication_uint {
                 ///
                 /// `d/delta` on cipher must have been at least TBD.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    Ciphered::new_from_raw(homomorph_mul_internal(a, b, <$t>::BITS as usize))
+                    debug_assert_eq!(a.len(), b.len());
+                    debug_assert_eq!(a.len(), <$t>::BITS as usize);
+                    Ciphered::new_from_raw(homomorph_mul_internal(a, b))
                 }
             }
         )+
@@ -330,9 +326,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic = "not yet implemented: Homormophic multiplication for uint"]
     fn test_homomorphic_multiplication() {
-        let parameters = Parameters::new(1024, 8, 1, 4);
+        let parameters = Parameters::new(128, 64, 1, 64);
         let mut context = Context::new(parameters);
         context.generate_secret_key();
         context.generate_public_key().unwrap();
@@ -351,8 +346,8 @@ mod tests {
         let d = c.decipher(sk);
         assert_eq!(0, d);
 
-        let a_raw = thread_rng().gen::<u16>() / 2;
-        let b_raw = thread_rng().gen::<u16>() / 2;
+        let a_raw = thread_rng().gen::<u8>() % 13;
+        let b_raw = thread_rng().gen::<u8>() % 20;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);

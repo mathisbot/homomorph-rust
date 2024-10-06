@@ -26,6 +26,8 @@ pub struct Polynomial {
 }
 
 impl Polynomial {
+    #[must_use]
+    #[inline]
     /// Compute the degree of a polynomial
     ///
     /// This function shouldn't be used outside of the crate as it is
@@ -39,6 +41,8 @@ impl Polynomial {
             })
     }
 
+    #[must_use]
+    #[inline]
     /// Create a new polynomial from a boxed slice of coefficients
     ///
     /// The degree of the polynomial is computed from the vector of coefficients.
@@ -58,6 +62,8 @@ impl Polynomial {
         }
     }
 
+    #[must_use]
+    #[inline]
     /// Create a new polynomial of degree 0 from a bool
     pub fn new_from_bool(x: bool) -> Self {
         let coefficients = Box::new([Coefficient::from(x)]);
@@ -67,6 +73,7 @@ impl Polynomial {
         }
     }
 
+    #[must_use]
     /// Generate a random polynomial of a given degree
     ///
     /// ## Note
@@ -99,6 +106,8 @@ impl Polynomial {
         }
     }
 
+    #[must_use]
+    #[inline]
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(self.coefficients.len() * size_of::<Coefficient>());
         for &coeff in self.coefficients() {
@@ -107,6 +116,7 @@ impl Polynomial {
         bytes
     }
 
+    #[must_use]
     pub fn from_bytes(bytes: &[u8]) -> Self {
         assert!(!bytes.is_empty(), "The vector of bytes must not be empty.");
         let mut coefficients =
@@ -124,6 +134,8 @@ impl Polynomial {
         }
     }
 
+    #[must_use]
+    #[inline]
     /// Returns the null polynomial
     ///
     /// ## Warning
@@ -137,6 +149,8 @@ impl Polynomial {
         }
     }
 
+    #[must_use]
+    #[inline]
     /// Returns the monomial x^degree
     pub fn monomial(degree: usize) -> Self {
         let mut coefficients = vec![0; degree / BITS_PER_COEFF + 1].into_boxed_slice();
@@ -148,24 +162,30 @@ impl Polynomial {
         }
     }
 
+    #[must_use]
+    #[inline]
     /// Returns the degree of the polynomial
     pub const fn degree(&self) -> usize {
         self.degree
     }
 
+    #[must_use]
+    #[inline]
     /// Returns the coefficients of the polynomial
     pub const fn coefficients(&self) -> &[Coefficient] {
         &self.coefficients
     }
 
+    #[must_use]
+    #[inline]
     /// Returns the coefficient of a given degree
     pub fn coefficient(&self, degree: usize) -> Option<bool> {
         self.coefficients()
             .get(degree / BITS_PER_COEFF)
-            .copied()
-            .map(|coeff| (coeff >> (degree % BITS_PER_COEFF)) & 1 == 1)
+            .map(|coeff| (*coeff >> (degree % BITS_PER_COEFF)) & 1 == 1)
     }
 
+    #[must_use]
     /// Evaluates the given polynomial at a given point
     pub fn evaluate(&self, x: bool) -> bool {
         if !x {
@@ -182,6 +202,7 @@ impl Polynomial {
         (count_ones % 2) == 1
     }
 
+    #[must_use]
     /// Add two polynomials together
     ///
     /// The reason this function exists outside of the `std::ops::Add` trait is because
@@ -191,12 +212,22 @@ impl Polynomial {
     pub fn add(&self, other: &Self) -> Self {
         // We know that degree of the sum is at most max(deg(p1), deg(p2)).
         let max_deg = self.degree().max(other.degree());
-        let len = max_deg / BITS_PER_COEFF + 1;
-        let mut result = vec![0; len].into_boxed_slice();
+        let mut result = vec![0; max_deg / BITS_PER_COEFF + 1].into_boxed_slice();
+
+        let self_coefficients = self.coefficients();
+        let other_coefficients = other.coefficients();
 
         for (i, rc) in result.iter_mut().enumerate() {
-            let a = self.coefficients().get(i).copied().unwrap_or(0);
-            let b = other.coefficients().get(i).copied().unwrap_or(0);
+            let a = if self_coefficients.len() > i {
+                self_coefficients[i]
+            } else {
+                0
+            };
+            let b = if other_coefficients.len() > i {
+                other_coefficients[i]
+            } else {
+                0
+            };
             *rc = a ^ b;
         }
 
@@ -211,6 +242,7 @@ impl Polynomial {
         }
     }
 
+    #[must_use]
     /// Multiply two polynomials together
     ///
     /// The reason this function exists outside of the `std::ops::Mul` trait is because
@@ -221,7 +253,7 @@ impl Polynomial {
         // If one of the polynomials is null, the product is null.
         //
         // Panic
-        // The two coefficient lists are not be empty.
+        // The two coefficient lists are not empty.
         if (self.degree() == 0 && !self.coefficient(0).unwrap())
             || (other.degree() == 0 && !other.coefficient(0).unwrap())
         {
@@ -275,25 +307,22 @@ impl Polynomial {
         }
     }
 
+    #[must_use]
     /// Compute the remainder of the division of two polynomials
     ///
     /// This function allocates a new polynomial.
     pub fn rem(&self, other: &Self) -> Self {
         // Panic
-        // The coefficient list is not be empty.
+        // The coefficient list is not empty.
         assert!(
             other.degree() > 0 || other.coefficient(0).unwrap(),
             "attempt to divide by zero"
         );
 
-        // Panic
-        // The coefficient list is not be empty.
-        if other.degree == 0 && other.coefficient(0).unwrap() {
-            return self.clone();
-        }
-
         let mut r = self.coefficients().to_vec().into_boxed_slice();
         let mut r_degree = self.degree();
+
+        let other_coefficients = other.coefficients();
 
         // At most self.degree() - other.degree() iterations
         while r_degree >= other.degree() {
@@ -303,15 +332,19 @@ impl Polynomial {
 
             let max_idx = other.degree() / BITS_PER_COEFF + 1;
             let max_bound = r.len() - block_shift - 1;
+
+            // Compiler hint
+            assert!(max_idx <= other_coefficients.len());
+
             for i in 0..max_idx {
-                r[block_shift + i] ^= other.coefficients()[i] << bit_shift;
+                r[block_shift + i] ^= other_coefficients[i] << bit_shift;
                 if bit_shift != 0 && i < max_bound {
-                    r[block_shift + i + 1] ^=
-                        other.coefficients()[i] >> (BITS_PER_COEFF - bit_shift);
+                    r[block_shift + i + 1] ^= other_coefficients[i] >> (BITS_PER_COEFF - bit_shift);
                 }
             }
 
             // ~8x faster than `Self::compute_degree`
+            // At most r_degree / BITS_PER_COEFF iterations
             while r_degree > 0 && (r[r_degree / BITS_PER_COEFF] >> (r_degree % BITS_PER_COEFF)) == 0
             {
                 let bit_position = r_degree % BITS_PER_COEFF;
@@ -332,6 +365,7 @@ impl Polynomial {
         }
     }
 
+    #[inline]
     /// Zeroize the polynomial
     ///
     /// It can be useful to zeroize on drop a struct represented by a polynomial
@@ -409,7 +443,7 @@ mod test {
     #[test]
     #[should_panic = "The vector of coefficients must not be empty."]
     fn test_new_empty() {
-        Polynomial::new(Box::new([]));
+        let _ = Polynomial::new(Box::new([]));
     }
 
     #[test]
@@ -562,7 +596,7 @@ mod test {
     fn test_rem_zero() {
         let p1 = Polynomial::new(Box::new([0b1001]));
         let p2 = Polynomial::null();
-        p1.rem(&p2);
+        let _ = p1.rem(&p2);
     }
 
     #[test]

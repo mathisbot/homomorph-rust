@@ -28,6 +28,9 @@ lto = "thin"
 [[bench]]
 name = "u32"
 harness = false
+[[bench]]
+name = "u8"
+harness = false
 
 [[example]]
 name = "simple_struct"

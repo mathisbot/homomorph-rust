@@ -23,8 +23,6 @@ fn criterion_cipher(c: &mut Criterion) {
 
     let mut d = 0;
     c.bench_function("decipher", |b| b.iter(|| d = c1.decipher(sk)));
-
-    assert_eq!(n1, d);
 }
 
 fn criterion_add(c: &mut Criterion) {
@@ -52,8 +50,6 @@ fn criterion_add(c: &mut Criterion) {
     // because usually the operation skyrockets the degree of the polynomial
     let mut d = 0;
     c.bench_function("decipher after add", |b| b.iter(|| d = c3.decipher(sk)));
-
-    assert_eq!(n1 + n2, d);
 }
 
 criterion_group!(

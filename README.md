@@ -65,7 +65,7 @@ which is re-exported by the crate behind the `custom_rand` feature.
 
 ## Benchmarks
 
-Benchmarks were made using a Ryzen 7 7800x3D on Windows 11 by averaging on 10 000 `u32`s using `cargo bench`.
+Benchmarks were made using a Ryzen 7 7800x3D on `u32`s using `cargo bench`.
 
 Parameters used for this benchmark were :
 - `d` = 128
@@ -73,12 +73,13 @@ Parameters used for this benchmark were :
 - `delta` = 1
 - `tau` = 128
 
-| Operation         | Average time     |
+| Operation         |   Average time   |
 |:-----------------:|:----------------:|
-| Encryption        |     74.9  µs     |
-| Decryption        |     13.2  µs     |
-| Add               |      1.16 ms     |
-| Dec. after add    |      1.04 ms     |
+| Encryption        |     76.0  µs     |
+| Decryption        |     12.5  µs     |
+| Add               |      1.11 ms     |
+| Dec. after add    |      1.03 ms     |
+| Mul               |Uncomfortably long|
 
 It is still more efficient to decrypt, operate and then re-encrypt the data. This limits the use of the system to applications where security is paramount, and takes precedence over speed.
 
