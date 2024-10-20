@@ -116,41 +116,42 @@ impl_homomorphic_addition_uint!(u8, u16, u32, usize, u64, u128);
 fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredBit> {
     // We stop before overflow as overflowed bits will be thrown away on decryption
     let length = a.len();
-    let mut result: Vec<CipheredBit> = vec![CipheredBit::zero(); length];
+    let mut result = vec![CipheredBit::zero(); length];
 
-    let partial_products: Vec<_> = a
+    let partial_products = a
         .iter()
         .map(|ai| b.iter().map(|bj| ai.and(bj)).collect::<Vec<_>>())
-        .collect();
+        .collect::<Vec<_>>();
 
-    let mut carry: Vec<Vec<CipheredBit>> = Vec::with_capacity(length);
-    carry.push(Vec::new());
+    let mut carries = Vec::with_capacity(2 * length * (length + 1) * (length + 2) / 3);
 
     // Compiler hints
     assert_eq!(result.len(), length);
     assert_eq!(partial_products.len(), length);
 
     // TODO: Optimize this
+    let mut offset = 0;
     for i in 0..length {
-        if i + 1 < length {
-            carry.push(Vec::with_capacity(i + carry[i].len()));
-        }
+        let current_length = i * (i + 1) / 2;
+
         // Apply partial products
         for (j, pj) in partial_products.iter().enumerate().take(i + 1) {
             let pp = &pj[i - j];
             if i + 1 < length {
-                carry[i + 1].push(pp.and(&result[i]));
+                carries.push(pp.and(&result[i]));
             }
             result[i] = result[i].xor(pp);
         }
         // Propagate carry
-        for j in 0..carry[i].len() {
+        for j in 0..current_length {
             if i + 1 < length {
-                let t = result[i].and(&carry[i][j]);
-                carry[i + 1].push(t);
+                let t = result[i].and(&carries[offset + j]);
+                carries.push(t);
             }
-            result[i] = result[i].xor(&carry[i][j]);
+            result[i] = result[i].xor(&carries[offset + j]);
         }
+
+        offset += current_length;
     }
     // All subsequent carries are thrown away
 
@@ -265,12 +266,14 @@ mod tests {
         let sk = context.get_secret_key().unwrap();
         let pk = context.get_public_key().unwrap();
 
+        // Normal addition
         let a = Ciphered::cipher(&22_u8, pk);
         let b = Ciphered::cipher(&20_u8, pk);
         let c = unsafe { HomomorphicAddition::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(42, d);
 
+        // Random case
         let a_raw = thread_rng().gen::<u16>() / 2;
         let b_raw = thread_rng().gen::<u16>() / 2;
 
@@ -279,6 +282,13 @@ mod tests {
         let c = unsafe { HomomorphicAddition::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(a_raw + b_raw, d);
+
+        // Wrapping overflow
+        let a = Ciphered::cipher(&255_u8, pk);
+        let b = Ciphered::cipher(&240_u8, pk);
+        let c = unsafe { HomomorphicAddition::apply(&a, &b) };
+        let d = c.decipher(sk);
+        assert_eq!(239, d);
     }
 
     #[test]
@@ -334,18 +344,21 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
+        // Normal case
         let a = Ciphered::cipher(&6_u8, pk);
         let b = Ciphered::cipher(&7_u8, pk);
         let c = unsafe { HomomorphicMultiplication::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(42, d);
 
+        // Multiplication by 0
         let a = Ciphered::cipher(&0_u8, pk);
         let b = Ciphered::cipher(&151_u8, pk);
         let c = unsafe { HomomorphicMultiplication::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(0, d);
 
+        // Random case
         let a_raw = thread_rng().gen::<u8>() % 13;
         let b_raw = thread_rng().gen::<u8>() % 20;
 
@@ -354,5 +367,12 @@ mod tests {
         let c = unsafe { HomomorphicMultiplication::apply(&a, &b) };
         let d = c.decipher(sk);
         assert_eq!(a_raw * b_raw, d);
+
+        // Wrapping overflow
+        let a = Ciphered::cipher(&255_u8, pk);
+        let b = Ciphered::cipher(&240_u8, pk);
+        let c = unsafe { HomomorphicMultiplication::apply(&a, &b) };
+        let d = c.decipher(sk);
+        assert_eq!(16, d);
     }
 }

@@ -58,23 +58,32 @@ macro_rules! impl_homomorphic_gates_int {
 impl_homomorphic_gates_int!(i8, i16, i32, isize, i64, i128);
 
 macro_rules! impl_homomorphic_addition_int {
-    ($($t:ty),+) => {
+    ($($t:ty => $u:ty),+) => {
         $(
             impl HomomorphicOperation2<$t> for HomomorphicAddition {
                 /// Perform a homomorphic addition on two ciphered numbers.
                 ///
                 /// ## Safety
                 ///
+                /// Please not that the system must use 2's complement representation for signed integers.
+                ///
                 /// `d/delta` on cipher must have been at least `21*sizeof::<T>()`.
-                unsafe fn apply(_a: &Ciphered<$t>, _b: &Ciphered<$t>) -> Ciphered<$t> {
-                    todo!("Homormophic addition for int");
+                unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
+                    // Thanks to 2's complement, we can just cast the signed integer to an unsigned integer
+                    // and perform the homomorphic addition on the unsigned integers.
+                    let a_uint = unsafe { Ciphered::transmute::<$u>(a.clone()) };
+                    let b_uint = unsafe { Ciphered::transmute::<$u>(b.clone()) };
+
+                    let c = unsafe { HomomorphicAddition::apply(&a_uint, &b_uint) };
+
+                    Ciphered::transmute::<$t>(c)
                 }
             }
         )+
     }
 }
 
-impl_homomorphic_addition_int!(i8, i16, i32, isize, i64, i128);
+impl_homomorphic_addition_int!(i8 => u8, i16 => u16, i32 => u32, isize => usize, i64 => u64, i128 => u128);
 
 macro_rules! impl_homomorphic_multiplication_int {
     ($($t:ty),+) => {
@@ -175,7 +184,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic = "not yet implemented: Homormophic addition for int"]
     fn test_homomorphic_addition() {
         let parameters = Parameters::new(64, 16, 1, 16);
         let mut context = Context::new(parameters);
@@ -202,7 +210,6 @@ mod tests {
 
     #[test]
     #[ignore = "long test"]
-    #[should_panic = "not yet implemented: Homormophic addition for int"]
     fn test_homomorphic_addition_extensive() {
         let parameters = Parameters::new(256, 128, 1, 128);
         let mut context = Context::new(parameters);
@@ -223,7 +230,6 @@ mod tests {
 
     #[test]
     #[ignore = "long test"]
-    #[should_panic = "not yet implemented: Homormophic addition for int"]
     #[allow(clippy::many_single_char_names)]
     fn test_successive_homomorphic_addition() {
         let parameters = Parameters::new(256, 128, 1, 128);

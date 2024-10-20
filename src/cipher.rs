@@ -138,6 +138,21 @@ impl<T: crate::Encode + crate::Decode> Ciphered<T> {
     }
 
     #[must_use]
+    #[inline]
+    /// Reinterprets the data as another type
+    ///
+    /// ## Safety
+    ///
+    /// The caller must ensure that the encoded data size is the same as the size of the new type
+    /// and that tranmuted data is valid
+    pub unsafe fn transmute<U: crate::Encode + crate::Decode>(self) -> Ciphered<U> {
+        Ciphered {
+            phantom: core::marker::PhantomData,
+            c_data: self.c_data,
+        }
+    }
+
+    #[must_use]
     /// Ciphers data
     ///
     /// ## Arguments

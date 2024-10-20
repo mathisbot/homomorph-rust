@@ -406,11 +406,10 @@ impl Clone for Polynomial {
     fn clone(&self) -> Self {
         let relevant_length = self.degree() / BITS_PER_COEFF;
 
-        let mut cloned_coefficients = Vec::with_capacity(relevant_length + 1);
-        cloned_coefficients.extend_from_slice(&self.coefficients()[..=relevant_length]);
-
         Self {
-            coefficients: cloned_coefficients.into_boxed_slice(),
+            coefficients: self.coefficients()[..=relevant_length]
+                .to_vec()
+                .into_boxed_slice(),
             degree: self.degree(),
         }
     }
@@ -436,7 +435,7 @@ impl core::ops::Deref for Polynomial {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{Coefficient, Polynomial, BITS_PER_COEFF};
     use alloc::boxed::Box;
 
