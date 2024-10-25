@@ -68,7 +68,7 @@
 //! let sk = context.get_secret_key().unwrap();
 //! let pk = context.get_public_key().unwrap();
 //!
-//! let data = 0b10001010u8;
+//! let data = 0b1000_1010_u8;
 //! let ciphered = Ciphered::cipher(&data, &pk);
 //! let decrypted = ciphered.decipher(&sk);
 //! assert_eq!(data, decrypted);
@@ -90,8 +90,8 @@
 //! let pk = context.get_public_key().unwrap();
 //! let sk = context.get_secret_key().unwrap();
 //!
-//! let a = Ciphered::cipher(&3usize, &pk);
-//! let b = Ciphered::cipher(&5usize, &pk);
+//! let a = Ciphered::cipher(&3_usize, &pk);
+//! let b = Ciphered::cipher(&5_usize, &pk);
 //! let c = unsafe { HomomorphicAddition::apply(&a, &b) };
 //! let d = c.decipher(sk);
 //! assert_eq!(d, 3 + 5);
@@ -184,7 +184,7 @@
 //!
 //! Here, we would just mimic how a processor would implement addition on uint.
 //!
-#![cfg_attr(not(feature = "derive"), doc = "Using the `derive` flag:")]
+#![cfg_attr(not(feature = "derive"), doc = "Using the `derive` feature flag:")]
 #![cfg_attr(
     feature = "derive",
     doc = "This example works because the `derive` feature flag is enabled:"
@@ -205,7 +205,7 @@
 //! impl HomomorphicOperation2<MyStruct> for MyOperation {
 //!     /// ## Safety
 //!     ///
-//!     /// `d/delta` on cipher must have been at least `2*sizeof::<T>()`.
+//!     /// `d/delta` on cipher must have been at least `TBD`.
 //!     unsafe fn apply(a: &Ciphered<MyStruct>, b: &Ciphered<MyStruct>) -> Ciphered<MyStruct> {
 //!         let mut c_pol: Vec<CipheredBit> = Vec::with_capacity(a.len().max(b.len()));
 //!

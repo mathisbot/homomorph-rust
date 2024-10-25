@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use homomorph_impls::numbers::{
+use crate::impls::numbers::{
     HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
     HomomorphicOrGate, HomomorphicXorGate,
 };
@@ -123,7 +123,7 @@ fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
         .map(|ai| b.iter().map(|bj| ai.and(bj)).collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
-    let mut carries = Vec::with_capacity(2 * length * (length + 1) * (length + 2) / 3);
+    let mut carries = Vec::with_capacity((length - 1) * length * (length + 1) / 6);
 
     // Compiler hints
     assert_eq!(result.len(), length);
@@ -143,6 +143,7 @@ fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
             result[i] = result[i].xor(pp);
         }
         // Propagate carry
+        assert!(offset + current_length <= carries.len()); // Compiler hint
         for j in 0..current_length {
             if i + 1 < length {
                 let t = result[i].and(&carries[offset + j]);
@@ -168,8 +169,6 @@ macro_rules! impl_homomorphic_multiplication_uint {
                 ///
                 /// `d/delta` on cipher must have been at least TBD.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    debug_assert_eq!(a.len(), b.len());
-                    debug_assert_eq!(a.len(), <$t>::BITS as usize);
                     Ciphered::new_from_raw(homomorph_mul_internal(a, b))
                 }
             }
@@ -182,7 +181,7 @@ impl_homomorphic_multiplication_uint!(u8, u16, u32, usize, u64, u128);
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-    use homomorph_impls::numbers::{
+    use crate::impls::numbers::{
         HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
         HomomorphicOrGate, HomomorphicXorGate,
     };

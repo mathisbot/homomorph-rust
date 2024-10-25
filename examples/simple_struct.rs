@@ -6,6 +6,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use homomorph::prelude::*;
+use homomorph::impls::numbers::HomomorphicAddition;
 
 type Coordinate = u16;
 
@@ -38,9 +39,9 @@ impl HomomorphicOperation2<Vec3> for Vec3Add {
         let bz: Ciphered<Coordinate> = Ciphered::new_from_raw(bz.to_vec());
 
         // Perform the already implemented homomorphic addition over `Coordinate`
-        let x = homomorph_impls::numbers::HomomorphicAddition::apply(&ax, &bx);
-        let y = homomorph_impls::numbers::HomomorphicAddition::apply(&ay, &by);
-        let z = homomorph_impls::numbers::HomomorphicAddition::apply(&az, &bz);
+        let x = HomomorphicAddition::apply(&ax, &bx);
+        let y = HomomorphicAddition::apply(&ay, &by);
+        let z = HomomorphicAddition::apply(&az, &bz);
 
         // Merge the results
         let mut res = Vec::with_capacity(x.len() + y.len() + z.len());

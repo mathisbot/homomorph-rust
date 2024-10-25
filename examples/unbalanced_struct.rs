@@ -6,6 +6,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use homomorph::prelude::*;
+use homomorph::impls::numbers::HomomorphicAddition;
 
 // Notice that Rust will optimize the struct by reorganizing the fields in memory.
 // This will not have any influence on the order of the fiels in `Ciphered<Unbalanced>`.
@@ -41,9 +42,9 @@ impl HomomorphicOperation2<Unbalanced> for UnbalancedAdd {
         let bz: Ciphered<u8> = Ciphered::new_from_raw(bz.to_vec());
 
         // Perform the already implemented homomorphic addition over `Coordinate`
-        let x = homomorph_impls::numbers::HomomorphicAddition::apply(&ax, &bx);
-        let y = homomorph_impls::numbers::HomomorphicAddition::apply(&ay, &by);
-        let z = homomorph_impls::numbers::HomomorphicAddition::apply(&az, &bz);
+        let x = HomomorphicAddition::apply(&ax, &bx);
+        let y = HomomorphicAddition::apply(&ay, &by);
+        let z = HomomorphicAddition::apply(&az, &bz);
 
         // Merge the results
         // Notice that here, the final size of the vector is not 8*sizeof::<Unbalanced>

@@ -20,6 +20,7 @@ pub struct CipheredBit(Polynomial);
 
 impl CipheredBit {
     #[must_use]
+    #[inline]
     /// Returns the null bit
     ///
     /// Properties of the system allow you to blindly
@@ -29,6 +30,7 @@ impl CipheredBit {
     }
 
     #[must_use]
+    #[inline]
     /// Returns the bit 1
     ///
     /// Properties of the system allow you to blindly
@@ -38,6 +40,7 @@ impl CipheredBit {
     }
 
     #[must_use]
+    #[inline]
     /// Apply the AND gate to two ciphered bits
     ///
     /// In the backend, this is done by multiplying the two polynomials
@@ -46,6 +49,7 @@ impl CipheredBit {
     }
 
     #[must_use]
+    #[inline]
     /// Apply the XOR gate to two ciphered bits
     ///
     /// In the backend, this is done by adding the two polynomials
@@ -54,6 +58,7 @@ impl CipheredBit {
     }
 
     #[must_use]
+    #[inline]
     /// Apply the OR gate to two ciphered bits
     ///
     /// In the backend, this is done by adding the two polynomials and their product
@@ -65,6 +70,7 @@ impl CipheredBit {
     }
 
     #[must_use]
+    #[inline]
     /// Apply the NOT gate to a ciphered bit
     ///
     /// In the backend, this is done by adding the polynomial to the unit polynomial
@@ -119,6 +125,7 @@ pub struct Ciphered<T: crate::Encode + crate::Decode> {
 
 impl<T: crate::Encode + crate::Decode> Ciphered<T> {
     #[must_use]
+    #[inline]
     /// This function is used to create a new `Ciphered` object
     ///
     /// This function should only be used in unsafe contexts
@@ -134,21 +141,6 @@ impl<T: crate::Encode + crate::Decode> Ciphered<T> {
         Self {
             phantom: core::marker::PhantomData,
             c_data,
-        }
-    }
-
-    #[must_use]
-    #[inline]
-    /// Reinterprets the data as another type
-    ///
-    /// ## Safety
-    ///
-    /// The caller must ensure that the encoded data size is the same as the size of the new type
-    /// and that tranmuted data is valid
-    pub unsafe fn transmute<U: crate::Encode + crate::Decode>(self) -> Ciphered<U> {
-        Ciphered {
-            phantom: core::marker::PhantomData,
-            c_data: self.c_data,
         }
     }
 
@@ -192,7 +184,8 @@ impl<T: crate::Encode + crate::Decode> Ciphered<T> {
     ///
     /// ## Panics
     ///
-    /// This function will panic if the ciphered data length is not a multiple of 8
+    /// This function will panic if the ciphered data length is not a multiple of 8 or
+    /// if the deserialization of the data fails.
     pub fn decipher(&self, sk: &SecretKey) -> T {
         assert_eq!(
             0,

@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use homomorph_impls::numbers::{
+use crate::impls::numbers::{
     HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
     HomomorphicOrGate, HomomorphicXorGate,
 };
@@ -71,12 +71,16 @@ macro_rules! impl_homomorphic_addition_int {
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
                     // Thanks to 2's complement, we can just cast the signed integer to an unsigned integer
                     // and perform the homomorphic addition on the unsigned integers.
-                    let a_uint = unsafe { Ciphered::transmute::<$u>(a.clone()) };
-                    let b_uint = unsafe { Ciphered::transmute::<$u>(b.clone()) };
+                    //
+                    //  ## Safety
+                    //
+                    // These operations are valid as $t and $u have the same size.
+                    let a_uint = unsafe { core::ptr::from_ref(a).cast::<Ciphered<$u>>().as_ref().unwrap() };
+                    let b_uint = unsafe { core::ptr::from_ref(b).cast::<Ciphered<$u>>().as_ref().unwrap() };
 
-                    let c = unsafe { HomomorphicAddition::apply(&a_uint, &b_uint) };
+                    let c_uint = unsafe { HomomorphicAddition::apply(a_uint, b_uint) };
 
-                    Ciphered::transmute::<$t>(c)
+                    unsafe { core::mem::transmute::<Ciphered<$u>, Ciphered<$t>>(c_uint) }
                 }
             }
         )+
@@ -108,7 +112,7 @@ impl_homomorphic_multiplication_int!(i8, i16, i32, isize, i64, i128);
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-    use homomorph_impls::numbers::{
+    use crate::impls::numbers::{
         HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
         HomomorphicOrGate, HomomorphicXorGate,
     };
