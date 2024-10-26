@@ -6,7 +6,7 @@ Homomorphic encryption allows computations to be performed on encrypted data wit
 Homomorphic encryption is still a subject of research today, and no system that is both secure and efficient has yet been found.
 
 The crate provides a simple API to define a proper homomorphic implementation of any structure,
-but also provide an implementation for unsigned integers (other std types are a work in progress)
+but also provide an implementation for integers (other std types are a work in progress)
 
 ## Getting Started
 
@@ -65,7 +65,7 @@ which is re-exported by the crate behind the `custom_rand` feature.
 
 ## Benchmarks
 
-Benchmarks were made using a Ryzen 7 7800x3D on `u32`s using `cargo bench`.
+Benchmarks were made using a Ryzen 7 7800x3D on `u32`s using `cargo bench --bench u32`.
 
 Parameters used for this benchmark were :
 - `d` = 128
@@ -77,8 +77,8 @@ Parameters used for this benchmark were :
 |:-----------------:|:----------------:|
 | Encryption        |     76.0  µs     |
 | Decryption        |     12.5  µs     |
-| Add               |      1.11 ms     |
-| Dec. after add    |      1.03 ms     |
+| Add               |      950  µs     |
+| Dec. after add    |     1.03  ms     |
 | Mul               |Uncomfortably long|
 
 It is still more efficient to decrypt, operate and then re-encrypt the data. This limits the use of the system to applications where security is paramount, and takes precedence over speed.

@@ -5,8 +5,8 @@
 extern crate alloc;
 use alloc::vec::Vec;
 
-use homomorph::prelude::*;
 use homomorph::impls::numbers::HomomorphicAddition;
+use homomorph::prelude::*;
 
 type Coordinate = u16;
 

@@ -5,8 +5,8 @@
 extern crate alloc;
 use alloc::vec::Vec;
 
-use homomorph::prelude::*;
 use homomorph::impls::numbers::HomomorphicAddition;
+use homomorph::prelude::*;
 
 // Notice that Rust will optimize the struct by reorganizing the fields in memory.
 // This will not have any influence on the order of the fiels in `Ciphered<Unbalanced>`.
@@ -59,7 +59,7 @@ impl HomomorphicOperation2<Unbalanced> for UnbalancedAdd {
 }
 
 fn main() {
-    const PARAMS: Parameters = Parameters::new(64, 32, 1, 32);
+    const PARAMS: Parameters = Parameters::new(128, 32, 1, 32);
     let mut context = Context::new(PARAMS);
     context.generate_secret_key();
     context.generate_public_key().unwrap();

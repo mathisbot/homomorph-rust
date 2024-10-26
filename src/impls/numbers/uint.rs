@@ -1,8 +1,8 @@
-use crate::prelude::*;
 use crate::impls::numbers::{
     HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
     HomomorphicOrGate, HomomorphicXorGate,
 };
+use crate::prelude::*;
 
 use alloc::vec::Vec;
 
@@ -60,8 +60,6 @@ macro_rules! impl_homomorphic_gates_uint {
 impl_homomorphic_gates_uint!(u8, u16, u32, usize, u64, u128);
 
 fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredBit> {
-    debug_assert_eq!(a.len(), b.len());
-
     let mut result = Vec::with_capacity(a.len());
     let mut carry = CipheredBit::zero();
 
@@ -77,15 +75,12 @@ fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
             break;
         }
 
-        // carry = p1.xor(&p2).and(&carry).or(&p1.and(&p2));
+        // carry = cb1.xor(&pcb2).and(&carry).or(&cb1.and(&cb2));
         // This is too long and can be simplified :
-        // c <- (p1+p2)*c + p1*p2 + p1*p2*(p1+p2)*c
-        // c <- c*(p1+p2)*(1+p1*p2) + p1*p2
-        let cb1_cb2 = cb1.and(cb2);
-        carry = carry
-            .and(&cb1.xor(cb2))
-            .and(&one_bit.xor(&cb1_cb2))
-            .xor(&cb1_cb2);
+        // c = (p1+p2)*c + p1*p2 + p1*p2*(p1+p2)*c
+        // c = (p1+p2)*c + p1*p2*(1+(p1+p2)*c))
+        let c_p1_p2 = cb1.xor(cb2).and(&carry);
+        carry = c_p1_p2.xor(&cb1.and(cb2).and(&c_p1_p2.xor(&one_bit)));
     }
 
     result
@@ -180,11 +175,11 @@ impl_homomorphic_multiplication_uint!(u8, u16, u32, usize, u64, u128);
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::*;
     use crate::impls::numbers::{
         HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
         HomomorphicOrGate, HomomorphicXorGate,
     };
+    use crate::prelude::*;
 
     use rand::{thread_rng, Rng};
 

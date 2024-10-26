@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use homomorph::prelude::*;
 use homomorph::impls::numbers::HomomorphicMultiplication;
+use homomorph::prelude::*;
 
 type Number = u8;
 
