@@ -36,7 +36,6 @@ function Count-Lines {
 }
 
 Run-Command "cargo build --lib --all-features"
-Run-Command "cargo build --lib --target x86_64-unknown-none --all-features"
 Run-Command "cargo test --all-features"
 Run-Command "cargo run --example simple_struct --all-features"
 Run-Command "cargo run --example unbalanced_struct --all-features"

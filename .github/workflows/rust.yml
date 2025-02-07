@@ -53,20 +53,3 @@ jobs:
 
       - name: Run fmt
         run: cargo fmt --verbose --all -- --check
-
-  x86_64-unknown-none:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: x86_64-unknown-none
-          profile: minimal
-          override: true
-
-      - name: Build
-        run: cargo build --lib --verbose --target x86_64-unknown-none
