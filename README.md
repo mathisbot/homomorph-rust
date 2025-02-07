@@ -58,10 +58,8 @@ on the stack wouldn't be possible (at least on low end machines).
 This is why the heap is needed here.
 
 You may also need a source of randomness.
-On bare x86, randomness can still be retrieved using `RDRAND`.
-On other architectures, such as `aarch64-unknown-none`,
-you will have to implement `getrandom::register_custom_getrandom`,
-which is re-exported by the crate behind the `custom_rand` feature.
+The crate uses `getrandom` in the backend, so please refer to their documentation for a list of supported targets
+as well as instructions on how to implement a custom source for other targets.
 
 ## Benchmarks
 

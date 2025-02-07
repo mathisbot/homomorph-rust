@@ -85,7 +85,7 @@ impl CipheredBit {
         let num_elements = (tau + 7) / 8;
         let mut part = vec![0; num_elements];
 
-        getrandom::getrandom(&mut part).expect("failed to generate random data");
+        getrandom::fill(&mut part).expect("failed to generate random data");
 
         part
     }

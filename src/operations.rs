@@ -46,8 +46,8 @@ use crate::Ciphered;
 ///
 #[cfg_attr(not(feature = "derive"), doc = "```rust,ignore")]
 #[cfg_attr(feature = "derive", doc = "```rust")]
-/// use homomorph::prelude::*;
-///
+/// # use homomorph::prelude::*;
+/// #
 /// #[derive(Copy, Clone, Debug, Encode, Decode)]
 /// struct MyStruct {
 ///     a: usize,
@@ -101,8 +101,8 @@ pub trait HomomorphicOperation1<T: crate::Encode + crate::Decode> {
 ///
 #[cfg_attr(not(feature = "derive"), doc = "```rust,ignore")]
 #[cfg_attr(feature = "derive", doc = "```rust")]
-/// use homomorph::prelude::*;
-///
+/// # use homomorph::prelude::*;
+/// #
 /// #[repr(C)]
 /// #[derive(Copy, Clone, Debug, Encode, Decode)]
 /// struct MyStruct {
@@ -160,9 +160,8 @@ pub trait HomomorphicOperation2<T: crate::Encode + crate::Decode> {
 ///
 #[cfg_attr(not(feature = "derive"), doc = "```rust,ignore")]
 #[cfg_attr(feature = "derive", doc = "```rust")]
-/// use homomorph::prelude::*;
-/// use core::ops::Deref;
-///
+/// # use homomorph::prelude::*;
+/// #
 /// #[repr(C)]
 /// #[derive(Copy, Clone, Debug, Encode, Decode)]
 /// struct MyStruct {
@@ -186,13 +185,13 @@ pub trait HomomorphicOperation2<T: crate::Encode + crate::Decode> {
 /// }
 ///
 /// // Usage
-/// let params = Parameters::new(32, 8, 4, 8);
-/// let mut context = Context::new(params);
-/// context.generate_secret_key();
-/// context.generate_public_key().unwrap();
-/// let sk = context.get_secret_key().unwrap();
-/// let pk = context.get_public_key().unwrap();
-///
+/// # let params = Parameters::new(32, 8, 4, 8);
+/// # let mut context = Context::new(params);
+/// # context.generate_secret_key();
+/// # context.generate_public_key().unwrap();
+/// # let sk = context.get_secret_key().unwrap();
+/// # let pk = context.get_public_key().unwrap();
+/// #
 /// let a = Ciphered::cipher(&MyStruct { a: 1, b: 2 }, pk);
 /// let b = Ciphered::cipher(&MyStruct { a: 3, b: 4 }, pk);
 /// let c = unsafe { MyOperation::apply([&a, &b]) };

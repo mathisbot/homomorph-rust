@@ -10,15 +10,13 @@ repository = "https://github.com/mathisbot/homomorph-rust"
 
 [dependencies]
 bincode = { version = "2.0.0-rc.3", default-features = false, features = ["alloc"] }
-getrandom = { version = "0.2.15", default-features = false, features = ["rdrand"] }
+getrandom = "0.3.1"
 
 [dev-dependencies]
 criterion = "0.5.1"
-rand = "0.8.5"
+rand = "0.9.0"
 
 [features]
-default = []
-custom_rand = ["getrandom/custom"]
 derive = ["bincode/derive"]
 
 [profile.release]

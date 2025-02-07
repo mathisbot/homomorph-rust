@@ -15,8 +15,8 @@ use alloc::vec::Vec;
 /// ## Examples
 ///
 /// ```
-/// use homomorph::Parameters;
-///
+/// # use homomorph::Parameters;
+/// #
 /// let parameters = Parameters::new(6, 3, 2, 5);
 /// ```
 ///
@@ -38,6 +38,7 @@ pub struct SecretKeyUnset;
 
 impl Parameters {
     #[must_use]
+    #[inline]
     /// Creates a new set of parameters.
     ///
     /// ## Arguments
@@ -64,8 +65,8 @@ impl Parameters {
     /// ## Examples
     ///
     /// ```
-    /// use homomorph::Parameters;
-    ///
+    /// # use homomorph::Parameters;
+    /// #
     /// let parameters = Parameters::new(6, 3, 2, 5);
     /// ```
     pub const fn new(d: u16, dp: u16, delta: u16, tau: u16) -> Self {
@@ -78,21 +79,25 @@ impl Parameters {
     }
 
     #[must_use]
+    #[inline]
     pub const fn d(&self) -> u16 {
         self.d
     }
 
     #[must_use]
+    #[inline]
     pub const fn dp(&self) -> u16 {
         self.dp
     }
 
     #[must_use]
+    #[inline]
     pub const fn delta(&self) -> u16 {
         self.delta
     }
 
     #[must_use]
+    #[inline]
     pub const fn tau(&self) -> u16 {
         self.tau
     }
@@ -104,6 +109,7 @@ pub struct SecretKey(Polynomial);
 
 impl SecretKey {
     #[must_use]
+    #[inline]
     /// Creates a new secret key.
     ///
     /// ## Arguments
@@ -122,8 +128,8 @@ impl SecretKey {
     /// ## Examples
     ///
     /// ```
-    /// use homomorph::SecretKey;
-    ///
+    /// # use homomorph::SecretKey;
+    /// #
     /// // INSECURE!!! Only for demonstration purposes
     /// let s = vec![5, 14, 8];
     ///
@@ -134,16 +140,20 @@ impl SecretKey {
     }
 
     #[must_use]
+    #[inline]
     /// Generates a random secret key of the given degree
     fn random(d: u16) -> Self {
         Self(Polynomial::random(d as usize))
     }
 
+    #[must_use]
+    #[inline]
     pub(crate) const fn get_polynomial(&self) -> &Polynomial {
         &self.0
     }
 
     #[must_use]
+    #[inline]
     /// Returns bytes representing the secret key.
     ///
     /// ## Returns
@@ -157,8 +167,8 @@ impl SecretKey {
     /// ## Examples
     ///
     /// ```
-    /// use homomorph::{Context, Parameters};
-    ///
+    /// # use homomorph::{Context, Parameters};
+    /// #
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     /// context.generate_secret_key();
     ///
@@ -204,8 +214,8 @@ impl PublicKey {
     /// ## Examples
     ///
     /// ```
-    /// use homomorph::PublicKey;
-    ///
+    /// # use homomorph::PublicKey;
+    /// #
     /// // INSECURE!!! Only for demonstration purposes
     /// let p = vec![vec![4, 7, 5], vec![1, 2, 3], vec![5, 4, 6]];
     ///
@@ -235,6 +245,8 @@ impl PublicKey {
         Self(list.into_boxed_slice())
     }
 
+    #[must_use]
+    #[inline]
     pub(crate) const fn get_polynomials(&self) -> &[Polynomial] {
         &self.0
     }
@@ -253,8 +265,8 @@ impl PublicKey {
     /// ## Examples
     ///
     /// ```
-    /// use homomorph::{Context, Parameters};
-    ///
+    /// # use homomorph::{Context, Parameters};
+    /// #
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     /// context.generate_secret_key();
     /// context.generate_public_key().unwrap();
@@ -280,6 +292,7 @@ pub struct Context {
 
 impl Context {
     #[must_use]
+    #[inline]
     /// Creates a new context.
     ///
     /// ## Arguments
@@ -293,8 +306,8 @@ impl Context {
     /// ## Examples
     ///
     /// ```
-    /// use homomorph::{Context, Parameters};
-    ///
+    /// # use homomorph::{Context, Parameters};
+    /// #
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// ```
@@ -307,11 +320,13 @@ impl Context {
     }
 
     #[must_use]
+    #[inline]
     pub const fn parameters(&self) -> &Parameters {
         &self.parameters
     }
 
     #[must_use]
+    #[inline]
     /// Returns a reference to the secret key.
     ///
     /// ## Returns
@@ -321,8 +336,8 @@ impl Context {
     /// ## Examples
     ///
     /// ```
-    /// use homomorph::{Context, Parameters};
-    ///
+    /// # use homomorph::{Context, Parameters};
+    /// #
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
@@ -333,6 +348,7 @@ impl Context {
     }
 
     #[must_use]
+    #[inline]
     /// Returns a reference to the public key.
     ///
     /// ## Returns
@@ -342,8 +358,8 @@ impl Context {
     /// ## Examples
     ///
     /// ```
-    /// use homomorph::{Context, Parameters};
-    ///
+    /// # use homomorph::{Context, Parameters};
+    /// #
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
@@ -354,6 +370,7 @@ impl Context {
         self.public_key.as_ref()
     }
 
+    #[inline]
     /// Generates a secret key.
     ///
     /// ## Note
@@ -363,8 +380,8 @@ impl Context {
     /// ## Examples
     ///
     /// ```
-    /// use homomorph::{Context, Parameters};
-    ///
+    /// # use homomorph::{Context, Parameters};
+    /// #
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     ///
@@ -375,6 +392,7 @@ impl Context {
         self.public_key = None;
     }
 
+    #[inline]
     /// Generates a public key out of the private key.
     ///
     /// ## Errors
@@ -384,8 +402,8 @@ impl Context {
     /// ## Examples
     ///
     /// ```
-    /// use homomorph::{Context, Parameters};
-    ///
+    /// # use homomorph::{Context, Parameters};
+    /// #
     /// let params = Parameters::new(6, 3, 2, 5);
     /// let mut context = Context::new(params);
     /// context.generate_secret_key();
@@ -403,6 +421,7 @@ impl Context {
         Ok(())
     }
 
+    #[inline]
     /// Explicitly sets the secret key.
     ///
     /// ## Arguments
@@ -412,8 +431,8 @@ impl Context {
     /// ## Examples
     ///
     /// ```
-    /// use homomorph::{Context, Parameters, SecretKey};
-    ///
+    /// # use homomorph::{Context, Parameters, SecretKey};
+    /// #
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     ///
     /// // INSECURE!!! Only for demonstration purposes
@@ -426,6 +445,7 @@ impl Context {
         self.secret_key = Some(secret_key);
     }
 
+    #[inline]
     /// Explicitly sets the public key.
     ///
     /// ## Arguments
@@ -435,8 +455,8 @@ impl Context {
     /// ## Examples
     ///
     /// ```
-    /// use homomorph::{Context, Parameters, PublicKey};
-    ///
+    /// # use homomorph::{Context, Parameters, PublicKey};
+    /// #
     /// let mut context = Context::new(Parameters::new(6, 3, 2, 5));
     ///
     /// // INSECURE!!! Only for demonstration purposes

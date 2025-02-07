@@ -28,8 +28,8 @@
 //! visit <https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system>
 //!
 //! ```rust
-//! use homomorph::prelude::*;
-//!
+//! # use homomorph::prelude::*;
+//! #
 //! let parameters = Parameters::new(64, 32, 8, 32);
 //! let mut context = Context::new(parameters);
 //! context.generate_secret_key();
@@ -39,13 +39,13 @@
 //! If you need to save the keys for later use, you can do so by saving the raw bytes.
 //!
 //! ```rust
-//! use homomorph::prelude::*;
-//!
-//! let parameters = Parameters::new(64, 32, 8, 32);
-//! let mut context = Context::new(parameters);
-//! context.generate_secret_key();
-//! context.generate_public_key().unwrap();
-//!
+//! # use homomorph::prelude::*;
+//! #
+//! # let parameters = Parameters::new(64, 32, 8, 32);
+//! # let mut context = Context::new(parameters);
+//! # context.generate_secret_key();
+//! # context.generate_public_key().unwrap();
+//! #
 //! let sk_bytes = context.get_secret_key().unwrap().to_bytes();
 //! let pk_bytes = context.get_public_key().unwrap().to_bytes();
 //!
@@ -59,12 +59,12 @@
 //! (see next section for more information about which types can be ciphered).
 //!
 //! ```rust
-//! use homomorph::prelude::*;
-//!
-//! let parameters = Parameters::new(64, 32, 8, 32);
-//! let mut context = Context::new(parameters);
-//! context.generate_secret_key();
-//! context.generate_public_key().unwrap();
+//! # use homomorph::prelude::*;
+//! #
+//! # let parameters = Parameters::new(64, 32, 8, 32);
+//! # let mut context = Context::new(parameters);
+//! # context.generate_secret_key();
+//! # context.generate_public_key().unwrap();
 //! let sk = context.get_secret_key().unwrap();
 //! let pk = context.get_public_key().unwrap();
 //!
@@ -80,16 +80,16 @@
 //! For instance, you can add two ciphered unsigned integers together.
 //!
 //! ```no_run
-//! use homomorph::prelude::*;
-//! use homomorph::impls::numbers::HomomorphicAddition;
-//!
-//! let parameters = Parameters::new(128, 64, 1, 64);
-//! let mut context = Context::new(parameters);
-//! context.generate_secret_key();
-//! context.generate_public_key().unwrap();
-//! let pk = context.get_public_key().unwrap();
-//! let sk = context.get_secret_key().unwrap();
-//!
+//! # use homomorph::prelude::*;
+//! # use homomorph::impls::numbers::HomomorphicAddition;
+//! #
+//! # let parameters = Parameters::new(128, 64, 1, 64);
+//! # let mut context = Context::new(parameters);
+//! # context.generate_secret_key();
+//! # context.generate_public_key().unwrap();
+//! # let pk = context.get_public_key().unwrap();
+//! # let sk = context.get_secret_key().unwrap();
+//! #
 //! let a = Ciphered::cipher(&3_usize, &pk);
 //! let b = Ciphered::cipher(&5_usize, &pk);
 //! let c = unsafe { HomomorphicAddition::apply(&a, &b) };
@@ -192,8 +192,8 @@
 //!
 #![cfg_attr(not(feature = "derive"), doc = "```rust,ignore")]
 #![cfg_attr(feature = "derive", doc = "```rust")]
-//! use homomorph::prelude::*;
-//!
+//! # use homomorph::prelude::*;
+//! #
 //! #[derive(Copy, Clone, Debug, Encode, Decode)]
 //! struct MyStruct {
 //!     a: usize,
@@ -236,9 +236,6 @@
 
 #[macro_use]
 extern crate alloc;
-
-#[cfg(feature = "custom_rand")]
-pub use getrandom::register_custom_getrandom;
 
 // TODO: Add custom serialization to allow working with `Vec`s
 pub use bincode::{Decode, Encode};

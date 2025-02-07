@@ -10,7 +10,7 @@ const BITS_PER_COEFF: usize = Coefficient::BITS as usize;
 
 /// A polynomial over Z/2Z.
 ///
-/// A polynomial is represented as a list of coefficients.
+/// A polynomial is represented as a list of coefficients that is guaranteed to be non-empty.
 /// For speed purposes, we store the coefficients in a boxed slice of uint, representing multiple coefficients at a time.
 ///
 /// ## WARNING
@@ -95,7 +95,7 @@ impl Polynomial {
                 num_elements * size_of::<Coefficient>(),
             )
         };
-        getrandom::getrandom(bytes).expect("failed to generate random data");
+        getrandom::fill(bytes).expect("failed to generate random data");
 
         coefficients[num_elements - 1] &= (1 << (degree % BITS_PER_COEFF)) - 1;
         coefficients[num_elements - 1] |= 1 << (degree % BITS_PER_COEFF);
@@ -107,9 +107,8 @@ impl Polynomial {
     }
 
     #[must_use]
-    #[inline]
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(self.coefficients.len() * size_of::<Coefficient>());
+        let mut bytes = Vec::with_capacity(size_of_val(self.coefficients()));
         for &coeff in self.coefficients() {
             bytes.extend_from_slice(&coeff.to_le_bytes());
         }
@@ -120,8 +119,7 @@ impl Polynomial {
     pub fn from_bytes(bytes: &[u8]) -> Self {
         assert!(!bytes.is_empty(), "The vector of bytes must not be empty.");
         let mut coefficients =
-            vec![0; (bytes.len() + size_of::<Coefficient>() - 1) / size_of::<Coefficient>()]
-                .into_boxed_slice();
+            vec![0; bytes.len().div_ceil(size_of::<Coefficient>())].into_boxed_slice();
         for (i, chunk) in bytes.chunks(size_of::<Coefficient>()).enumerate() {
             let mut coeff_bytes = [0; size_of::<Coefficient>()];
             coeff_bytes[..chunk.len()].copy_from_slice(chunk);
@@ -177,21 +175,12 @@ impl Polynomial {
     }
 
     #[must_use]
-    #[inline]
-    /// Returns the coefficient of a given degree
-    pub fn coefficient(&self, degree: usize) -> Option<bool> {
-        self.coefficients()
-            .get(degree / BITS_PER_COEFF)
-            .map(|coeff| (*coeff >> (degree % BITS_PER_COEFF)) & 1 == 1)
-    }
-
-    #[must_use]
     /// Evaluates the given polynomial at a given point
     pub fn evaluate(&self, x: bool) -> bool {
         if !x {
             // Panic
             // self.coefficient is guaranteed to be non-empty
-            return self.coefficient(0).unwrap();
+            return self.coefficients().first().unwrap() & 1 == 1;
         }
 
         let mut count_ones = 0;
@@ -218,16 +207,8 @@ impl Polynomial {
         let other_coefficients = other.coefficients();
 
         for (i, rc) in result.iter_mut().enumerate() {
-            let a = if self_coefficients.len() > i {
-                self_coefficients[i]
-            } else {
-                0
-            };
-            let b = if other_coefficients.len() > i {
-                other_coefficients[i]
-            } else {
-                0
-            };
+            let a = self_coefficients.get(i).copied().unwrap_or(0);
+            let b = other_coefficients.get(i).copied().unwrap_or(0);
             *rc = a ^ b;
         }
 
@@ -254,8 +235,8 @@ impl Polynomial {
         //
         // Panic
         // The two coefficient lists are not empty.
-        if (self.degree() == 0 && !self.coefficient(0).unwrap())
-            || (other.degree() == 0 && !other.coefficient(0).unwrap())
+        if (self.degree() == 0 && self.coefficients().first().unwrap() & 1 == 0)
+            || (other.degree() == 0 && other.coefficients().first().unwrap() & 1 == 0)
         {
             return Self::null();
         }
@@ -264,15 +245,17 @@ impl Polynomial {
         let result_len = (self.degree() + other.degree()) / BITS_PER_COEFF + 1;
         let mut result = vec![0; result_len].into_boxed_slice();
 
-        for (i, &a) in self
+        for (i, a) in self
             .coefficients()
             .iter()
+            .copied()
             .take(self.degree() / BITS_PER_COEFF + 1)
             .enumerate()
         {
-            for (j, &b) in other
+            for (j, b) in other
                 .coefficients()
                 .iter()
+                .copied()
                 .take(other.degree() / BITS_PER_COEFF + 1)
                 .enumerate()
             {
@@ -315,7 +298,7 @@ impl Polynomial {
         // Panic
         // The coefficient list is not empty.
         assert!(
-            other.degree() > 0 || other.coefficient(0).unwrap(),
+            other.degree() > 0 || other.coefficients().first().unwrap() & 1 == 1,
             "attempt to divide by zero"
         );
 
@@ -331,14 +314,14 @@ impl Polynomial {
             let bit_shift = shift % BITS_PER_COEFF;
 
             let max_idx = other.degree() / BITS_PER_COEFF + 1;
-            let max_bound = r.len() - block_shift - 1;
 
-            // Compiler hint
-            assert!(max_idx <= other_coefficients.len());
+            unsafe {
+                core::hint::assert_unchecked(max_idx <= other_coefficients.len());
+            }
 
             for i in 0..max_idx {
                 r[block_shift + i] ^= other_coefficients[i] << bit_shift;
-                if bit_shift != 0 && i < max_bound {
+                if bit_shift != 0 && i < r.len() - block_shift - 1 {
                     r[block_shift + i + 1] ^= other_coefficients[i] >> (BITS_PER_COEFF - bit_shift);
                 }
             }
@@ -404,10 +387,10 @@ impl Polynomial {
 
 impl Clone for Polynomial {
     fn clone(&self) -> Self {
-        let relevant_length = self.degree() / BITS_PER_COEFF;
+        let relevant_length = self.degree() / BITS_PER_COEFF + 1;
 
         Self {
-            coefficients: self.coefficients()[..=relevant_length]
+            coefficients: self.coefficients()[..relevant_length]
                 .to_vec()
                 .into_boxed_slice(),
             degree: self.degree(),
@@ -423,14 +406,6 @@ impl PartialEq for Polynomial {
 
         let relevant_length = self.degree() / BITS_PER_COEFF + 1;
         self.coefficients()[..relevant_length] == other.coefficients()[..relevant_length]
-    }
-}
-
-impl core::ops::Deref for Polynomial {
-    type Target = [Coefficient];
-
-    fn deref(&self) -> &Self::Target {
-        self.coefficients()
     }
 }
 
@@ -610,5 +585,13 @@ mod tests {
         // This is for test purposes only
         assert_eq!(p.degree(), 0);
         assert_eq!(*p.coefficients(), [0, 0]);
+    }
+
+    #[test]
+    fn test_byte_conversion() {
+        let p = Polynomial::new(Box::new([0b1001, 0b1000_0011_0101_1010, 0b0, 0b1, 0b0]));
+        let bytes = p.to_bytes();
+        let p2 = Polynomial::from_bytes(&bytes);
+        assert_eq!(p, p2);
     }
 }

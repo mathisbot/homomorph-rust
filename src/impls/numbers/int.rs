@@ -94,7 +94,7 @@ macro_rules! impl_homomorphic_addition_int {
                 ///
                 /// ## Safety
                 ///
-                /// Please not that the system must use 2's complement representation for signed integers.
+                /// Please note that the system must use 2's complement representation for signed integers.
                 ///
                 /// `d/delta` on cipher must have been at least `21*sizeof::<T>()`.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
@@ -121,15 +121,18 @@ fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
         .collect::<Vec<_>>();
 
     // Invert the sign of some partial products
+    //
+    // This only works because partial_products.len() >= 2
     let one_bit = CipheredBit::one();
     partial_products[0][length - 1] = partial_products[0][length - 1].xor(&one_bit);
     partial_products[length - 1][0] = partial_products[length - 1][0].xor(&one_bit);
 
     let mut carries = Vec::with_capacity((length - 1) * length * (length + 1) / 6);
 
-    // Compiler hints
-    assert_eq!(result.len(), length);
-    assert_eq!(partial_products.len(), length);
+    unsafe {
+        core::hint::assert_unchecked(result.len() == length);
+        core::hint::assert_unchecked(partial_products.len() == length);
+    }
 
     // TODO: Optimize this
     let mut offset = 0;
@@ -145,7 +148,9 @@ fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredB
             result[i] = result[i].xor(pp);
         }
         // Propagate carry
-        assert!(offset + current_length <= carries.len()); // Compiler hint
+        unsafe {
+            core::hint::assert_unchecked(offset + current_length <= carries.len());
+        }
         for j in 0..current_length {
             if i + 1 < length {
                 let t = result[i].and(&carries[offset + j]);
@@ -188,7 +193,7 @@ mod tests {
     };
     use crate::prelude::*;
 
-    use rand::{thread_rng, Rng};
+    use rand::{rng, Rng};
 
     #[test]
     fn test_homomorphic_and_gate() {
@@ -273,8 +278,8 @@ mod tests {
         let d = c.decipher(sk);
         assert_eq!(d, 2);
 
-        let a_raw = thread_rng().gen::<i16>() / 2;
-        let b_raw = thread_rng().gen::<i16>() / 2;
+        let a_raw = rng().random::<i16>() / 2;
+        let b_raw = rng().random::<i16>() / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);
@@ -293,8 +298,8 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a_raw = thread_rng().gen::<i64>() / 2;
-        let b_raw = thread_rng().gen::<i64>() / 2;
+        let a_raw = rng().random::<i64>() / 2;
+        let b_raw = rng().random::<i64>() / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);
@@ -314,9 +319,9 @@ mod tests {
         let pk = context.get_public_key().unwrap();
         let sk = context.get_secret_key().unwrap();
 
-        let a_raw = thread_rng().gen::<i8>() / 2;
-        let b_raw = thread_rng().gen::<i8>() / 2;
-        let c_raw = thread_rng().gen::<i8>() / 2;
+        let a_raw = rng().random::<i8>() / 2;
+        let b_raw = rng().random::<i8>() / 2;
+        let c_raw = rng().random::<i8>() / 2;
 
         let a = Ciphered::cipher(&a_raw, pk);
         let b = Ciphered::cipher(&b_raw, pk);
