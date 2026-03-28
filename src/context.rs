@@ -89,10 +89,7 @@ impl Parameters {
             !(d == 0 || dp == 0 || delta == 0 || tau == 0),
             "Parameters must be strictly positive"
         );
-        assert!(
-            delta < d,
-            "Delta must be less than d (delta < d)"
-        );
+        assert!(delta < d, "Delta must be less than d (delta < d)");
         Self { d, dp, delta, tau }
     }
 
