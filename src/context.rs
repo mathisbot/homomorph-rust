@@ -85,10 +85,13 @@ impl Parameters {
     /// let parameters = Parameters::new(6, 3, 2, 5);
     /// ```
     pub const fn new(d: u16, dp: u16, delta: u16, tau: u16) -> Self {
-        assert!(delta < d, "Delta must be strictly less than d");
         assert!(
             !(d == 0 || dp == 0 || delta == 0 || tau == 0),
             "Parameters must be strictly positive"
+        );
+        assert!(
+            delta < d,
+            "Delta must be less than d (delta < d)"
         );
         Self { d, dp, delta, tau }
     }
@@ -250,7 +253,7 @@ impl PublicKey {
         let list = (0..tau)
             .map(|_| {
                 let q = Polynomial::random(dp as usize);
-                let sq = secret_key.clone().get_polynomial().mul(&q);
+                let sq = secret_key.get_polynomial().mul(&q);
                 let r = Polynomial::random(delta as usize);
                 let rx = r.mul(&Polynomial::monomial(1));
                 sq.add(&rx)
@@ -600,7 +603,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[should_panic = "Delta must be strictly less than d"]
+    #[should_panic = "delta < d"]
     const fn test_parameters_delta_panic() {
         let _ = Parameters::new(6, 3, 6, 5);
     }

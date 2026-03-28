@@ -65,7 +65,7 @@ macro_rules! impl_homomorphic_addition_uint {
                 ///
                 /// ## Safety
                 ///
-                /// `d/delta` on cipher must have been at least `21*sizeof::<T>()`.
+                /// `d/delta` on cipher must have been at least `21`.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
                     common::add(a, b)
                 }
@@ -84,7 +84,7 @@ macro_rules! impl_homomorphic_multiplication_uint {
                 ///
                 /// ## Safety
                 ///
-                /// `d/delta` on cipher must have been at least TBD.
+                /// `d/delta` on cipher must have been at least `64`.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
                     common::mul_unsigned(a, b)
                 }

@@ -203,7 +203,7 @@
 //! impl HomomorphicOperation2<MyStruct> for MyOperation {
 //!     /// ## Safety
 //!     ///
-//!     /// `d/delta` on cipher must have been at least `TBD`.
+//!     /// Document the minimum `d/delta` ratio required by this operation.
 //!     unsafe fn apply(a: &Ciphered<MyStruct>, b: &Ciphered<MyStruct>) -> Ciphered<MyStruct> {
 //!         let mut c_pol: Vec<CipheredBit> = Vec::with_capacity(a.len().max(b.len()));
 //!

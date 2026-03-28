@@ -44,10 +44,6 @@ I do not intend to publish the crate on `crates.io`.
     cargo doc
     ```
 
-## Features
-
-- `custom_rand`: Allows to implement a fallback method to `getrandom` on unsupported targets
-
 ## Bare metal
 
 The crates supports `no_std` environments.
@@ -64,6 +60,7 @@ as well as instructions on how to implement a custom source for other targets.
 ## Benchmarks
 
 Benchmarks were made using a Ryzen 7 7800x3D on `u32`s using `cargo bench --bench u32`.
+Numbers vary depending on hardware, compiler version and runtime load.
 
 Parameters used for this benchmark were :
 - `d` = 128
@@ -128,7 +125,7 @@ and easily compare them with the desired cipher. With $\mathcal{U}$ in the way, 
 #### Decryption
 Decryption of a cipher $C$ is done as follows :
 
-- Compute $R$ the quotient of the euclidean division of $C$ by $S$
+- Compute $R$ the remainder of the euclidean division of $C$ by $S$
 - $x$ is $R$ evaluated at $0$
 
 This is why $\delta$ is under the condition $\delta < d$.
@@ -145,10 +142,8 @@ In our case, let's look at the potential loopholes.
 
 #### Retrieving $S$ with $T$
 
-Retrieving the private key with only the public key (or a set of them) is equivalent to solving the problem
-[RLWE](https://en.wikipedia.org/wiki/Ring_learning_with_errors) (thus the shape of our public key).
-This problem has been proved as computationally infisible, which means that no current machine, and no machine that may soon be developed,
-can solve it in a time that is humanly conceivable. Great!
+Retrieving the private key with only the public key (or a set of them) is related to
+[RLWE](https://en.wikipedia.org/wiki/Ring_learning_with_errors)-style assumptions (thus the shape of our public key).
 
 #### Retrieving $x$ with only $T$
 

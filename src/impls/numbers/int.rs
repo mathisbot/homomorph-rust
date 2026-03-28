@@ -67,7 +67,7 @@ macro_rules! impl_homomorphic_addition_int {
                 ///
                 /// Please note that the system must use 2's complement representation for signed integers.
                 ///
-                /// `d/delta` on cipher must have been at least `21*sizeof::<T>()`.
+                /// `d/delta` on cipher must have been at least `21`.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
                     common::add(a, b)
                 }
@@ -86,7 +86,7 @@ macro_rules! impl_homomorphic_multiplication_int {
                 ///
                 /// ## Safety
                 ///
-                /// `d/delta` on cipher must have been at least TBD.
+                /// `d/delta` on cipher must have been at least `64`.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
                     common::mul_signed(a, b)
                 }

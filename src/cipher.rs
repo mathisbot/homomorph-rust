@@ -12,12 +12,15 @@ const CONFIG: bincode::config::Configuration<
     .with_fixed_int_encoding()
     .with_no_limit();
 
+const MAX_DECODE_BYTES: usize = 1 << 20;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CipherError {
     Randomness,
     Serialize,
     Deserialize,
     InvalidCipheredLength { len: usize },
+    DecodeTooLarge { len: usize, max: usize },
 }
 
 /// Represents a single bit that is encrypted
@@ -209,6 +212,7 @@ impl<T: crate::Encode + crate::Decode<()>> Ciphered<T> {
     /// ## Errors
     ///
     /// Returns [`CipherError::InvalidCipheredLength`] if ciphertext bit-length is invalid.
+    /// Returns [`CipherError::DecodeTooLarge`] if payload exceeds configured decode limit.
     /// Returns [`CipherError::Deserialize`] if decoded bytes cannot be deserialized into `T`.
     pub fn try_decipher(&self, sk: &SecretKey) -> Result<T, CipherError> {
         if !self.len().is_multiple_of(8) {
@@ -232,8 +236,15 @@ impl<T: crate::Encode + crate::Decode<()>> Ciphered<T> {
             }
         }
 
-        let (d, _) =
-            bincode::decode_from_slice(&bytes, CONFIG).map_err(|_| CipherError::Deserialize)?;
+        if bytes.len() > MAX_DECODE_BYTES {
+            return Err(CipherError::DecodeTooLarge {
+                len: bytes.len(),
+                max: MAX_DECODE_BYTES,
+            });
+        }
+
+        let (d, _) = bincode::decode_from_slice(&bytes, CONFIG.with_limit::<MAX_DECODE_BYTES>())
+            .map_err(|_| CipherError::Deserialize)?;
 
         Ok(d)
     }

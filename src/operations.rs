@@ -63,7 +63,7 @@ pub trait OperationRequirement {
 /// impl HomomorphicOperation1<MyStruct> for MyOperation {
 ///     /// ## Safety
 ///     ///
-///     /// `d/delta` on cipher must have been at least `2*sizeof::<T>()`.
+///     /// Document the minimum `d/delta` ratio required by this operation.
 ///     unsafe fn apply(a: &mut Ciphered<MyStruct>) -> &mut Ciphered<MyStruct> {
 ///         // Boring details here...
 ///         a
@@ -119,7 +119,7 @@ pub trait HomomorphicOperation1<T: crate::Encode + crate::Decode<()>> {
 /// impl HomomorphicOperation2<MyStruct> for MyOperation {
 ///     /// ## Safety
 ///     ///
-///     /// `d/delta` on cipher must have been at least `2*sizeof::<T>()`.
+///     /// Document the minimum `d/delta` ratio required by this operation.
 ///     unsafe fn apply(a: &Ciphered<MyStruct>, b: &Ciphered<MyStruct>) -> Ciphered<MyStruct> {
 ///         let mut c_pol: Vec<CipheredBit> = Vec::with_capacity(a.len().max(b.len()));
 ///
@@ -178,7 +178,7 @@ pub trait HomomorphicOperation2<T: crate::Encode + crate::Decode<()>> {
 /// impl<const N: usize> HomomorphicOperation<N, MyStruct> for MyOperation {
 ///     /// ## Safety
 ///     ///
-///     /// `d/delta` on cipher must have been at least `3*sizeof::<T>()`.
+///     /// Document the minimum `d/delta` ratio required by this operation.
 ///     unsafe fn apply(args: [&Ciphered<MyStruct>; N]) -> Ciphered<MyStruct> {
 ///         let result = args[0].to_vec();
 ///

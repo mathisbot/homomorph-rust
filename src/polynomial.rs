@@ -333,10 +333,7 @@ impl Polynomial {
             let bit_shift = shift % BITS_PER_COEFF;
 
             let max_idx = other.degree() / BITS_PER_COEFF + 1;
-
-            unsafe {
-                core::hint::assert_unchecked(max_idx <= other_coefficients.len());
-            }
+            debug_assert!(max_idx <= other_coefficients.len());
 
             for i in 0..max_idx {
                 r[block_shift + i] ^= other_coefficients[i] << bit_shift;
