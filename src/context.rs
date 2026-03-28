@@ -1,4 +1,9 @@
+use crate::operations::{
+    HomomorphicOperation, HomomorphicOperation1, HomomorphicOperation2, OperationError,
+    OperationRequirement,
+};
 use crate::polynomial::Polynomial;
+use crate::{CipherError, Ciphered};
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -33,8 +38,18 @@ pub struct Parameters {
     tau: u16,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct SecretKeyUnset;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ContextCryptoError {
+    SecretKeyUnset,
+    PublicKeyUnset,
+    Cipher(CipherError),
+}
+
+impl From<CipherError> for ContextCryptoError {
+    fn from(value: CipherError) -> Self {
+        Self::Cipher(value)
+    }
+}
 
 impl Parameters {
     #[must_use]
@@ -291,6 +306,22 @@ pub struct Context {
 }
 
 impl Context {
+    #[inline]
+    fn validate_operation<O: OperationRequirement>(&self) -> Result<(), OperationError> {
+        let d = self.parameters().d();
+        let delta = self.parameters().delta();
+
+        if u32::from(d) < u32::from(O::MIN_D_OVER_DELTA) * u32::from(delta) {
+            return Err(OperationError::InvalidParameters {
+                required_min_d_over_delta: O::MIN_D_OVER_DELTA,
+                actual_d: d,
+                actual_delta: delta,
+            });
+        }
+
+        Ok(())
+    }
+
     #[must_use]
     #[inline]
     /// Creates a new context.
@@ -410,15 +441,108 @@ impl Context {
     ///
     /// context.generate_public_key().unwrap();
     /// ```
-    pub fn generate_public_key(&mut self) -> Result<(), SecretKeyUnset> {
+    pub fn generate_public_key(&mut self) -> Result<(), ContextCryptoError> {
         self.public_key = Some(PublicKey::random(
             self.parameters().dp(),
             self.parameters().delta(),
             self.parameters().tau(),
-            self.get_secret_key().ok_or(SecretKeyUnset)?,
+            self.get_secret_key()
+                .ok_or(ContextCryptoError::SecretKeyUnset)?,
         ));
 
         Ok(())
+    }
+
+    /// Encrypts data with the currently loaded public key.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [`ContextCryptoError::PublicKeyUnset`] if the public key has not
+    /// been generated or set.
+    /// Returns [`ContextCryptoError::Cipher`] if serialization or randomness fails.
+    pub fn encrypt<T: crate::Encode + crate::Decode<()>>(
+        &self,
+        data: &T,
+    ) -> Result<Ciphered<T>, ContextCryptoError> {
+        let pk = self
+            .get_public_key()
+            .ok_or(ContextCryptoError::PublicKeyUnset)?;
+        Ok(Ciphered::try_cipher(data, pk)?)
+    }
+
+    /// Decrypts data with the currently loaded secret key.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [`ContextCryptoError::SecretKeyUnset`] if the secret key has not
+    /// been generated or set.
+    /// Returns [`ContextCryptoError::Cipher`] if ciphertext layout or decoding is invalid.
+    pub fn decrypt<T: crate::Encode + crate::Decode<()>>(
+        &self,
+        ciphered: &Ciphered<T>,
+    ) -> Result<T, ContextCryptoError> {
+        let sk = self
+            .get_secret_key()
+            .ok_or(ContextCryptoError::SecretKeyUnset)?;
+        Ok(ciphered.try_decipher(sk)?)
+    }
+
+    /// Safely applies a unary operation after validating parameter requirements.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [`OperationError::InvalidParameters`] if context parameters do not meet
+    /// the operation's minimum `d/delta` requirement.
+    pub fn apply1<O, T>(&self, a: &mut Ciphered<T>) -> Result<(), OperationError>
+    where
+        O: HomomorphicOperation1<T> + OperationRequirement,
+        T: crate::Encode + crate::Decode<()>,
+    {
+        self.validate_operation::<O>()?;
+        // Safety: operation requirements are checked against context parameters.
+        unsafe {
+            O::apply(a);
+        }
+        Ok(())
+    }
+
+    /// Safely applies a binary operation after validating parameter requirements.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [`OperationError::InvalidParameters`] if context parameters do not meet
+    /// the operation's minimum `d/delta` requirement.
+    pub fn apply2<O, T>(
+        &self,
+        a: &Ciphered<T>,
+        b: &Ciphered<T>,
+    ) -> Result<Ciphered<T>, OperationError>
+    where
+        O: HomomorphicOperation2<T> + OperationRequirement,
+        T: crate::Encode + crate::Decode<()>,
+    {
+        self.validate_operation::<O>()?;
+        // Safety: operation requirements are checked against context parameters.
+        Ok(unsafe { O::apply(a, b) })
+    }
+
+    /// Safely applies an N-ary operation after validating parameter requirements.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [`OperationError::InvalidParameters`] if context parameters do not meet
+    /// the operation's minimum `d/delta` requirement.
+    pub fn apply_n<const N: usize, O, T>(
+        &self,
+        args: [&Ciphered<T>; N],
+    ) -> Result<Ciphered<T>, OperationError>
+    where
+        O: HomomorphicOperation<N, T> + OperationRequirement,
+        T: crate::Encode + crate::Decode<()>,
+    {
+        self.validate_operation::<O>()?;
+        // Safety: operation requirements are checked against context parameters.
+        Ok(unsafe { O::apply(args) })
     }
 
     #[inline]
@@ -443,6 +567,7 @@ impl Context {
     /// ```
     pub fn set_secret_key(&mut self, secret_key: SecretKey) {
         self.secret_key = Some(secret_key);
+        self.public_key = None;
     }
 
     #[inline]
@@ -516,8 +641,9 @@ mod tests {
         context.generate_secret_key();
         context.generate_public_key().unwrap();
         let sk = context.get_secret_key().unwrap().clone();
-        context.set_secret_key(sk.clone());
         let pk = context.get_public_key().unwrap().clone();
+
+        context.set_secret_key(sk.clone());
         context.set_public_key(pk.clone());
 
         let sk2 = context.get_secret_key().unwrap().clone();
@@ -525,6 +651,19 @@ mod tests {
 
         assert_eq!(sk, sk2);
         assert_eq!(pk, pk2);
+    }
+
+    #[test]
+    fn test_set_secret_key_clears_public_key() {
+        let params = Parameters::new(64, 32, 8, 32);
+        let mut context = Context::new(params);
+        context.generate_secret_key();
+        context.generate_public_key().unwrap();
+
+        let sk = context.get_secret_key().unwrap().clone();
+        context.set_secret_key(sk);
+
+        assert!(context.get_public_key().is_none());
     }
 
     #[test]

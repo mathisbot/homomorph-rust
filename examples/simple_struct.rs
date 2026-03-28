@@ -19,6 +19,10 @@ struct Vec3 {
 
 struct Vec3Add;
 
+impl OperationRequirement for Vec3Add {
+    const MIN_D_OVER_DELTA: u16 = 21;
+}
+
 impl HomomorphicOperation2<Vec3> for Vec3Add {
     /// ## Safety
     ///
@@ -58,13 +62,11 @@ fn main() {
     let mut context = Context::new(PARAMS);
     context.generate_secret_key();
     context.generate_public_key().unwrap();
-    let sk = context.get_secret_key().unwrap();
-    let pk = context.get_public_key().unwrap();
 
-    let a = Ciphered::cipher(&Vec3 { x: 1, y: 2, z: 3 }, pk);
-    let b = Ciphered::cipher(&Vec3 { x: 4, y: 5, z: 6 }, pk);
-    let c = unsafe { Vec3Add::apply(&a, &b) };
-    let d = Ciphered::decipher(&c, sk);
+    let a = context.encrypt(&Vec3 { x: 1, y: 2, z: 3 }).unwrap();
+    let b = context.encrypt(&Vec3 { x: 4, y: 5, z: 6 }).unwrap();
+    let c = context.apply2::<Vec3Add, _>(&a, &b).unwrap();
+    let d: Vec3 = context.decrypt(&c).unwrap();
 
     assert_eq!(Vec3 { x: 5, y: 7, z: 9 }, d);
 }

@@ -1,3 +1,4 @@
+use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use homomorph::impls::numbers::HomomorphicAddition;
 use homomorph::prelude::*;
@@ -9,20 +10,17 @@ fn criterion_cipher(c: &mut Criterion) {
     let mut context = Context::new(PARAMETERS);
     context.generate_secret_key();
     context.generate_public_key().unwrap();
-    let sk = context.get_secret_key().unwrap();
-    let pk = context.get_public_key().unwrap();
-
     // Note that the number doesn't matter, the benchmark won't change
-    let n1: Number = 42;
+    let n1: Number = black_box(42);
 
     let mut c1 = None;
     c.bench_function("cipher", |b| {
-        b.iter(|| c1 = Some(Ciphered::cipher(&n1, pk)))
+        b.iter(|| c1 = Some(context.encrypt(&n1).unwrap()))
     });
     let c1 = c1.unwrap();
 
     let mut d = 0;
-    c.bench_function("decipher", |b| b.iter(|| d = c1.decipher(sk)));
+    c.bench_function("decipher", |b| b.iter(|| d = context.decrypt(&c1).unwrap()));
 }
 
 fn criterion_add(c: &mut Criterion) {
@@ -30,26 +28,25 @@ fn criterion_add(c: &mut Criterion) {
     let mut context = Context::new(PARAMETERS);
     context.generate_secret_key();
     context.generate_public_key().unwrap();
-    let sk = context.get_secret_key().unwrap();
-    let pk = context.get_public_key().unwrap();
-
     // Note that the number doesn't matter, the benchmark won't change
-    let n1: Number = 22;
-    let n2: Number = 20;
+    let n1: Number = black_box(22);
+    let n2: Number = black_box(20);
 
-    let c1 = Ciphered::cipher(&n1, pk);
-    let c2 = Ciphered::cipher(&n2, pk);
+    let c1 = context.encrypt(&n1).unwrap();
+    let c2 = context.encrypt(&n2).unwrap();
 
     let mut c3 = None;
     c.bench_function("add", |b| {
-        b.iter(|| c3 = Some(unsafe { HomomorphicAddition::apply(&c1, &c2) }))
+        b.iter(|| c3 = Some(context.apply2::<HomomorphicAddition, _>(&c1, &c2).unwrap()))
     });
     let c3 = c3.unwrap();
 
     // Decipher after an operation can be significantly slower than deciphering before
     // because usually the operation skyrockets the degree of the polynomial
     let mut d = 0;
-    c.bench_function("decipher after add", |b| b.iter(|| d = c3.decipher(sk)));
+    c.bench_function("decipher after add", |b| {
+        b.iter(|| d = context.decrypt(&c3).unwrap())
+    });
 }
 
 criterion_group!(

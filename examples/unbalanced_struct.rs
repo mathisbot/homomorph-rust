@@ -19,6 +19,10 @@ struct Unbalanced {
 
 struct UnbalancedAdd;
 
+impl OperationRequirement for UnbalancedAdd {
+    const MIN_D_OVER_DELTA: u16 = 21;
+}
+
 impl HomomorphicOperation2<Unbalanced> for UnbalancedAdd {
     /// ## Safety
     ///
@@ -63,13 +67,11 @@ fn main() {
     let mut context = Context::new(PARAMS);
     context.generate_secret_key();
     context.generate_public_key().unwrap();
-    let sk = context.get_secret_key().unwrap();
-    let pk = context.get_public_key().unwrap();
 
-    let a = Ciphered::cipher(&Unbalanced { x: 1, y: 2, z: 3 }, pk);
-    let b = Ciphered::cipher(&Unbalanced { x: 4, y: 5, z: 6 }, pk);
-    let c = unsafe { UnbalancedAdd::apply(&a, &b) };
-    let d = Ciphered::decipher(&c, sk);
+    let a = context.encrypt(&Unbalanced { x: 1, y: 2, z: 3 }).unwrap();
+    let b = context.encrypt(&Unbalanced { x: 4, y: 5, z: 6 }).unwrap();
+    let c = context.apply2::<UnbalancedAdd, _>(&a, &b).unwrap();
+    let d: Unbalanced = context.decrypt(&c).unwrap();
 
     assert_eq!(Unbalanced { x: 5, y: 7, z: 9 }, d);
 }

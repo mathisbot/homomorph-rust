@@ -87,13 +87,11 @@
 //! # let mut context = Context::new(parameters);
 //! # context.generate_secret_key();
 //! # context.generate_public_key().unwrap();
-//! # let pk = context.get_public_key().unwrap();
-//! # let sk = context.get_secret_key().unwrap();
 //! #
-//! let a = Ciphered::cipher(&3_usize, &pk);
-//! let b = Ciphered::cipher(&5_usize, &pk);
-//! let c = unsafe { HomomorphicAddition::apply(&a, &b) };
-//! let d = c.decipher(sk);
+//! let a = context.encrypt(&3_usize).unwrap();
+//! let b = context.encrypt(&5_usize).unwrap();
+//! let c = context.apply2::<HomomorphicAddition, _>(&a, &b).unwrap();
+//! let d: usize = context.decrypt(&c).unwrap();
 //! assert_eq!(d, 3 + 5);
 //! ```
 //!
@@ -150,8 +148,8 @@
 //! The main idea behind the last trait is to allow the user to define operations on an arbitrary number of ciphered data
 //! while still benefiting from Rust's type system.
 //!
-//! Inside of the function, you can work with `Cipehered<T>` as if it were a `&Vec<CipheredBit>`
-//! (because `Cipehered<T>` implements `Deref<Vec<CipheredBit>>`).
+//! Inside of the function, you can work with `Ciphered<T>` as if it were a `&[CipheredBit]`
+//! (because `Ciphered<T>` implements `Deref<[CipheredBit]>`).
 //!
 //! From that point, all operations are highly unsafe as you are working with raw bits.
 //! For instance, you can apply logic gates to the `CipheredBit`s.
@@ -244,12 +242,13 @@ pub use bincode::{Decode, Encode};
 mod polynomial;
 
 mod context;
-pub use context::{Context, Parameters, PublicKey, SecretKey};
+pub use context::{Context, ContextCryptoError, Parameters, PublicKey, SecretKey};
 
 mod cipher;
-pub use cipher::{Ciphered, CipheredBit};
+pub use cipher::{CipherError, Ciphered, CipheredBit};
 
 pub mod operations;
+pub use operations::{OperationError, OperationRequirement};
 
 pub mod impls;
 

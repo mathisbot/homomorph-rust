@@ -63,17 +63,6 @@ impl Polynomial {
     }
 
     #[must_use]
-    #[inline]
-    /// Create a new polynomial of degree 0 from a bool
-    pub fn new_from_bool(x: bool) -> Self {
-        let coefficients = Box::new([Coefficient::from(x)]);
-        Self {
-            coefficients,
-            degree: 0,
-        }
-    }
-
-    #[must_use]
     /// Generate a random polynomial of a given degree
     ///
     /// ## Note
@@ -220,6 +209,36 @@ impl Polynomial {
                 coefficients: result,
                 degree: max_deg,
             }
+        }
+    }
+
+    #[inline]
+    pub(crate) fn add_assign(&mut self, other: &Self) {
+        let lhs_len = self.degree() / BITS_PER_COEFF + 1;
+        let rhs_len = other.degree() / BITS_PER_COEFF + 1;
+
+        if rhs_len > lhs_len {
+            let mut coefficients = vec![0; rhs_len].into_boxed_slice();
+            coefficients[..lhs_len].copy_from_slice(&self.coefficients()[..lhs_len]);
+            self.coefficients = coefficients;
+        }
+
+        for (a, b) in self
+            .coefficients
+            .iter_mut()
+            .zip(other.coefficients().iter().copied())
+        {
+            *a ^= b;
+        }
+
+        self.degree = Self::compute_degree(self.coefficients());
+    }
+
+    #[inline]
+    pub(crate) fn add_bool_assign(&mut self, x: bool) {
+        if x {
+            self.coefficients[0] ^= 1;
+            self.degree = Self::compute_degree(self.coefficients());
         }
     }
 

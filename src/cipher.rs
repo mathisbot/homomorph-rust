@@ -12,6 +12,14 @@ const CONFIG: bincode::config::Configuration<
     .with_fixed_int_encoding()
     .with_no_limit();
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CipherError {
+    Randomness,
+    Serialize,
+    Deserialize,
+    InvalidCipheredLength { len: usize },
+}
+
 /// Represents a single bit that is encrypted
 ///
 /// You can use this struct to perform operations on encrypted data
@@ -78,34 +86,29 @@ impl CipheredBit {
         self.xor(&Self::one())
     }
 
-    #[must_use]
-    // u8 is used instead of bool because they are the same size
-    // while u8 can store 8 times more information
-    fn part(tau: usize) -> Vec<u8> {
+    fn part(tau: usize) -> Result<Vec<u8>, CipherError> {
         let num_elements = tau.div_ceil(8);
         let mut part = vec![0; num_elements];
-
-        getrandom::fill(&mut part).expect("failed to generate random data");
-
-        part
+        getrandom::fill(&mut part).map_err(|_| CipherError::Randomness)?;
+        Ok(part)
     }
 
-    #[must_use]
-    // See https://github.com/mathisbot/homomorph-rust?tab=readme-ov-file#system
-    fn cipher(x: bool, pk: &PublicKey) -> Self {
+    fn cipher(x: bool, pk: &PublicKey) -> Result<Self, CipherError> {
         let pk = pk.get_polynomials();
         let tau = pk.len();
-        let random_part = Self::part(tau);
+        let random_part = Self::part(tau)?;
 
-        let mut sum = Polynomial::new_from_bool(x);
+        let mut sum = Polynomial::null();
         for i in 0..tau {
             let should_add = random_part[i / 8] & (1 << (i % 8));
             if should_add != 0 {
-                sum = sum.add(&pk[i]);
+                sum.add_assign(&pk[i]);
             }
         }
 
-        Self(sum)
+        sum.add_bool_assign(x);
+
+        Ok(Self(sum))
     }
 
     #[must_use]
@@ -157,21 +160,31 @@ impl<T: crate::Encode + crate::Decode<()>> Ciphered<T> {
     /// This function will panic if the serialization of the data fails.
     /// In such cases, you should make sure your struct serializes correctly.
     pub fn cipher(data: &T, pk: &PublicKey) -> Self {
-        let bytes = bincode::encode_to_vec(data, CONFIG).expect("Failed to serialize data");
+        Self::try_cipher(data, pk).expect("Failed to serialize data")
+    }
+
+    /// Tries to encrypt data.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [`CipherError::Serialize`] if serialization fails.
+    /// Returns [`CipherError::Randomness`] if secure randomness cannot be generated.
+    pub fn try_cipher(data: &T, pk: &PublicKey) -> Result<Self, CipherError> {
+        let bytes = bincode::encode_to_vec(data, CONFIG).map_err(|_| CipherError::Serialize)?;
 
         let mut c_data = Vec::with_capacity(bytes.len() * 8);
 
         for byte in bytes {
             for i in 0..8 {
                 let bit = (byte >> i) & 1;
-                c_data.push(CipheredBit::cipher(bit == 1, pk));
+                c_data.push(CipheredBit::cipher(bit == 1, pk)?);
             }
         }
 
-        Self {
+        Ok(Self {
             phantom: core::marker::PhantomData,
             c_data,
-        }
+        })
     }
 
     #[must_use]
@@ -187,12 +200,20 @@ impl<T: crate::Encode + crate::Decode<()>> Ciphered<T> {
     /// This function will panic if the ciphered data length is not a multiple of 8 or
     /// if the deserialization of the data fails.
     pub fn decipher(&self, sk: &SecretKey) -> T {
-        assert_eq!(
-            0,
-            self.len() % 8,
-            "Invalid ciphered data length: expected multiple of 8, got {}",
-            self.len()
-        );
+        self.try_decipher(sk)
+            .expect("Error while deserializing data")
+    }
+
+    /// Tries to decrypt data.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [`CipherError::InvalidCipheredLength`] if ciphertext bit-length is invalid.
+    /// Returns [`CipherError::Deserialize`] if decoded bytes cannot be deserialized into `T`.
+    pub fn try_decipher(&self, sk: &SecretKey) -> Result<T, CipherError> {
+        if !self.len().is_multiple_of(8) {
+            return Err(CipherError::InvalidCipheredLength { len: self.len() });
+        }
 
         let mut bytes = Vec::with_capacity(self.len() / 8);
 
@@ -212,9 +233,9 @@ impl<T: crate::Encode + crate::Decode<()>> Ciphered<T> {
         }
 
         let (d, _) =
-            bincode::decode_from_slice(&bytes, CONFIG).expect("Error while deserializing data");
+            bincode::decode_from_slice(&bytes, CONFIG).map_err(|_| CipherError::Deserialize)?;
 
-        d
+        Ok(d)
     }
 }
 

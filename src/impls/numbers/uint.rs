@@ -1,10 +1,9 @@
+use super::common;
 use crate::impls::numbers::{
     HomomorphicAddition, HomomorphicAndGate, HomomorphicMultiplication, HomomorphicNotGate,
     HomomorphicOrGate, HomomorphicXorGate,
 };
 use crate::prelude::*;
-
-use alloc::vec::Vec;
 
 macro_rules! impl_homomorphic_gates_uint {
     ($($t:ty),+) => {
@@ -16,7 +15,7 @@ macro_rules! impl_homomorphic_gates_uint {
                 ///
                 /// `d/delta` on cipher must have been at least 2.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    unsafe { Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.and(b)).collect()) }
+                    common::gate_and(a, b)
                 }
             }
 
@@ -27,7 +26,7 @@ macro_rules! impl_homomorphic_gates_uint {
                 ///
                 /// `d/delta` on cipher must have been at least 2.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    unsafe { Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.or(b)).collect()) }
+                    common::gate_or(a, b)
                 }
             }
 
@@ -38,7 +37,7 @@ macro_rules! impl_homomorphic_gates_uint {
                 ///
                 /// `d/delta` on cipher must have been at least 1.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    unsafe { Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.xor(b)).collect()) }
+                    common::gate_xor(a, b)
                 }
             }
 
@@ -49,8 +48,7 @@ macro_rules! impl_homomorphic_gates_uint {
                 ///
                 /// `d/delta` on cipher must have been at least 1.
                 unsafe fn apply(a: &mut Ciphered<$t>) -> &mut Ciphered<$t> {
-                    *a = unsafe { Ciphered::new_from_raw(a.iter().map(|a| a.not()).collect()) };
-                    a
+                    common::gate_not(a)
                 }
             }
         )+
@@ -58,33 +56,6 @@ macro_rules! impl_homomorphic_gates_uint {
 }
 
 impl_homomorphic_gates_uint!(u8, u16, u32, usize, u64, u128);
-
-fn homomorph_add_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredBit> {
-    let mut result = Vec::with_capacity(a.len());
-    let mut carry = CipheredBit::zero();
-
-    let one_bit = CipheredBit::one();
-
-    for (i, (cb1, cb2)) in a.iter().zip(b.iter()).enumerate() {
-        let s = cb1.xor(cb2).xor(&carry);
-
-        result.push(s);
-
-        // Ignore last carry
-        if i + 1 >= a.len() {
-            break;
-        }
-
-        // carry = cb1.xor(&pcb2).and(&carry).or(&cb1.and(&cb2));
-        // This is too long and can be simplified :
-        // c = (p1+p2)*c + p1*p2 + p1*p2*(p1+p2)*c
-        // c = (p1+p2)*c + p1*p2*(1+(p1+p2)*c))
-        let c_p1_p2 = cb1.xor(cb2).and(&carry);
-        carry = c_p1_p2.xor(&cb1.and(cb2).and(&c_p1_p2.xor(&one_bit)));
-    }
-
-    result
-}
 
 macro_rules! impl_homomorphic_addition_uint {
     ($($t:ty),+) => {
@@ -96,7 +67,7 @@ macro_rules! impl_homomorphic_addition_uint {
                 ///
                 /// `d/delta` on cipher must have been at least `21*sizeof::<T>()`.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    unsafe { Ciphered::new_from_raw(homomorph_add_internal(a, b)) }
+                    common::add(a, b)
                 }
             }
         )+
@@ -104,58 +75,6 @@ macro_rules! impl_homomorphic_addition_uint {
 }
 
 impl_homomorphic_addition_uint!(u8, u16, u32, usize, u64, u128);
-
-/// `a` and `b` must have the same length, equal to the number of bits
-///
-/// From <https://en.m.wikipedia.org/wiki/Binary_multiplier#Unsigned_integers>
-fn homomorph_mul_internal(a: &[CipheredBit], b: &[CipheredBit]) -> Vec<CipheredBit> {
-    // We stop before overflow as overflowed bits will be thrown away on decryption
-    let length = a.len();
-    let mut result = vec![CipheredBit::zero(); length];
-
-    let partial_products = a
-        .iter()
-        .map(|ai| b.iter().map(|bj| ai.and(bj)).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-
-    let mut carries = Vec::with_capacity((length - 1) * length * (length + 1) / 6);
-
-    unsafe {
-        core::hint::assert_unchecked(result.len() == length);
-        core::hint::assert_unchecked(partial_products.len() == length);
-    }
-
-    // TODO: Optimize this
-    let mut offset = 0;
-    for i in 0..length {
-        let current_length = i * (i + 1) / 2;
-
-        // Apply partial products
-        for (j, pj) in partial_products.iter().enumerate().take(i + 1) {
-            let pp = &pj[i - j];
-            if i + 1 < length {
-                carries.push(pp.and(&result[i]));
-            }
-            result[i] = result[i].xor(pp);
-        }
-        // Propagate carry
-        unsafe {
-            core::hint::assert_unchecked(offset + current_length <= carries.len());
-        }
-        for j in 0..current_length {
-            if i + 1 < length {
-                let t = result[i].and(&carries[offset + j]);
-                carries.push(t);
-            }
-            result[i] = result[i].xor(&carries[offset + j]);
-        }
-
-        offset += current_length;
-    }
-    // All subsequent carries are thrown away
-
-    result
-}
 
 macro_rules! impl_homomorphic_multiplication_uint {
     ($($t:ty),+) => {
@@ -167,7 +86,7 @@ macro_rules! impl_homomorphic_multiplication_uint {
                 ///
                 /// `d/delta` on cipher must have been at least TBD.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    unsafe { Ciphered::new_from_raw(homomorph_mul_internal(a, b)) }
+                    common::mul_unsigned(a, b)
                 }
             }
         )+

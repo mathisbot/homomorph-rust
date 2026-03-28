@@ -1,28 +1,32 @@
-//! This module defines the traits used to define homomorphic operations on ciphered data.
+//! Traits and helpers used to define and execute homomorphic operations.
 //!
-//! Currently, there are 3 traits that you can use :
-//!
-//! - `HomomorphicOperation1<T: Encode + Decode>`
-//! - `HomomorphicOperation2<T: Encode + Decode>`
-//! - `HomomorphicOperation<const N: usize, T: Encode + Decode>`
-//!
-//! The traits only bounds one function to implement, `apply`.
-//! The operation is performed on raw data, which means it takes `Ciphered<T>` as arguments.
-//!
-//! The first two traits takes respectively 1 and 2 refs on `Ciphered<T>`,
-//! while the last one takes a compile-time-known number of arguments as a slice of refs.
-//! The main idea behind the last trait is to allow the user to define operations on an arbitrary number of ciphered data
-//! while still benefiting from Rust's type system.
-//!
-//! Inside of the function, you can work with `Cipehered<T>` as if it were a `&Vec<CipheredBit>`
-//! (because `Cipehered<T>` implements `Deref<Vec<CipheredBit>`).
-//!
-//! From that point, all operations are highly unsafe as you are working with raw bits.
-//! For instance, can apply logic gates to the `CipheredBit`s.
+//! The low-level traits are unsafe because they operate on raw encrypted bits.
+//! For day-to-day usage, prefer the safe checked helpers on [`crate::Context`],
+//! which validate operation requirements before calling these traits.
 
 use crate::Ciphered;
 
-/// This trait is used to define homomorphic operations on a single ciphered data
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Error returned when checked homomorphic operations cannot run safely.
+pub enum OperationError {
+    /// The context does not satisfy the required minimum `d/delta` ratio.
+    InvalidParameters {
+        required_min_d_over_delta: u16,
+        actual_d: u16,
+        actual_delta: u16,
+    },
+}
+
+/// Metadata for homomorphic operations.
+///
+/// This allows safe wrappers to validate context parameters before delegating
+/// to unsafe low-level operation traits.
+pub trait OperationRequirement {
+    /// Minimum value required for `d/delta`.
+    const MIN_D_OVER_DELTA: u16;
+}
+
+/// This trait is used to define homomorphic operations on a single ciphered value.
 ///
 /// ## Safety
 ///
@@ -77,7 +81,7 @@ pub trait HomomorphicOperation1<T: crate::Encode + crate::Decode<()>> {
     unsafe fn apply(a: &mut Ciphered<T>) -> &mut Ciphered<T>;
 }
 
-/// This trait is used to define homomorphic operations between two ciphered data
+/// This trait is used to define homomorphic operations between two ciphered values.
 ///
 /// ## Safety
 ///
@@ -136,7 +140,7 @@ pub trait HomomorphicOperation2<T: crate::Encode + crate::Decode<()>> {
     unsafe fn apply(a: &Ciphered<T>, b: &Ciphered<T>) -> Ciphered<T>;
 }
 
-/// This trait is used to define homomorphic operations between a compile-time-known number of ciphered data
+/// This trait is used to define homomorphic operations for a compile-time-known number of ciphered values.
 ///
 /// ## Safety
 ///
