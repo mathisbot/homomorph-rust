@@ -66,7 +66,7 @@ use crate::Ciphered;
 ///     }
 /// }
 /// ```
-pub trait HomomorphicOperation1<T: crate::Encode + crate::Decode> {
+pub trait HomomorphicOperation1<T: crate::Encode + crate::Decode<()>> {
     /// ## Safety
     ///
     /// The function `apply` is marked as unsafe as it handles raw bits of data.
@@ -125,7 +125,7 @@ pub trait HomomorphicOperation1<T: crate::Encode + crate::Decode> {
 ///     }
 /// }
 /// ```
-pub trait HomomorphicOperation2<T: crate::Encode + crate::Decode> {
+pub trait HomomorphicOperation2<T: crate::Encode + crate::Decode<()>> {
     /// ## Safety
     ///
     /// The function `apply` is marked as unsafe as it handles raw bits of data.
@@ -197,7 +197,7 @@ pub trait HomomorphicOperation2<T: crate::Encode + crate::Decode> {
 /// let c = unsafe { MyOperation::apply([&a, &b]) };
 /// let d = Ciphered::decipher(&c, sk);
 /// ```
-pub trait HomomorphicOperation<const N: usize, T: crate::Encode + crate::Decode> {
+pub trait HomomorphicOperation<const N: usize, T: crate::Encode + crate::Decode<()>> {
     /// ## Safety
     ///
     /// The function `apply` is marked as unsafe as it handles raw bits of data.

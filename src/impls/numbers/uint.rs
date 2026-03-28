@@ -16,7 +16,7 @@ macro_rules! impl_homomorphic_gates_uint {
                 ///
                 /// `d/delta` on cipher must have been at least 2.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.and(b)).collect())
+                    unsafe { Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.and(b)).collect()) }
                 }
             }
 
@@ -27,7 +27,7 @@ macro_rules! impl_homomorphic_gates_uint {
                 ///
                 /// `d/delta` on cipher must have been at least 2.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.or(b)).collect())
+                    unsafe { Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.or(b)).collect()) }
                 }
             }
 
@@ -38,7 +38,7 @@ macro_rules! impl_homomorphic_gates_uint {
                 ///
                 /// `d/delta` on cipher must have been at least 1.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.xor(b)).collect())
+                    unsafe { Ciphered::new_from_raw(a.iter().zip(b.iter()).map(|(a, b)| a.xor(b)).collect()) }
                 }
             }
 
@@ -49,7 +49,7 @@ macro_rules! impl_homomorphic_gates_uint {
                 ///
                 /// `d/delta` on cipher must have been at least 1.
                 unsafe fn apply(a: &mut Ciphered<$t>) -> &mut Ciphered<$t> {
-                    *a = Ciphered::new_from_raw(a.iter().map(|a| a.not()).collect());
+                    *a = unsafe { Ciphered::new_from_raw(a.iter().map(|a| a.not()).collect()) };
                     a
                 }
             }
@@ -96,7 +96,7 @@ macro_rules! impl_homomorphic_addition_uint {
                 ///
                 /// `d/delta` on cipher must have been at least `21*sizeof::<T>()`.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    Ciphered::new_from_raw(homomorph_add_internal(a, b))
+                    unsafe { Ciphered::new_from_raw(homomorph_add_internal(a, b)) }
                 }
             }
         )+
@@ -167,7 +167,7 @@ macro_rules! impl_homomorphic_multiplication_uint {
                 ///
                 /// `d/delta` on cipher must have been at least TBD.
                 unsafe fn apply(a: &Ciphered<$t>, b: &Ciphered<$t>) -> Ciphered<$t> {
-                    Ciphered::new_from_raw(homomorph_mul_internal(a, b))
+                    unsafe { Ciphered::new_from_raw(homomorph_mul_internal(a, b)) }
                 }
             }
         )+
@@ -184,7 +184,7 @@ mod tests {
     };
     use crate::prelude::*;
 
-    use rand::{rng, Rng};
+    use rand::{RngExt as _, rng};
 
     #[test]
     fn test_homomorphic_and_gate() {

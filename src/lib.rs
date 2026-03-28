@@ -232,6 +232,7 @@
 //! You will also find very interesting details on the system and its security.
 #![no_std]
 #![deny(clippy::all)]
+#![forbid(unsafe_op_in_unsafe_fn)]
 #![warn(clippy::nursery, clippy::pedantic)]
 
 #[macro_use]

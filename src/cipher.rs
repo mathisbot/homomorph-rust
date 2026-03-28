@@ -82,7 +82,7 @@ impl CipheredBit {
     // u8 is used instead of bool because they are the same size
     // while u8 can store 8 times more information
     fn part(tau: usize) -> Vec<u8> {
-        let num_elements = (tau + 7) / 8;
+        let num_elements = tau.div_ceil(8);
         let mut part = vec![0; num_elements];
 
         getrandom::fill(&mut part).expect("failed to generate random data");
@@ -118,12 +118,12 @@ impl CipheredBit {
 
 /// This struct is used to create and store encrypted data
 #[derive(Debug, Clone)]
-pub struct Ciphered<T: crate::Encode + crate::Decode> {
+pub struct Ciphered<T: crate::Encode + crate::Decode<()>> {
     phantom: core::marker::PhantomData<T>,
     c_data: Vec<CipheredBit>,
 }
 
-impl<T: crate::Encode + crate::Decode> Ciphered<T> {
+impl<T: crate::Encode + crate::Decode<()>> Ciphered<T> {
     #[must_use]
     #[inline]
     /// This function is used to create a new `Ciphered` object
@@ -218,7 +218,7 @@ impl<T: crate::Encode + crate::Decode> Ciphered<T> {
     }
 }
 
-impl<T: crate::Encode + crate::Decode> core::ops::Deref for Ciphered<T> {
+impl<T: crate::Encode + crate::Decode<()>> core::ops::Deref for Ciphered<T> {
     type Target = [CipheredBit];
 
     fn deref(&self) -> &Self::Target {

@@ -367,7 +367,7 @@ impl Polynomial {
         // We are only writing into a single piece of memory.
         // It is equivalent to `self.degree = 0`, but volatile.
         unsafe {
-            core::ptr::write_volatile(&mut self.degree, core::mem::zeroed());
+            core::ptr::write_volatile(&raw mut self.degree, core::mem::zeroed());
         };
 
         // Zeroize coefficients
@@ -411,7 +411,7 @@ impl PartialEq for Polynomial {
 
 #[cfg(test)]
 mod tests {
-    use super::{Coefficient, Polynomial, BITS_PER_COEFF};
+    use super::{BITS_PER_COEFF, Coefficient, Polynomial};
     use alloc::boxed::Box;
 
     #[test]
