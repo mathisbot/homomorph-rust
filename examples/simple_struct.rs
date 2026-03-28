@@ -27,21 +27,21 @@ impl HomomorphicOperation2<Vec3> for Vec3Add {
         // Unwrap the first `Vec3`
         let (ax, a) = a.split_at(Coordinate::BITS as usize);
         let (ay, az) = a.split_at(Coordinate::BITS as usize);
-        let ax: Ciphered<Coordinate> = Ciphered::new_from_raw(ax.to_vec());
-        let ay: Ciphered<Coordinate> = Ciphered::new_from_raw(ay.to_vec());
-        let az: Ciphered<Coordinate> = Ciphered::new_from_raw(az.to_vec());
+        let ax: Ciphered<Coordinate> = unsafe { Ciphered::new_from_raw(ax.to_vec()) };
+        let ay: Ciphered<Coordinate> = unsafe { Ciphered::new_from_raw(ay.to_vec()) };
+        let az: Ciphered<Coordinate> = unsafe { Ciphered::new_from_raw(az.to_vec()) };
 
         // Unwrap the second `Vec3`
         let (bx, b) = b.split_at(Coordinate::BITS as usize);
         let (by, bz) = b.split_at(Coordinate::BITS as usize);
-        let bx: Ciphered<Coordinate> = Ciphered::new_from_raw(bx.to_vec());
-        let by: Ciphered<Coordinate> = Ciphered::new_from_raw(by.to_vec());
-        let bz: Ciphered<Coordinate> = Ciphered::new_from_raw(bz.to_vec());
+        let bx: Ciphered<Coordinate> = unsafe { Ciphered::new_from_raw(bx.to_vec()) };
+        let by: Ciphered<Coordinate> = unsafe { Ciphered::new_from_raw(by.to_vec()) };
+        let bz: Ciphered<Coordinate> = unsafe { Ciphered::new_from_raw(bz.to_vec()) };
 
         // Perform the already implemented homomorphic addition over `Coordinate`
-        let x = HomomorphicAddition::apply(&ax, &bx);
-        let y = HomomorphicAddition::apply(&ay, &by);
-        let z = HomomorphicAddition::apply(&az, &bz);
+        let x = unsafe { HomomorphicAddition::apply(&ax, &bx) };
+        let y = unsafe { HomomorphicAddition::apply(&ay, &by) };
+        let z = unsafe { HomomorphicAddition::apply(&az, &bz) };
 
         // Merge the results
         let mut res = Vec::with_capacity(x.len() + y.len() + z.len());
@@ -49,7 +49,7 @@ impl HomomorphicOperation2<Vec3> for Vec3Add {
         res.extend_from_slice(&y);
         res.extend_from_slice(&z);
 
-        Ciphered::new_from_raw(res)
+        unsafe { Ciphered::new_from_raw(res) }
     }
 }
 

@@ -30,21 +30,21 @@ impl HomomorphicOperation2<Unbalanced> for UnbalancedAdd {
         // Unwrap the first `Unbalanced`
         let (ax, a) = a.split_at(u8::BITS as usize);
         let (ay, az) = a.split_at(u64::BITS as usize);
-        let ax: Ciphered<u8> = Ciphered::new_from_raw(ax.to_vec());
-        let ay: Ciphered<u64> = Ciphered::new_from_raw(ay.to_vec());
-        let az: Ciphered<u8> = Ciphered::new_from_raw(az.to_vec());
+        let ax: Ciphered<u8> = unsafe { Ciphered::new_from_raw(ax.to_vec()) };
+        let ay: Ciphered<u64> = unsafe { Ciphered::new_from_raw(ay.to_vec()) };
+        let az: Ciphered<u8> = unsafe { Ciphered::new_from_raw(az.to_vec()) };
 
         // Unwrap the second `Unbalanced`
         let (bx, b) = b.split_at(u8::BITS as usize);
         let (by, bz) = b.split_at(u64::BITS as usize);
-        let bx: Ciphered<u8> = Ciphered::new_from_raw(bx.to_vec());
-        let by: Ciphered<u64> = Ciphered::new_from_raw(by.to_vec());
-        let bz: Ciphered<u8> = Ciphered::new_from_raw(bz.to_vec());
+        let bx: Ciphered<u8> = unsafe { Ciphered::new_from_raw(bx.to_vec()) };
+        let by: Ciphered<u64> = unsafe { Ciphered::new_from_raw(by.to_vec()) };
+        let bz: Ciphered<u8> = unsafe { Ciphered::new_from_raw(bz.to_vec()) };
 
         // Perform the already implemented homomorphic addition over `Coordinate`
-        let x = HomomorphicAddition::apply(&ax, &bx);
-        let y = HomomorphicAddition::apply(&ay, &by);
-        let z = HomomorphicAddition::apply(&az, &bz);
+        let x = unsafe { HomomorphicAddition::apply(&ax, &bx) };
+        let y = unsafe { HomomorphicAddition::apply(&ay, &by) };
+        let z = unsafe { HomomorphicAddition::apply(&az, &bz) };
 
         // Merge the results
         // Notice that here, the final size of the vector is not 8*sizeof::<Unbalanced>
@@ -54,7 +54,7 @@ impl HomomorphicOperation2<Unbalanced> for UnbalancedAdd {
         res.extend_from_slice(&y);
         res.extend_from_slice(&z);
 
-        Ciphered::new_from_raw(res)
+        unsafe { Ciphered::new_from_raw(res) }
     }
 }
 
