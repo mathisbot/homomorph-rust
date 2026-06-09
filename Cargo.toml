@@ -14,7 +14,7 @@ getrandom = "0.4.2"
 
 [dev-dependencies]
 criterion = "0.8.2"
-rand = "0.10.0"
+rand = "0.10.1"
 
 [features]
 derive = ["bincode/derive"]
